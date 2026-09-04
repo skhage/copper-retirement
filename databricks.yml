@@ -1,0 +1,19 @@
+bundle:
+  name: copper_retirement
+
+include:
+  - bundle/resources/*.yml
+
+variables:
+  catalog_name:
+    description: Root Unity Catalog catalog name for the Lumen copper-retirement demo.
+    default: lumen_copper
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://fevm-cmegdemos.cloud.databricks.com
+    variables:
+      catalog_name: lumen_copper
