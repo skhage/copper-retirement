@@ -1,3 +1,13 @@
+[project]
+name = "copper-retirement"
+version = "0.1.0"
+description = "Deterministic Databricks demo for prioritizing retirement of legacy copper serving areas."
+requires-python = ">=3.12"
+dependencies = [
+    "h3==4.5.0",
+    "pytest==9.1.1",
+]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]

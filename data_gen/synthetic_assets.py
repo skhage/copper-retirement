@@ -16,13 +16,20 @@ import h3
 
 H3_RESOLUTION = 9
 
-# Bounding box roughly covering legacy CenturyLink/Qwest Colorado Front Range
-# territory. Used only to place synthetic points on a plausible map extent —
-# no real addresses or plant locations are derived from this box.
-LAT_RANGE = (39.4, 40.3)
-LON_RANGE = (-105.4, -104.6)
+# Bounding boxes for the legacy CenturyLink/Qwest territory this demo
+# samples from, keyed by the state each box lies within. Used only to place
+# synthetic points on a plausible map extent — no real addresses or plant
+# locations are derived from these boxes. The generated `state` field is
+# always the state that owns the box a record's coordinates were drawn
+# from, so state and coordinates never disagree. Add more entries here (each
+# with its own non-overlapping lat/lon box) to extend the demo to additional
+# legacy states.
+STATE_BOUNDING_BOXES = {
+    # Colorado Front Range.
+    "CO": {"lat_range": (39.4, 40.3), "lon_range": (-105.4, -104.6)},
+}
 
-LEGACY_STATES = ["CO", "MN", "WA", "OR", "ID", "AZ"]
+LEGACY_STATES = list(STATE_BOUNDING_BOXES.keys())
 
 # Fixed normalization ceilings so scoring stays deterministic and
 # reviewable without needing the full generated distribution at hand.
@@ -33,13 +40,30 @@ COPPER_PRICE_USD_PER_LB = 4.35  # fixed reference price, not a live feed
 MAX_DIG_INCIDENT_RATE = 5.0
 
 
+class GenerationError(ValueError):
+    """Raised when `generate_serving_areas` receives an invalid `count`."""
+
+
+def _validate_count(count):
+    if isinstance(count, bool) or not isinstance(count, int):
+        raise GenerationError(
+            f"count must be a non-negative integer, got {count!r}"
+        )
+    if count < 0:
+        raise GenerationError(
+            f"count must be a non-negative integer, got {count!r}"
+        )
+
+
 def _make_asset_id(index):
     return f"SA-{index:05d}"
 
 
 def _sample_serving_area(rng, index):
-    lat = rng.uniform(*LAT_RANGE)
-    lon = rng.uniform(*LON_RANGE)
+    state = rng.choice(LEGACY_STATES)
+    box = STATE_BOUNDING_BOXES[state]
+    lat = rng.uniform(*box["lat_range"])
+    lon = rng.uniform(*box["lon_range"])
     h3_cell = h3.latlng_to_cell(lat, lon, H3_RESOLUTION)
 
     active_copper_lines = rng.randint(0, MAX_ACTIVE_COPPER_LINES)
@@ -53,7 +77,6 @@ def _sample_serving_area(rng, index):
         "fax_or_credit_card": rng.random() < 0.10,
     }
 
-    state = rng.choice(LEGACY_STATES)
     puc_docket_active = rng.random() < 0.20
     tribal_land_overlap = rng.random() < 0.05
 
@@ -91,6 +114,10 @@ def generate_serving_areas(count=500, seed=42):
     """Generate `count` deterministic synthetic serving-area records.
 
     Same (count, seed) always yields the same list, in the same order.
+
+    Raises `GenerationError` if `count` is not a non-negative integer (e.g.
+    negative, a float, or a non-numeric value).
     """
+    _validate_count(count)
     rng = random.Random(seed)
     return [_sample_serving_area(rng, i) for i in range(count)]

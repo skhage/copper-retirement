@@ -17,7 +17,16 @@ Score interpretation:
     retire first, per the "low-risk first" Wave 1 guidance.
   - `wave` buckets `readiness_score` into the three milestone waves from
     zero-copper-plan.md.
+
+Input validation contract: every numeric/monetary field consumed by scoring
+must be a finite, non-negative real number. Malformed values (wrong type,
+negative, NaN, or infinite) raise `ScoringError` naming the offending asset
+and field, rather than crashing with a raw `TypeError`/`ValueError`/
+`ZeroDivisionError`. An empty `critical_service_flags` mapping is a valid
+input (zero critical-service overlap), not an error.
 """
+
+import math
 
 from data_gen.synthetic_assets import (
     MAX_DIG_INCIDENT_RATE,
@@ -41,9 +50,73 @@ WAVE_THRESHOLDS = (
 )
 DEFAULT_WAVE = "wave_3"
 
+# Numeric fields consumed by scoring arithmetic, validated as finite and
+# non-negative before use. Values above the natural [0, 1] range for
+# fractional fields are still clamped downstream by `_clamp01` rather than
+# rejected, matching prior tolerant behavior for the upper bound.
+_REQUIRED_NUMERIC_FIELDS = (
+    "active_copper_lines",
+    "pots_only_households",
+    "fiber_overbuild_pct",
+    "soil_risk_score",
+    "permitting_complexity",
+    "colocated_utilities",
+    "historical_dig_incident_rate",
+    "recoverable_copper_lbs",
+    "copper_price_usd_per_lb",
+)
+
+
+class ScoringError(ValueError):
+    """Raised when a serving-area record fails scoring input validation."""
+
 
 def _clamp01(x):
     return max(0.0, min(1.0, x))
+
+
+def _asset_label(asset):
+    asset_id = asset.get("asset_id") if isinstance(asset, dict) else None
+    return str(asset_id) if asset_id is not None else "<unknown asset>"
+
+
+def _require_finite_nonnegative(asset, field_name):
+    if field_name not in asset:
+        raise ScoringError(
+            f"asset {_asset_label(asset)} is missing required field {field_name!r}"
+        )
+    value = asset[field_name]
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ScoringError(
+            f"asset {_asset_label(asset)} field {field_name!r} must be a "
+            f"finite non-negative number, got {value!r}"
+        )
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ScoringError(
+            f"asset {_asset_label(asset)} field {field_name!r} must be finite, "
+            f"got {value!r}"
+        )
+    if value < 0:
+        raise ScoringError(
+            f"asset {_asset_label(asset)} field {field_name!r} must be "
+            f"non-negative, got {value!r}"
+        )
+    return value
+
+
+def _validate_asset(asset):
+    if not isinstance(asset, dict):
+        raise ScoringError(f"asset must be a dict, got {type(asset).__name__}")
+
+    for field_name in _REQUIRED_NUMERIC_FIELDS:
+        _require_finite_nonnegative(asset, field_name)
+
+    flags = asset.get("critical_service_flags")
+    if not isinstance(flags, dict):
+        raise ScoringError(
+            f"asset {_asset_label(asset)} field 'critical_service_flags' "
+            f"must be a dict, got {type(flags).__name__}"
+        )
 
 
 def _subscriber_dependency_score(asset):
@@ -54,6 +127,10 @@ def _subscriber_dependency_score(asset):
 
 def _critical_service_score(asset):
     flags = asset["critical_service_flags"]
+    if not flags:
+        # No flags to check means no observed critical-service overlap, not
+        # an undefined (division-by-zero) result.
+        return 0.0
     return sum(1 for v in flags.values() if v) / len(flags)
 
 
@@ -95,7 +172,12 @@ def score_serving_area(asset):
 
     Returns a dict with per-dimension scores, the composite `risk_score`,
     `readiness_score`, `wave` bucket, and `commercial_value_usd`.
+
+    Raises `ScoringError` if `asset` is missing a required field or any
+    numeric/monetary field is malformed, negative, NaN, or infinite.
     """
+    _validate_asset(asset)
+
     dimension_scores = {
         "subscriber_dependency": _subscriber_dependency_score(asset),
         "critical_service_overlap": _critical_service_score(asset),
@@ -104,11 +186,23 @@ def score_serving_area(asset):
         "physical_dig_risk": _physical_dig_risk_score(asset),
     }
 
-    risk_score = sum(
-        dimension_scores[dimension] * weight
-        for dimension, weight in DIMENSION_WEIGHTS.items()
+    risk_score_raw = _clamp01(
+        sum(
+            dimension_scores[dimension] * weight
+            for dimension, weight in DIMENSION_WEIGHTS.items()
+        )
     )
-    risk_score = round(_clamp01(risk_score), 6)
+    readiness_score_raw = 1 - risk_score_raw
+
+    # Wave classification uses full-precision readiness so boundary values
+    # (e.g. exactly 0.66) are never nudged across a threshold by the display
+    # rounding applied below.
+    wave = _wave_for_readiness(readiness_score_raw)
+
+    risk_score = round(risk_score_raw, 6)
+    # Derive from the already-rounded risk_score (not readiness_score_raw)
+    # so risk_score + readiness_score always sums to exactly 1.0 after
+    # rounding, matching the documented complement invariant.
     readiness_score = round(1 - risk_score, 6)
 
     commercial_value_usd = round(
@@ -122,7 +216,7 @@ def score_serving_area(asset):
         "dimension_scores": {k: round(v, 6) for k, v in dimension_scores.items()},
         "risk_score": risk_score,
         "readiness_score": readiness_score,
-        "wave": _wave_for_readiness(readiness_score),
+        "wave": wave,
         "commercial_value_usd": commercial_value_usd,
     }
 
