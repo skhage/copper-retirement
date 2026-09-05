@@ -1,4 +1,4 @@
-ic# Lumen Copper Retirement — Databricks Demo: Master Architecture
+# Lumen Copper Retirement — Databricks Demo: Master Architecture
 
 ## Purpose
 This is the anchor document for a Databricks demo built for Lumen Technologies (CenturyLink/Qwest legacy footprint) showing an end-to-end Data Intelligence Platform solution for retiring copper plant and migrating to fiber/fixed-wireless alternatives. Use this doc as the top-level index; the companion docs listed below go deeper on each workstream. Build order should follow the numbered phases.
@@ -6,7 +6,7 @@ This is the anchor document for a Databricks demo built for Lumen Technologies (
 ## Business Context (why this matters now)
 - Lumen has committed to decommissioning most legacy copper by the end of 2029 and stopped accepting move/add/change orders for POTS in legacy CenturyLink territory starting May 1, 2025 [cite:1].
 - Lumen sold its consumer fiber business to AT&T for $5.75B in 2025 while retaining copper broadband/voice operations, and lost 310,000 legacy broadband subscribers (-21%) between Q4 2024 and Q4 2025 [cite:7].
-- In March 2026 the FCC eliminated Section 214 discontinuance applications and Section 251(c)(5) network change disclosures for copper retirement, leaving a 90-day customer notice as the only remaining federal requirement — this materially compresses the achievable retirement timeline and raises the importance of good sequencing and local/state coordination [cite:5][cite:11].
+- In March 2026 the FCC (Order FCC 26-19, adopted March 26, 2026) eliminated the Section 251(c)(5) network-change disclosure *FCC filing* and its public-notice/objection process for copper retirement, and **streamlined** — but did **not** eliminate — Section 214(a) discontinuance authorization (one consolidated tech-transition rule, 31-day automatic grants, blanket authority to grandfather certain legacy services, added 911-coordination requirements). Carriers still need Section 214 authorization when a retirement causes a service discontinuance, and the 90-day direct-notice requirement to residential customers remains. Net effect: the review/objection friction is materially reduced, raising the importance of good sequencing and local/state coordination [cite:5][cite:11].
 - State PUCs, governors, and Tribal governments still require notice (180 days for interconnecting/non-residential, 90 days residential) even though the federal review process is gone, so state-by-state regulatory tracking remains essential [cite:8].
 - Competing carriers (Verizon, Frontier, CenturyLink) are running parallel retirements through 2026–2029, meaning contractor/labor and commodity markets will be contested [cite:10].
 
