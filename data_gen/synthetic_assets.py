@@ -16,13 +16,79 @@ import h3
 
 H3_RESOLUTION = 9
 
-# Bounding box roughly covering legacy CenturyLink/Qwest Colorado Front Range
-# territory. Used only to place synthetic points on a plausible map extent —
-# no real addresses or plant locations are derived from this box.
-LAT_RANGE = (39.4, 40.3)
-LON_RANGE = (-105.4, -104.6)
-
 LEGACY_STATES = ["CO", "MN", "WA", "OR", "ID", "AZ"]
+
+# Per-state bounding boxes for realistic coordinate generation.
+# Each state maps to (lat_min, lat_max, lon_min, lon_max).
+# Used to place synthetic points within plausible geographic extents —
+# no real addresses or plant locations are derived from these boxes.
+STATE_BOUNDS = {
+    "CO": (37.00, 41.00, -109.06, -102.04),
+    "MN": (43.50, 49.38, -97.24, -89.49),
+    "WA": (45.54, 49.00, -124.85, -116.92),
+    "OR": (41.99, 46.29, -124.57, -116.46),
+    "ID": (42.00, 49.00, -117.24, -111.04),
+    "AZ": (31.33, 37.00, -114.81, -109.04),
+}
+
+# Full 50-state bounding boxes (used by fix_coordinates notebook and
+# any generator that needs to place points across all US states).
+STATE_BOUNDS_FULL = {
+    "AL": (30.22, 35.01, -88.47, -84.89),
+    "AK": (58.0, 64.85, -153.0, -134.0),
+    "AZ": (31.33, 37.00, -114.81, -109.04),
+    "AR": (33.00, 36.50, -94.62, -89.64),
+    "CA": (32.53, 42.01, -124.48, -114.13),
+    "CO": (37.00, 41.00, -109.06, -102.04),
+    "CT": (40.95, 42.05, -73.73, -71.79),
+    "DE": (38.45, 39.84, -75.79, -75.05),
+    "FL": (24.52, 31.00, -87.63, -80.03),
+    "GA": (30.36, 35.00, -85.61, -80.84),
+    "HI": (18.91, 22.24, -160.24, -154.81),
+    "ID": (42.00, 49.00, -117.24, -111.04),
+    "IL": (36.97, 42.51, -91.51, -87.02),
+    "IN": (37.77, 41.76, -88.10, -84.78),
+    "IA": (40.38, 43.50, -96.64, -90.14),
+    "KS": (36.99, 40.00, -102.05, -94.59),
+    "KY": (36.50, 39.15, -89.57, -81.96),
+    "LA": (28.93, 33.02, -94.04, -88.82),
+    "ME": (43.06, 47.46, -71.08, -66.95),
+    "MD": (37.91, 39.72, -79.49, -75.05),
+    "MA": (41.24, 42.89, -73.51, -69.93),
+    "MI": (41.70, 48.31, -90.42, -82.12),
+    "MN": (43.50, 49.38, -97.24, -89.49),
+    "MS": (30.17, 35.00, -91.66, -88.10),
+    "MO": (36.00, 40.61, -95.77, -89.10),
+    "MT": (44.36, 49.00, -116.05, -104.04),
+    "NE": (40.00, 43.00, -104.05, -95.31),
+    "NV": (35.00, 42.00, -120.01, -114.04),
+    "NH": (42.70, 45.31, -72.56, -70.70),
+    "NJ": (38.93, 41.36, -75.56, -73.89),
+    "NM": (31.33, 37.00, -109.05, -103.00),
+    "NY": (40.50, 45.02, -79.76, -71.86),
+    "NC": (33.84, 36.59, -84.32, -75.46),
+    "ND": (45.94, 49.00, -104.05, -96.56),
+    "OH": (38.40, 42.33, -84.82, -80.52),
+    "OK": (33.62, 37.00, -103.00, -94.43),
+    "OR": (41.99, 46.29, -124.57, -116.46),
+    "PA": (39.72, 42.27, -80.52, -74.69),
+    "RI": (41.15, 42.02, -71.86, -71.12),
+    "SC": (32.03, 35.22, -83.35, -78.54),
+    "SD": (42.48, 45.95, -104.06, -96.44),
+    "TN": (34.98, 36.68, -90.31, -81.65),
+    "TX": (25.84, 36.50, -106.65, -93.51),
+    "UT": (37.00, 42.00, -114.05, -109.04),
+    "VT": (42.73, 45.02, -73.44, -71.46),
+    "VA": (36.54, 39.47, -83.68, -75.24),
+    "WA": (45.54, 49.00, -124.85, -116.92),
+    "WV": (37.20, 40.64, -82.64, -77.72),
+    "WI": (42.49, 47.08, -92.89, -86.25),
+    "WY": (41.00, 45.00, -111.06, -104.05),
+}
+
+# Backward-compatible defaults (used if caller doesn't specify a state)
+LAT_RANGE = STATE_BOUNDS["CO"][:2]  # (37.00, 41.00)
+LON_RANGE = STATE_BOUNDS["CO"][2:]  # (-109.06, -102.04)
 
 # Fixed normalization ceilings so scoring stays deterministic and
 # reviewable without needing the full generated distribution at hand.
@@ -33,13 +99,29 @@ COPPER_PRICE_USD_PER_LB = 4.35  # fixed reference price, not a live feed
 MAX_DIG_INCIDENT_RATE = 5.0
 
 
+def generate_coords_for_state(rng, state_abbrev):
+    """Generate a (lat, lon) tuple within the bounding box for a US state.
+
+    Uses ``STATE_BOUNDS`` for LEGACY_STATES, falls back to
+    ``STATE_BOUNDS_FULL`` for all 50 states. Raises ``KeyError`` if the
+    abbreviation is unrecognized.
+    """
+    bounds = STATE_BOUNDS.get(state_abbrev) or STATE_BOUNDS_FULL[state_abbrev]
+    lat = round(rng.uniform(bounds[0], bounds[1]), 6)
+    lon = round(rng.uniform(bounds[2], bounds[3]), 6)
+    return lat, lon
+
+
 def _make_asset_id(index):
     return f"SA-{index:05d}"
 
 
 def _sample_serving_area(rng, index):
-    lat = rng.uniform(*LAT_RANGE)
-    lon = rng.uniform(*LON_RANGE)
+    # Pick a state first, then generate coords within that state's bounds
+    state = rng.choice(LEGACY_STATES)
+    bounds = STATE_BOUNDS[state]
+    lat = rng.uniform(bounds[0], bounds[1])
+    lon = rng.uniform(bounds[2], bounds[3])
     h3_cell = h3.latlng_to_cell(lat, lon, H3_RESOLUTION)
 
     active_copper_lines = rng.randint(0, MAX_ACTIVE_COPPER_LINES)
@@ -53,7 +135,6 @@ def _sample_serving_area(rng, index):
         "fax_or_credit_card": rng.random() < 0.10,
     }
 
-    state = rng.choice(LEGACY_STATES)
     puc_docket_active = rng.random() < 0.20
     tribal_land_overlap = rng.random() < 0.05
 
