@@ -1,6 +1,11 @@
 import h3
+import pytest
 
-from data_gen.synthetic_assets import H3_RESOLUTION, generate_serving_areas
+from data_gen.synthetic_assets import (
+    H3_RESOLUTION,
+    GenerationError,
+    generate_serving_areas,
+)
 
 
 def test_determinism_same_seed_same_count():
@@ -25,6 +30,8 @@ def test_count_and_unique_asset_ids():
 def test_all_records_are_labeled_synthetic():
     assets = generate_serving_areas(count=25, seed=42)
     assert all(a["source"] == "synthetic" for a in assets)
+    assert all(a["source_system"] == "simulated_lumen_oss_gis" for a in assets)
+    assert all(a["generation_seed"] == 42 for a in assets)
 
 
 def test_h3_cells_are_valid_and_at_configured_resolution():
@@ -50,3 +57,9 @@ def test_fractional_fields_within_expected_bounds():
         assert 0 <= asset["colocated_utilities"] <= 3
         assert 0.0 <= asset["historical_dig_incident_rate"]
         assert asset["recoverable_copper_lbs"] >= 0.0
+
+
+@pytest.mark.parametrize("count", [-1, 1.5, True, "10"])
+def test_invalid_count_is_rejected(count):
+    with pytest.raises(GenerationError, match="count must be a non-negative integer"):
+        generate_serving_areas(count=count, seed=42)

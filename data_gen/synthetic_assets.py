@@ -16,7 +16,16 @@ import h3
 
 H3_RESOLUTION = 9
 
-LEGACY_STATES = ["CO", "MN", "WA", "OR", "ID", "AZ"]
+STATE_BOUNDING_BOXES = {
+    "AZ": ((32.9, 33.8), (-112.5, -111.6)),
+    "CO": ((39.4, 40.3), (-105.4, -104.6)),
+    "ID": ((43.1, 44.0), (-116.8, -115.7)),
+    "MN": ((44.5, 45.4), (-94.0, -92.8)),
+    "OR": ((44.6, 45.6), (-123.5, -122.3)),
+    "WA": ((46.8, 47.8), (-122.8, -121.6)),
+}
+
+LEGACY_STATES = tuple(STATE_BOUNDING_BOXES)
 
 # Per-state bounding boxes for realistic coordinate generation.
 # Each state maps to (lat_min, lat_max, lon_min, lon_max).
@@ -97,6 +106,16 @@ MAX_POTS_ONLY_HOUSEHOLDS = 3000
 MAX_RECOVERABLE_COPPER_LBS = 200_000
 COPPER_PRICE_USD_PER_LB = 4.35  # fixed reference price, not a live feed
 MAX_DIG_INCIDENT_RATE = 5.0
+DATASET_VERSION = "2026.09"
+
+
+class GenerationError(ValueError):
+    """Raised when a generator receives an invalid argument."""
+
+
+def _validate_non_negative_integer(value, name):
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise GenerationError(f"{name} must be a non-negative integer, got {value!r}")
 
 
 def generate_coords_for_state(rng, state_abbrev):
@@ -117,11 +136,10 @@ def _make_asset_id(index):
 
 
 def _sample_serving_area(rng, index):
-    # Pick a state first, then generate coords within that state's bounds
     state = rng.choice(LEGACY_STATES)
-    bounds = STATE_BOUNDS[state]
-    lat = rng.uniform(bounds[0], bounds[1])
-    lon = rng.uniform(bounds[2], bounds[3])
+    lat_range, lon_range = STATE_BOUNDING_BOXES[state]
+    lat = rng.uniform(*lat_range)
+    lon = rng.uniform(*lon_range)
     h3_cell = h3.latlng_to_cell(lat, lon, H3_RESOLUTION)
 
     active_copper_lines = rng.randint(0, MAX_ACTIVE_COPPER_LINES)
@@ -148,6 +166,8 @@ def _sample_serving_area(rng, index):
     return {
         "asset_id": _make_asset_id(index),
         "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "dataset_version": DATASET_VERSION,
         "latitude": round(lat, 6),
         "longitude": round(lon, 6),
         "h3_cell": h3_cell,
@@ -173,5 +193,10 @@ def generate_serving_areas(count=500, seed=42):
 
     Same (count, seed) always yields the same list, in the same order.
     """
+    _validate_non_negative_integer(count, "count")
+    _validate_non_negative_integer(seed, "seed")
     rng = random.Random(seed)
-    return [_sample_serving_area(rng, i) for i in range(count)]
+    records = [_sample_serving_area(rng, i) for i in range(count)]
+    for record in records:
+        record["generation_seed"] = seed
+    return records

@@ -1,0 +1,39 @@
+{
+  "dataset_version": "2026.09",
+  "files": {
+    "circuit_inventory_csv": {
+      "format": "csv",
+      "path": "circuit_inventory.csv",
+      "record_count": 46,
+      "sha256": "5b1fd70b4838bc55548c150263d0218ff9ad18b6d079de7df7e5d467df951dcc"
+    },
+    "contractor_registry_csv": {
+      "format": "csv",
+      "path": "contractor_registry.csv",
+      "record_count": 12,
+      "sha256": "1a57825b7003cff6c908ea15fea99b7ffa33b18b81bd9b3a5b566ab4fbc3f376"
+    },
+    "copper_recovery_csv": {
+      "format": "csv",
+      "path": "copper_recovery.csv",
+      "record_count": 24,
+      "sha256": "67f69a1a97f46596f6c6915d894421a196931a0eb4c173ad6dd22c492beb429c"
+    },
+    "gis_assets_csv": {
+      "format": "csv",
+      "path": "gis_assets.csv",
+      "record_count": 24,
+      "sha256": "e2ef83c47b9e151f9dfef8989767c73a9e09134c52e240f7953c4130d5baf79b"
+    },
+    "gis_assets_geojson": {
+      "format": "geojson",
+      "path": "gis_assets.geojson",
+      "record_count": 24,
+      "sha256": "3974002e28327d10d67f167e085641cb8cc2ee5c8c2b482c5f571bba229fe553"
+    }
+  },
+  "generation_id": "0ea29531fb018e9b",
+  "generation_seed": 42,
+  "offline_generation": true,
+  "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS"
+}
