@@ -1,34 +1,66 @@
 resources:
+  external_locations:
+    lumen_copper_managed:
+      name: ${var.managed_external_location_name}
+      url: ${var.managed_storage_url}
+      credential_name: ${var.storage_credential_name}
+      comment: >-
+        Writable managed storage root for the copper-retirement catalog.
+        Uses an AWS IAM role-backed Unity Catalog storage credential.
+      read_only: false
+      skip_validation: false
+      fallback: false
+      enable_file_events: false
+      lifecycle:
+        prevent_destroy: true
+
+    lumen_copper_raw:
+      name: ${var.raw_external_location_name}
+      url: ${var.raw_storage_url}
+      credential_name: ${var.storage_credential_name}
+      comment: >-
+        Read-only landing location for synthetic and public raw source files.
+        Writes must use a separate governed ingestion path.
+      read_only: true
+      skip_validation: false
+      fallback: false
+      enable_file_events: false
+      lifecycle:
+        prevent_destroy: true
+
   catalogs:
     lumen_copper_catalog:
       name: ${var.catalog_name}
+      storage_root: ${resources.external_locations.lumen_copper_managed.url}
       comment: >-
         Lumen copper-retirement demo catalog. All data under this catalog is
         synthetic/simulated unless explicitly sourced from a public dataset
         (e.g. FCC BDC/Fabric); never real Lumen plant.
+      lifecycle:
+        prevent_destroy: true
 
   schemas:
     lumen_copper_bronze:
-      catalog_name: ${var.catalog_name}
+      catalog_name: ${resources.catalogs.lumen_copper_catalog.name}
       name: bronze
       comment: Raw landed sources (synthetic OSS/GIS, commodity, weather, contractor registry).
     lumen_copper_silver:
-      catalog_name: ${var.catalog_name}
+      catalog_name: ${resources.catalogs.lumen_copper_catalog.name}
       name: silver
       comment: Cleaned, conformed, H3-indexed tables.
     lumen_copper_gold:
-      catalog_name: ${var.catalog_name}
+      catalog_name: ${resources.catalogs.lumen_copper_catalog.name}
       name: gold
       comment: Business-ready tables (copper_retirement_readiness, commodity_price_features, etc).
     lumen_copper_ml:
-      catalog_name: ${var.catalog_name}
+      catalog_name: ${resources.catalogs.lumen_copper_catalog.name}
       name: ml
       comment: Model training tables, MLflow-linked feature tables, model artifacts metadata.
     lumen_copper_ops:
-      catalog_name: ${var.catalog_name}
+      catalog_name: ${resources.catalogs.lumen_copper_catalog.name}
       name: ops
       comment: Lakebase-synced operational tables (retirement plan, incidents, contractor assignments).
     lumen_copper_agents:
-      catalog_name: ${var.catalog_name}
+      catalog_name: ${resources.catalogs.lumen_copper_catalog.name}
       name: agents
       comment: Agent definitions, eval sets, and traces.

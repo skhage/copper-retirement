@@ -8,12 +8,24 @@ variables:
   catalog_name:
     description: Root Unity Catalog catalog name for the Lumen copper-retirement demo.
     default: lumen_copper
+  managed_external_location_name:
+    description: Unity Catalog external location that backs managed catalog storage.
+    default: lumen_copper_managed
+  managed_storage_url:
+    description: Dedicated, non-overlapping S3 prefix for managed catalog data (for example s3://bucket/copper-retirement/managed).
+  raw_external_location_name:
+    description: Read-only Unity Catalog external location for raw source files.
+    default: lumen_copper_raw
+  raw_storage_url:
+    description: Dedicated, non-overlapping S3 prefix for raw source files (for example s3://bucket/copper-retirement/raw).
+  storage_credential_name:
+    description: Existing Unity Catalog storage credential backed by an AWS IAM role; never supply access keys.
 
 targets:
   dev:
     mode: development
     default: true
     workspace:
-      host: https://fevm-cmegdemos.cloud.databricks.com
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
     variables:
       catalog_name: lumen_copper
