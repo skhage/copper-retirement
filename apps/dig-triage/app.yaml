@@ -1,0 +1,44 @@
+# app.yaml — Dig-Safe Triage Console (P7-TRIAGE)
+# Databricks Apps deployment config
+# Scaffold: analytics + lakebase (read incidents + write triage actions)
+
+name: dig-triage
+description: |
+  Dig-safe triage console for LakeLink Fiber's copper retirement program.
+  Demo Beat 3: "Dig crew hit something — triage/reroute fast?"
+  Incident map overlay, P6-TRIAGE agent chat, human-in-loop approve/reject.
+  All data is SYNTHETIC.
+
+# Governance tags — applied to the Databricks App resource on deploy
+# DAB bundle equivalent (bundle/databricks.yml):
+#   resources:
+#     apps:
+#       dig-triage:
+#         tags:
+#           project: copper-retirement
+#           developer: copper-app
+tags:
+  project: copper-retirement
+  developer: copper-app
+
+resources:
+  - name: sql-warehouse
+    type: sql_warehouse
+    # TODO: Set actual warehouse ID during deployment
+    # id: <WAREHOUSE_ID>
+
+# Features enabled via databricks apps init --features analytics,lakebase
+features:
+  - analytics
+  # - lakebase  # Enable once P5-SCHEMA lands
+
+# Environment variables (set during deploy)
+env:
+  - name: DATABRICKS_HOST
+    description: Workspace URL
+  - name: DATABRICKS_WAREHOUSE_ID
+    description: SQL warehouse ID for analytics queries
+  # - name: LAKEBASE_CONNECTION_STRING
+  #   description: Lakebase Postgres connection for write-back (P5-SCHEMA)
+  # - name: TRIAGE_AGENT_ENDPOINT
+  #   description: P6-TRIAGE agent Model Serving endpoint URL

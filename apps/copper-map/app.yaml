@@ -1,0 +1,12 @@
+# app.yaml — Copper Prioritization Map (P7-MAP)
+# Databricks Apps deployment config
+# Python/Dash app — Demo Beat 1
+
+command:
+  - python
+  - app.py
+
+env:
+  - name: DATABRICKS_WAREHOUSE_ID
+    description: SQL warehouse ID for future live-query mode
+    value: 7b65956f30d66feb

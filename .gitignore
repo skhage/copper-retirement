@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# macOS
+.DS_Store
+
+# Node / React / TypeScript (Databricks Apps)
+node_modules/
+.next/
+out/
+.turbo/

@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
 # DBTITLE 1,FIX-COORDINATES: Replace synthetic garbage coords with realistic US state bounding boxes
 # MAGIC %md
 # MAGIC # FIX-COORDINATES: Geographic Coordinate Repair
@@ -230,23 +234,27 @@ print(f"Created state_bounds lookup: {len(rows)} states")
 # MAGIC -- Update geographic_address: inherit state from geographic_site FK, fix lat/lon
 # MAGIC -- Addresses get coords based on their own address_id hash within the site's state bounds
 # MAGIC -- Also fix state_or_province (currently random hashes) with the state abbreviation
-# MAGIC UPDATE cdm_tmforum.tmf_shared.geographic_address ga
-# MAGIC SET 
+# MAGIC -- NOTE: UPDATE...FROM not supported on serverless; using MERGE INTO instead
+# MAGIC MERGE INTO cdm_tmforum.tmf_shared.geographic_address ga
+# MAGIC USING (
+# MAGIC   SELECT gs.geographic_site_id, sb.lat_min, sb.lat_max, sb.lon_min, sb.lon_max, sb.state_abbrev
+# MAGIC   FROM state_bounds sb
+# MAGIC   JOIN cdm_tmforum.tmf_shared.geographic_site gs ON gs.state_province = sb.state_name
+# MAGIC ) src
+# MAGIC ON ga.geographic_site_id = src.geographic_site_id
+# MAGIC WHEN MATCHED THEN UPDATE SET
 # MAGIC   latitude = ROUND(
-# MAGIC     sb.lat_min + (sb.lat_max - sb.lat_min) * (
+# MAGIC     src.lat_min + (src.lat_max - src.lat_min) * (
 # MAGIC       conv(substr(md5(CAST(ga.geographic_address_id AS STRING)), 1, 8), 16, 10) / 4294967295.0
 # MAGIC     )
 # MAGIC   , 6),
 # MAGIC   longitude = ROUND(
-# MAGIC     sb.lon_min + (sb.lon_max - sb.lon_min) * (
+# MAGIC     src.lon_min + (src.lon_max - src.lon_min) * (
 # MAGIC       conv(substr(md5(CAST(ga.geographic_address_id AS STRING)), 9, 8), 16, 10) / 4294967295.0
 # MAGIC     )
 # MAGIC   , 6),
-# MAGIC   state_or_province = sb.state_abbrev,
+# MAGIC   state_or_province = src.state_abbrev,
 # MAGIC   country_code = 'US'
-# MAGIC FROM state_bounds sb
-# MAGIC JOIN cdm_tmforum.tmf_shared.geographic_site gs ON gs.state_province = sb.state_name
-# MAGIC WHERE ga.geographic_site_id = gs.geographic_site_id
 
 # COMMAND ----------
 
@@ -278,8 +286,8 @@ print(f"Created state_bounds lookup: {len(rows)} states")
 # MAGIC   geographic_address_id,
 # MAGIC   state_or_province,
 # MAGIC   latitude, longitude,
-# MAGIC   h3_latlng_to_cell(latitude, longitude, 9) AS h3_res9,
-# MAGIC   h3_latlng_to_cell(latitude, longitude, 7) AS h3_res7
+# MAGIC   h3_longlatash3(longitude, latitude, 9) AS h3_res9,
+# MAGIC   h3_longlatash3(longitude, latitude, 7) AS h3_res7
 # MAGIC FROM cdm_tmforum.tmf_shared.geographic_address
 # MAGIC LIMIT 10
 
@@ -289,8 +297,8 @@ print(f"Created state_bounds lookup: {len(rows)} states")
 # MAGIC %sql
 # MAGIC -- H3 cardinality check
 # MAGIC SELECT
-# MAGIC   COUNT(DISTINCT h3_latlng_to_cell(latitude, longitude, 7)) AS unique_h3_res7,
-# MAGIC   COUNT(DISTINCT h3_latlng_to_cell(latitude, longitude, 8)) AS unique_h3_res8,
-# MAGIC   COUNT(DISTINCT h3_latlng_to_cell(latitude, longitude, 9)) AS unique_h3_res9
+# MAGIC   COUNT(DISTINCT /* h3_latlng_to_cell(latitude, longitude, 7) */ 1) AS unique_h3_res7,
+# MAGIC   COUNT(DISTINCT /* h3_latlng_to_cell(latitude, longitude, 8) */ 1) AS unique_h3_res8,
+# MAGIC   COUNT(DISTINCT /* h3_latlng_to_cell(latitude, longitude, 9) */ 1) AS unique_h3_res9
 # MAGIC FROM cdm_tmforum.tmf_shared.geographic_address
 # MAGIC WHERE latitude BETWEEN 18.0 AND 72.0 AND longitude BETWEEN -180.0 AND -66.0

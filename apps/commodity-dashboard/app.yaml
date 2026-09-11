@@ -1,0 +1,42 @@
+# app.yaml — Commodity & Workforce Dashboard (P7-COMMODITY)
+# Databricks Apps deployment config
+# Scaffold: analytics (read-only commodity + contractor data)
+
+name: commodity-dashboard
+description: |
+  Commodity & workforce dashboard for LakeLink Fiber's copper retirement program.
+  Demo Beat 5: "Who digs, and when do we sell copper?"
+  Copper price forecaster, sell/hold recommendation, recovered copper tracking,
+  contractor shortlist with performance scores and geographic assignment.
+  All data is SYNTHETIC.
+
+# Governance tags — applied to the Databricks App resource on deploy
+# DAB bundle equivalent (bundle/databricks.yml):
+#   resources:
+#     apps:
+#       commodity-dashboard:
+#         tags:
+#           project: copper-retirement
+#           developer: copper-app
+tags:
+  project: copper-retirement
+  developer: copper-app
+
+resources:
+  - name: sql-warehouse
+    type: sql_warehouse
+    # TODO: Set actual warehouse ID during deployment
+    # id: <WAREHOUSE_ID>
+
+# Features enabled via databricks apps init --features analytics
+features:
+  - analytics
+
+# Environment variables (set during deploy)
+env:
+  - name: DATABRICKS_HOST
+    description: Workspace URL
+  - name: DATABRICKS_WAREHOUSE_ID
+    description: SQL warehouse ID for analytics queries
+  # - name: COMMODITY_FORECAST_ENDPOINT
+  #   description: P4-COMMODITY model serving endpoint URL

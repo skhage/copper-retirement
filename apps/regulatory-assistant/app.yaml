@@ -1,0 +1,34 @@
+# app.yaml — Regulatory Assistant (P7-REG)
+# Databricks Apps deployment config
+# Demo Beat 4: "Are we clear on regs everywhere we touch?"
+
+name: regulatory-assistant
+description: |
+  Regulatory compliance assistant for LakeLink Fiber's copper retirement program.
+  Demo Beat 4: "Are we clear on regs everywhere we touch?"
+  Chat interface to P6-REG regulatory RAG agent with citation display,
+  jurisdiction map, compliance checklist, and document browser.
+  All data is SYNTHETIC.
+
+tags:
+  project: copper-retirement
+  developer: copper-app
+
+resources:
+  - name: sql-warehouse
+    type: sql_warehouse
+    # TODO: Set actual warehouse ID during deployment
+    # id: <WAREHOUSE_ID>
+
+# Features enabled via databricks apps init --features analytics
+features:
+  - analytics
+
+# Environment variables (set during deploy)
+env:
+  - name: DATABRICKS_HOST
+    description: Workspace URL
+  - name: DATABRICKS_WAREHOUSE_ID
+    description: SQL warehouse ID for analytics queries
+  - name: REG_AGENT_ENDPOINT
+    description: P6-REG agent Model Serving endpoint URL (optional — falls back to mock)
