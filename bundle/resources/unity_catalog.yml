@@ -1,34 +1,37 @@
 resources:
-  catalogs:
-    lumen_copper_catalog:
-      name: ${var.catalog_name}
-      comment: >-
-        Lumen copper-retirement demo catalog. All data under this catalog is
-        synthetic/simulated unless explicitly sourced from a public dataset
-        (e.g. FCC BDC/Fabric); never real Lumen plant.
+  # NOTE: cdm_tmforum catalog is pre-existing (16 schemas, 520 tables — TMF SID data model).
+  # DAB manages only the schemas below; the catalog itself is not created by this bundle.
+  # Per PM-DECISION-CATALOG (2026-09-11): all synthetic/pipeline tables → cdm_tmforum.copper_retirement.
 
   schemas:
-    lumen_copper_bronze:
+    copper_retirement:
+      catalog_name: ${var.catalog_name}
+      name: copper_retirement
+      comment: >-
+        Synthetic and pipeline-generated tables for copper retirement project.
+        Contains DATAGEN outputs, gold aggregates, ML features, and agent artifacts.
+        Per PM-DECISION-CATALOG: unified schema for all project-generated data.
+    copper_bronze:
       catalog_name: ${var.catalog_name}
       name: bronze
       comment: Raw landed sources (synthetic OSS/GIS, commodity, weather, contractor registry).
-    lumen_copper_silver:
+    copper_silver:
       catalog_name: ${var.catalog_name}
       name: silver
       comment: Cleaned, conformed, H3-indexed tables.
-    lumen_copper_gold:
+    copper_gold:
       catalog_name: ${var.catalog_name}
       name: gold
       comment: Business-ready tables (copper_retirement_readiness, commodity_price_features, etc).
-    lumen_copper_ml:
+    copper_ml:
       catalog_name: ${var.catalog_name}
       name: ml
       comment: Model training tables, MLflow-linked feature tables, model artifacts metadata.
-    lumen_copper_ops:
+    copper_ops:
       catalog_name: ${var.catalog_name}
       name: ops
       comment: Lakebase-synced operational tables (retirement plan, incidents, contractor assignments).
-    lumen_copper_agents:
+    copper_agents:
       catalog_name: ${var.catalog_name}
       name: agents
       comment: Agent definitions, eval sets, and traces.

@@ -6,8 +6,8 @@ include:
 
 variables:
   catalog_name:
-    description: Root Unity Catalog catalog name for the Lumen copper-retirement demo.
-    default: lumen_copper
+    description: Unity Catalog catalog for the copper-retirement project (pre-existing TMF SID catalog).
+    default: cdm_tmforum
 
 targets:
   dev:
@@ -16,4 +16,4 @@ targets:
     workspace:
       host: https://fevm-cmegdemos.cloud.databricks.com
     variables:
-      catalog_name: lumen_copper
+      catalog_name: cdm_tmforum
