@@ -1,0 +1,1615 @@
+{
+  "features": [
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -121.90784,
+              46.91035
+            ],
+            [
+              -121.906647,
+              46.911901
+            ],
+            [
+              -121.908031,
+              46.913237
+            ],
+            [
+              -121.910607,
+              46.913022
+            ],
+            [
+              -121.911799,
+              46.91147
+            ],
+            [
+              -121.910416,
+              46.910134
+            ],
+            [
+              -121.90784,
+              46.91035
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00000",
+      "properties": {
+        "active_copper_lines": 2006,
+        "asset_id": "SA-00000",
+        "colocated_utilities": 1,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": true,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.14,
+        "generation_seed": 42,
+        "h3_cell": "8928d4b162fffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 3.58,
+        "permitting_complexity": 0.602,
+        "pots_only_households": 457,
+        "puc_docket_active": true,
+        "recoverable_copper_lbs": 140265.0,
+        "soil_risk_score": 0.233,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "WA",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -93.291618,
+              44.700295
+            ],
+            [
+              -93.293361,
+              44.69899
+            ],
+            [
+              -93.292528,
+              44.697252
+            ],
+            [
+              -93.289951,
+              44.696819
+            ],
+            [
+              -93.288207,
+              44.698123
+            ],
+            [
+              -93.289041,
+              44.699861
+            ],
+            [
+              -93.291618,
+              44.700295
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00001",
+      "properties": {
+        "active_copper_lines": 53,
+        "asset_id": "SA-00001",
+        "colocated_utilities": 2,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.806,
+        "generation_seed": 42,
+        "h3_cell": "89262cc7477ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 4.036,
+        "permitting_complexity": 0.847,
+        "pots_only_households": 48,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 145946.4,
+        "soil_risk_score": 0.097,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "MN",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -122.393485,
+              44.723861
+            ],
+            [
+              -122.392334,
+              44.725453
+            ],
+            [
+              -122.393686,
+              44.726829
+            ],
+            [
+              -122.396191,
+              44.726613
+            ],
+            [
+              -122.397342,
+              44.725021
+            ],
+            [
+              -122.395989,
+              44.723645
+            ],
+            [
+              -122.393485,
+              44.723861
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00002",
+      "properties": {
+        "active_copper_lines": 645,
+        "asset_id": "SA-00002",
+        "colocated_utilities": 1,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.293,
+        "generation_seed": 42,
+        "h3_cell": "8928f473563ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 4.332,
+        "permitting_complexity": 0.985,
+        "pots_only_households": 565,
+        "puc_docket_active": true,
+        "recoverable_copper_lbs": 76025.2,
+        "soil_risk_score": 0.773,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "OR",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -93.563475,
+              45.074996
+            ],
+            [
+              -93.565223,
+              45.073682
+            ],
+            [
+              -93.564373,
+              45.071941
+            ],
+            [
+              -93.561774,
+              45.071514
+            ],
+            [
+              -93.560025,
+              45.072828
+            ],
+            [
+              -93.560876,
+              45.074569
+            ],
+            [
+              -93.563475,
+              45.074996
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00003",
+      "properties": {
+        "active_copper_lines": 3032,
+        "asset_id": "SA-00003",
+        "colocated_utilities": 1,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.21,
+        "generation_seed": 42,
+        "h3_cell": "892621b5b43ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 3.423,
+        "permitting_complexity": 0.379,
+        "pots_only_households": 1455,
+        "puc_docket_active": true,
+        "recoverable_copper_lbs": 168570.4,
+        "soil_risk_score": 0.163,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "MN",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -112.469993,
+              33.103674
+            ],
+            [
+              -112.468769,
+              33.105338
+            ],
+            [
+              -112.469883,
+              33.107035
+            ],
+            [
+              -112.472219,
+              33.107068
+            ],
+            [
+              -112.473443,
+              33.105404
+            ],
+            [
+              -112.472329,
+              33.103707
+            ],
+            [
+              -112.469993,
+              33.103674
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00004",
+      "properties": {
+        "active_copper_lines": 2584,
+        "asset_id": "SA-00004",
+        "colocated_utilities": 2,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.268,
+        "generation_seed": 42,
+        "h3_cell": "8948e9766a3ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 0.698,
+        "permitting_complexity": 0.459,
+        "pots_only_households": 1643,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 148997.8,
+        "soil_risk_score": 0.915,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "AZ",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -122.795961,
+              44.861304
+            ],
+            [
+              -122.794818,
+              44.862896
+            ],
+            [
+              -122.796176,
+              44.864262
+            ],
+            [
+              -122.798677,
+              44.864037
+            ],
+            [
+              -122.79982,
+              44.862445
+            ],
+            [
+              -122.798462,
+              44.861079
+            ],
+            [
+              -122.795961,
+              44.861304
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00005",
+      "properties": {
+        "active_copper_lines": 4780,
+        "asset_id": "SA-00005",
+        "colocated_utilities": 0,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.362,
+        "generation_seed": 42,
+        "h3_cell": "8928f428447ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 1.924,
+        "permitting_complexity": 0.68,
+        "pots_only_households": 1635,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 119177.7,
+        "soil_risk_score": 0.16,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "OR",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -92.836123,
+              44.976988
+            ],
+            [
+              -92.837894,
+              44.975685
+            ],
+            [
+              -92.837071,
+              44.973938
+            ],
+            [
+              -92.834478,
+              44.973494
+            ],
+            [
+              -92.832708,
+              44.974797
+            ],
+            [
+              -92.83353,
+              44.976544
+            ],
+            [
+              -92.836123,
+              44.976988
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00006",
+      "properties": {
+        "active_copper_lines": 94,
+        "asset_id": "SA-00006",
+        "colocated_utilities": 2,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.721,
+        "generation_seed": 42,
+        "h3_cell": "89275266d03ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 4.859,
+        "permitting_complexity": 0.954,
+        "pots_only_households": 87,
+        "puc_docket_active": true,
+        "recoverable_copper_lbs": 152392.4,
+        "soil_risk_score": 0.454,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "MN",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -122.455321,
+              45.511547
+            ],
+            [
+              -122.454161,
+              45.513126
+            ],
+            [
+              -122.455526,
+              45.514484
+            ],
+            [
+              -122.458051,
+              45.514263
+            ],
+            [
+              -122.459211,
+              45.512684
+            ],
+            [
+              -122.457846,
+              45.511326
+            ],
+            [
+              -122.455321,
+              45.511547
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00007",
+      "properties": {
+        "active_copper_lines": 2444,
+        "asset_id": "SA-00007",
+        "colocated_utilities": 2,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.609,
+        "generation_seed": 42,
+        "h3_cell": "8928f019c93ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 4.394,
+        "permitting_complexity": 0.019,
+        "pots_only_households": 2079,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 166333.1,
+        "soil_risk_score": 0.324,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "OR",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": true
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -116.53369,
+              43.313196
+            ],
+            [
+              -116.532423,
+              43.314771
+            ],
+            [
+              -116.533702,
+              43.316264
+            ],
+            [
+              -116.536248,
+              43.31618
+            ],
+            [
+              -116.537515,
+              43.314605
+            ],
+            [
+              -116.536236,
+              43.313113
+            ],
+            [
+              -116.53369,
+              43.313196
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00008",
+      "properties": {
+        "active_copper_lines": 4647,
+        "asset_id": "SA-00008",
+        "colocated_utilities": 3,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": true
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.086,
+        "generation_seed": 42,
+        "h3_cell": "892884aadb7ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 4.822,
+        "permitting_complexity": 0.265,
+        "pots_only_households": 322,
+        "puc_docket_active": true,
+        "recoverable_copper_lbs": 185782.7,
+        "soil_risk_score": 0.55,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "ID",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -121.942641,
+              47.490013
+            ],
+            [
+              -121.941441,
+              47.491554
+            ],
+            [
+              -121.942834,
+              47.492876
+            ],
+            [
+              -121.945427,
+              47.492657
+            ],
+            [
+              -121.946627,
+              47.491116
+            ],
+            [
+              -121.945234,
+              47.489794
+            ],
+            [
+              -121.942641,
+              47.490013
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00009",
+      "properties": {
+        "active_copper_lines": 3268,
+        "asset_id": "SA-00009",
+        "colocated_utilities": 0,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.65,
+        "generation_seed": 42,
+        "h3_cell": "8928d42523bffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 3.539,
+        "permitting_complexity": 0.22,
+        "pots_only_households": 2751,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 11774.8,
+        "soil_risk_score": 0.23,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "WA",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -111.726677,
+              33.714218
+            ],
+            [
+              -111.725435,
+              33.715871
+            ],
+            [
+              -111.726545,
+              33.717569
+            ],
+            [
+              -111.728897,
+              33.717615
+            ],
+            [
+              -111.730139,
+              33.715962
+            ],
+            [
+              -111.729029,
+              33.714264
+            ],
+            [
+              -111.726677,
+              33.714218
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00010",
+      "properties": {
+        "active_copper_lines": 580,
+        "asset_id": "SA-00010",
+        "colocated_utilities": 1,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.238,
+        "generation_seed": 42,
+        "h3_cell": "8948eb35817ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 0.472,
+        "permitting_complexity": 0.807,
+        "pots_only_households": 526,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 131796.5,
+        "soil_risk_score": 0.785,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "AZ",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -116.285496,
+              43.478907
+            ],
+            [
+              -116.284222,
+              43.480478
+            ],
+            [
+              -116.2855,
+              43.48197
+            ],
+            [
+              -116.288053,
+              43.481892
+            ],
+            [
+              -116.289328,
+              43.480321
+            ],
+            [
+              -116.288049,
+              43.478829
+            ],
+            [
+              -116.285496,
+              43.478907
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00011",
+      "properties": {
+        "active_copper_lines": 443,
+        "asset_id": "SA-00011",
+        "colocated_utilities": 1,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": true
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.653,
+        "generation_seed": 42,
+        "h3_cell": "89288404b87ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 1.393,
+        "permitting_complexity": 0.14,
+        "pots_only_households": 344,
+        "puc_docket_active": true,
+        "recoverable_copper_lbs": 49961.3,
+        "soil_risk_score": 0.536,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "ID",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -111.721942,
+              33.297761
+            ],
+            [
+              -111.720705,
+              33.299417
+            ],
+            [
+              -111.72181,
+              33.301119
+            ],
+            [
+              -111.724154,
+              33.301166
+            ],
+            [
+              -111.725392,
+              33.29951
+            ],
+            [
+              -111.724286,
+              33.297807
+            ],
+            [
+              -111.721942,
+              33.297761
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00012",
+      "properties": {
+        "active_copper_lines": 4508,
+        "asset_id": "SA-00012",
+        "colocated_utilities": 3,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.051,
+        "generation_seed": 42,
+        "h3_cell": "8948eba3387ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 4.512,
+        "permitting_complexity": 0.214,
+        "pots_only_households": 401,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 32927.4,
+        "soil_risk_score": 0.486,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "AZ",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -112.260634,
+              33.783714
+            ],
+            [
+              -112.2594,
+              33.785371
+            ],
+            [
+              -112.260518,
+              33.787063
+            ],
+            [
+              -112.262869,
+              33.787098
+            ],
+            [
+              -112.264103,
+              33.785441
+            ],
+            [
+              -112.262986,
+              33.783749
+            ],
+            [
+              -112.260634,
+              33.783714
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00013",
+      "properties": {
+        "active_copper_lines": 3727,
+        "asset_id": "SA-00013",
+        "colocated_utilities": 0,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.423,
+        "generation_seed": 42,
+        "h3_cell": "8929b6c436fffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 3.74,
+        "permitting_complexity": 0.579,
+        "pots_only_households": 1168,
+        "puc_docket_active": true,
+        "recoverable_copper_lbs": 11433.1,
+        "soil_risk_score": 0.969,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "AZ",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -122.394724,
+              45.075238
+            ],
+            [
+              -122.393569,
+              45.076824
+            ],
+            [
+              -122.394927,
+              45.078192
+            ],
+            [
+              -122.397441,
+              45.077974
+            ],
+            [
+              -122.398597,
+              45.076388
+            ],
+            [
+              -122.397238,
+              45.07502
+            ],
+            [
+              -122.394724,
+              45.075238
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00014",
+      "properties": {
+        "active_copper_lines": 4350,
+        "asset_id": "SA-00014",
+        "colocated_utilities": 0,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": true,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.057,
+        "generation_seed": 42,
+        "h3_cell": "8928f46d18bffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 3.097,
+        "permitting_complexity": 0.57,
+        "pots_only_households": 644,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 83845.0,
+        "soil_risk_score": 0.942,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "OR",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -123.120876,
+              45.164268
+            ],
+            [
+              -123.119737,
+              45.165856
+            ],
+            [
+              -123.121102,
+              45.167211
+            ],
+            [
+              -123.123605,
+              45.166977
+            ],
+            [
+              -123.124744,
+              45.165389
+            ],
+            [
+              -123.12338,
+              45.164034
+            ],
+            [
+              -123.120876,
+              45.164268
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00015",
+      "properties": {
+        "active_copper_lines": 2136,
+        "asset_id": "SA-00015",
+        "colocated_utilities": 0,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.67,
+        "generation_seed": 42,
+        "h3_cell": "8928f549383ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 0.366,
+        "permitting_complexity": 0.009,
+        "pots_only_households": 836,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 42630.9,
+        "soil_risk_score": 0.936,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "OR",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -116.415018,
+              43.217228
+            ],
+            [
+              -116.41375,
+              43.218803
+            ],
+            [
+              -116.415026,
+              43.220299
+            ],
+            [
+              -116.417571,
+              43.220219
+            ],
+            [
+              -116.418839,
+              43.218643
+            ],
+            [
+              -116.417563,
+              43.217148
+            ],
+            [
+              -116.415018,
+              43.217228
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00016",
+      "properties": {
+        "active_copper_lines": 563,
+        "asset_id": "SA-00016",
+        "colocated_utilities": 2,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.37,
+        "generation_seed": 42,
+        "h3_cell": "892884b833bffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 4.659,
+        "permitting_complexity": 0.817,
+        "pots_only_households": 250,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 20717.3,
+        "soil_risk_score": 0.008,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "ID",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -104.687427,
+              39.634901
+            ],
+            [
+              -104.686009,
+              39.636406
+            ],
+            [
+              -104.687068,
+              39.638092
+            ],
+            [
+              -104.689545,
+              39.638274
+            ],
+            [
+              -104.690963,
+              39.63677
+            ],
+            [
+              -104.689904,
+              39.635083
+            ],
+            [
+              -104.687427,
+              39.634901
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00017",
+      "properties": {
+        "active_copper_lines": 4532,
+        "asset_id": "SA-00017",
+        "colocated_utilities": 0,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.272,
+        "generation_seed": 42,
+        "h3_cell": "89268cc64d7ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 3.171,
+        "permitting_complexity": 0.846,
+        "pots_only_households": 636,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 165869.6,
+        "soil_risk_score": 0.905,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "CO",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -111.804086,
+              32.900625
+            ],
+            [
+              -111.802854,
+              32.902285
+            ],
+            [
+              -111.803957,
+              32.903991
+            ],
+            [
+              -111.806292,
+              32.904037
+            ],
+            [
+              -111.807524,
+              32.902377
+            ],
+            [
+              -111.806421,
+              32.900671
+            ],
+            [
+              -111.804086,
+              32.900625
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00018",
+      "properties": {
+        "active_copper_lines": 2145,
+        "asset_id": "SA-00018",
+        "colocated_utilities": 1,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": true,
+          "fax_or_credit_card": true,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.741,
+        "generation_seed": 42,
+        "h3_cell": "8948e958a77ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 2.149,
+        "permitting_complexity": 0.835,
+        "pots_only_households": 661,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 8365.8,
+        "soil_risk_score": 0.546,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "AZ",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -115.924131,
+              43.908119
+            ],
+            [
+              -115.922842,
+              43.909679
+            ],
+            [
+              -115.924122,
+              43.911167
+            ],
+            [
+              -115.926691,
+              43.911096
+            ],
+            [
+              -115.927979,
+              43.909536
+            ],
+            [
+              -115.926699,
+              43.908047
+            ],
+            [
+              -115.924131,
+              43.908119
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00019",
+      "properties": {
+        "active_copper_lines": 326,
+        "asset_id": "SA-00019",
+        "colocated_utilities": 1,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.21,
+        "generation_seed": 42,
+        "h3_cell": "8928846cdc7ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 4.881,
+        "permitting_complexity": 0.93,
+        "pots_only_households": 183,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 162154.3,
+        "soil_risk_score": 0.155,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "ID",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -93.117611,
+              44.523912
+            ],
+            [
+              -93.119354,
+              44.522613
+            ],
+            [
+              -93.118529,
+              44.520876
+            ],
+            [
+              -93.115963,
+              44.520438
+            ],
+            [
+              -93.11422,
+              44.521737
+            ],
+            [
+              -93.115044,
+              44.523474
+            ],
+            [
+              -93.117611,
+              44.523912
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00020",
+      "properties": {
+        "active_copper_lines": 2721,
+        "asset_id": "SA-00020",
+        "colocated_utilities": 3,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.802,
+        "generation_seed": 42,
+        "h3_cell": "89262c10213ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 1.748,
+        "permitting_complexity": 0.222,
+        "pots_only_households": 1686,
+        "puc_docket_active": true,
+        "recoverable_copper_lbs": 164107.3,
+        "soil_risk_score": 0.859,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "MN",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -104.871117,
+              39.600007
+            ],
+            [
+              -104.869702,
+              39.601514
+            ],
+            [
+              -104.870764,
+              39.603199
+            ],
+            [
+              -104.873241,
+              39.603378
+            ],
+            [
+              -104.874657,
+              39.601871
+            ],
+            [
+              -104.873594,
+              39.600185
+            ],
+            [
+              -104.871117,
+              39.600007
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00021",
+      "properties": {
+        "active_copper_lines": 3264,
+        "asset_id": "SA-00021",
+        "colocated_utilities": 2,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": true,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.279,
+        "generation_seed": 42,
+        "h3_cell": "89268cc0e77ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 0.893,
+        "permitting_complexity": 0.028,
+        "pots_only_households": 1344,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 192506.9,
+        "soil_risk_score": 0.331,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "CO",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -116.143893,
+              43.131668
+            ],
+            [
+              -116.14262,
+              43.133242
+            ],
+            [
+              -116.143892,
+              43.134744
+            ],
+            [
+              -116.146437,
+              43.13467
+            ],
+            [
+              -116.14771,
+              43.133095
+            ],
+            [
+              -116.146438,
+              43.131594
+            ],
+            [
+              -116.143893,
+              43.131668
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00022",
+      "properties": {
+        "active_copper_lines": 2831,
+        "asset_id": "SA-00022",
+        "colocated_utilities": 1,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.436,
+        "generation_seed": 42,
+        "h3_cell": "8928848d013ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 1.821,
+        "permitting_complexity": 0.807,
+        "pots_only_households": 1284,
+        "puc_docket_active": true,
+        "recoverable_copper_lbs": 13994.8,
+        "soil_risk_score": 0.52,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "ID",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              -122.052282,
+              47.719261
+            ],
+            [
+              -122.051082,
+              47.720798
+            ],
+            [
+              -122.05248,
+              47.722113
+            ],
+            [
+              -122.055078,
+              47.721891
+            ],
+            [
+              -122.056278,
+              47.720354
+            ],
+            [
+              -122.05488,
+              47.719039
+            ],
+            [
+              -122.052282,
+              47.719261
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": "SA-00023",
+      "properties": {
+        "active_copper_lines": 1020,
+        "asset_id": "SA-00023",
+        "colocated_utilities": 1,
+        "copper_price_usd_per_lb": 4.35,
+        "critical_service_flags": {
+          "alarm_system": false,
+          "e911_backup": false,
+          "fax_or_credit_card": false,
+          "medical_monitoring": false
+        },
+        "dataset_version": "2026.09",
+        "fiber_overbuild_pct": 0.9,
+        "generation_seed": 42,
+        "h3_cell": "8928d548443ffff",
+        "h3_resolution": 9,
+        "historical_dig_incident_rate": 3.078,
+        "permitting_complexity": 0.379,
+        "pots_only_households": 737,
+        "puc_docket_active": false,
+        "recoverable_copper_lbs": 60190.0,
+        "soil_risk_score": 0.665,
+        "source": "synthetic",
+        "source_system": "simulated_lumen_oss_gis",
+        "state": "WA",
+        "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+        "tribal_land_overlap": false
+      },
+      "type": "Feature"
+    }
+  ],
+  "name": "synthetic_copper_serving_areas",
+  "synthetic_data_notice": "SYNTHETIC DEMO DATA - NOT REAL LUMEN PLANT OR OPERATIONS",
+  "type": "FeatureCollection"
+}
