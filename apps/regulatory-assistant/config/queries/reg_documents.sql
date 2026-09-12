@@ -22,7 +22,8 @@ SELECT
   d.effective_end_date,
   d.description
 FROM cdm_tmforum.tmf_shared.document d
-WHERE d.classification IN ('legal', 'regulatory', 'compliance', 'policy')
+WHERE (d.type IN ('policy', 'compliance_document', 'regulatory_filing', 'agreement', 'license')
+       OR d.nature IN ('regulatory', 'administrative', 'legal'))
   AND (
     :document_type_filter = ''
     OR d.type = :document_type_filter

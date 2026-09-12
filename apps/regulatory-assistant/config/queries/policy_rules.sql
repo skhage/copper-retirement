@@ -17,16 +17,15 @@ SELECT
   p.effective_start_date,
   p.effective_end_date,
   pr.policy_rule_id,
-  pr.rule_name,
+  pr.name                AS rule_name,
   pr.rule_category,
   pr.rule_type,
-  pr.rule_status,
-  pr.severity_level,
+  pr.status              AS rule_status,
   pr.threshold_value,
-  pr.enforcement_action
+  pr.enforcement_scope   AS enforcement_action
 FROM cdm_tmforum.tmf_marketsales.policy p
 JOIN cdm_tmforum.tmf_marketsales.policy_rule pr
-  ON p.policy_id = pr.policy_id
+  ON p.policy_set_id = pr.policy_set_id
 WHERE (
     p.type LIKE '%regulatory%'
     OR p.type LIKE '%compliance%'

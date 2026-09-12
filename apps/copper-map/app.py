@@ -2,20 +2,41 @@
 LakeLink Fiber — Copper Retirement Program
 Demo Beat 1: "Where is our copper / risk of touching it?"
 
-Python/Dash implementation of the React/AppKit scaffold.
-Uses mock data until FIX-COORDINATES + P2-H3 + P4-RISK land.
-All data is SYNTHETIC.
+Python/Dash implementation with LIVE DATA from cdm_tmforum catalog.
+Set LIVE_DATA=true to query real tables via SQL warehouse.
+Fallback to mock data if SQL warehouse unavailable.
+All underlying data is SYNTHETIC (generated for demo).
+
+@app-developer 2026-09-12 — UPGRADE-COPPER-MAP-LIVE-DATA
+Bugs fixed:
+  - ga.city → ga.locality (column name mismatch)
+  - customer.geographic_address_id doesn't exist → join via CFS
+  - h3_res9 is 100% NULL → compute H3 on-the-fly with h3_longlatash3()
 """
 import os
+import logging
 import dash
 from dash import html, dcc, dash_table, Input, Output
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 
+logger = logging.getLogger(__name__)
+
 # ── Configuration ──────────────────────────────────────────────────────────────
 APP_PORT = int(os.environ.get("DATABRICKS_APP_PORT", 8000))
+LIVE_DATA = os.environ.get("LIVE_DATA", "true").lower() in ("true", "1", "yes")
 
-# ── Mock Data (translated from client/src/mock/mockData.ts) ───────────────────
+# ── Live data loading ───────────────────────────────────────────────────────────
+_live_ok = False
+if LIVE_DATA:
+    try:
+        from data import load_hex_cells, load_kpis, load_devices, load_filter_options
+        _live_ok = True
+        logger.info("[copper-map] Live data module loaded. Querying cdm_tmforum.")
+    except Exception as e:
+        logger.warning(f"[copper-map] Live data unavailable ({e}). Using mock data.")
+
+# ── Mock Data (fallback when LIVE_DATA=false or SQL unavailable) ─────────────
 RISK_COLORS = {"critical": "#EB1600", "high": "#FF8C00", "medium": "#FFD700", "low": "#40D1F5"}
 
 HEX_CELLS = [
@@ -58,9 +79,36 @@ KPIS = {
     "states": 6, "wire_centers": 200,
 }
 
-STATES = sorted(set(c["state"] for c in HEX_CELLS))
+# ── Bootstrap initial data (live or mock) ─────────────────────────────────────
+if _live_ok:
+    try:
+        logger.info("[copper-map] Loading initial data from cdm_tmforum...")
+        HEX_CELLS = load_hex_cells()
+        KPIS = load_kpis()
+        DEVICES = load_devices()
+        _filter_opts = load_filter_options()
+        KPIS.setdefault("wire_centers", "TBD")
+        DATA_SOURCE = "LIVE"
+        logger.info(f"[copper-map] Loaded {len(HEX_CELLS)} hex cells, "
+                    f"{len(DEVICES)} devices from live catalog.")
+    except Exception as e:
+        logger.warning(f"[copper-map] Live query failed ({e}). Falling back to mock.")
+        _live_ok = False
+        DATA_SOURCE = "MOCK"
+
+if not _live_ok:
+    DATA_SOURCE = "MOCK"
+    _filter_opts = None
+    logger.info("[copper-map] Using mock data.")
+
+if _filter_opts:
+    STATES = sorted(_filter_opts.get("state", []))
+    DEVICE_TYPES = sorted(_filter_opts.get("device_type", []))
+else:
+    STATES = sorted(set(c["state"] for c in HEX_CELLS))
+    DEVICE_TYPES = sorted(set(d["type"] for d in DEVICES))
+
 TIERS = ["critical", "high", "medium", "low"]
-DEVICE_TYPES = sorted(set(d["type"] for d in DEVICES))
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -141,20 +189,36 @@ def build_map(cells):
 
 
 def filter_cells(state_val, tier_val):
-    cells = HEX_CELLS
-    if state_val:
-        cells = [c for c in cells if c["state"] == state_val]
+    """Filter hex cells. In LIVE mode, re-queries with state filter."""
+    if _live_ok and state_val:
+        try:
+            cells = load_hex_cells(state_filter=state_val)
+        except Exception:
+            cells = HEX_CELLS
+    else:
+        cells = HEX_CELLS
+    if state_val and not _live_ok:
+        cells = [c for c in cells if c.get("state") == state_val]
     if tier_val:
-        cells = [c for c in cells if c["tier"] == tier_val]
+        cells = [c for c in cells if c.get("tier") == tier_val]
     return cells
 
 
 def filter_devices(state_val, type_val):
+    """Filter devices. In LIVE mode, re-queries with filters."""
+    if _live_ok and (state_val or type_val):
+        try:
+            return load_devices(
+                state_filter=state_val or "",
+                device_type=type_val or "",
+            )
+        except Exception:
+            pass
     devs = DEVICES
     if state_val:
-        devs = [d for d in devs if d["state"] == state_val]
+        devs = [d for d in devs if d.get("state") == state_val]
     if type_val:
-        devs = [d for d in devs if d["type"] == type_val]
+        devs = [d for d in devs if d.get("type") == type_val]
     return devs
 
 
@@ -176,11 +240,13 @@ app.layout = dbc.Container([
                    style={"fontSize": "0.85rem", "color": "#64748b",
                           "marginBottom": 0}),
         ], width="auto"),
-        dbc.Col(
-            dbc.Badge("SYNTHETIC DATA", color="warning",
-                      style={"fontSize": "0.7rem", "verticalAlign": "middle"}),
-            width="auto", className="d-flex align-items-center",
-        ),
+        dbc.Col([
+            dbc.Badge(
+                f"{'LIVE DATA' if DATA_SOURCE == 'LIVE' else 'MOCK DATA'} \u2022 SYNTHETIC",
+                color="info" if DATA_SOURCE == "LIVE" else "warning",
+                style={"fontSize": "0.7rem", "verticalAlign": "middle"},
+            ),
+        ], width="auto", className="d-flex align-items-center"),
     ], className="mb-3 mt-2", justify="between"),
 
     # ── KPI Row ──
@@ -193,11 +259,18 @@ app.layout = dbc.Container([
             "Critical Risk", f"{KPIS['pct_crit']}%", RISK_COLORS["critical"],
             f"{KPIS['crit_alarms']:,} critical alarms",
         ), md=3),
-        dbc.Col(kpi_card("Total Alarms", f"{KPIS['alarms']:,}", "#fbbf24"), md=2),
+        dbc.Col(kpi_card(
+            "Revenue at Risk",
+            f"${KPIS.get('revenue_at_risk_mrr', 0):,}/mo" if KPIS.get('revenue_at_risk_mrr') else f"{KPIS['alarms']:,} alarms",
+            "#fbbf24",
+            f"{KPIS.get('customers_on_copper', 0):,} customers" if KPIS.get('customers_on_copper') else None,
+        ), md=2),
         dbc.Col(kpi_card("States", str(KPIS["states"]), "#34d399"), md=2),
         dbc.Col(kpi_card(
-            "Wire Centers", str(KPIS["wire_centers"]), "#a78bfa",
-            "Pending generation",
+            "Services Affected",
+            f"{KPIS.get('services_affected', 0):,}" if KPIS.get('services_affected') else str(KPIS.get("wire_centers", "TBD")),
+            "#a78bfa",
+            "copper voice/broadband/fixed",
         ), md=2),
     ], className="mb-3 g-2"),
 

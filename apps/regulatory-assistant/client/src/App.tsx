@@ -71,7 +71,7 @@ export default function App() {
                 className="border rounded px-2 py-1 text-sm bg-background"
               >
                 <option value="all">All States</option>
-                <option value="CA">California</option>
+                <option value="CO">Colorado</option>
                 <option value="WA">Washington</option>
                 <option value="OR">Oregon</option>
                 <option value="AZ">Arizona</option>

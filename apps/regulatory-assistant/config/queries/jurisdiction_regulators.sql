@@ -11,12 +11,12 @@ SELECT
   r.jurisdiction,
   r.authority_level,     -- federal, state_puc, municipal
   r.status,              -- active, inactive, merged, etc.
-  r.regulatory_domain,
-  r.contact_name,
+  r.regulatory_framework,
+  r.contact_authority_name,
   r.contact_email,
   r.website_url,
-  r.effective_start_date,
-  r.effective_end_date
+  r.established_date,
+  r.dissolution_date
 FROM cdm_tmforum.tmf_enterprise.regulator r
 WHERE r.status = 'active'
   AND (

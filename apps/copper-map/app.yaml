@@ -8,5 +8,11 @@ command:
 
 env:
   - name: DATABRICKS_WAREHOUSE_ID
-    description: SQL warehouse ID for future live-query mode
+    description: SQL warehouse ID for live data queries
     value: 7b65956f30d66feb
+  - name: LIVE_DATA
+    description: Set to 'true' to query cdm_tmforum live, 'false' for mock data
+    value: "true"
+  - name: H3_RESOLUTION
+    description: H3 resolution for map aggregation (4=coarse US-wide, 8=fine)
+    value: "4"

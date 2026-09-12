@@ -22,21 +22,6 @@ tags:
   project: copper-retirement
   developer: copper-app
 
-resources:
-  - name: sql-warehouse
-    type: sql_warehouse
-    # TODO: Set actual warehouse ID during deployment
-    # id: <WAREHOUSE_ID>
-
-# Features enabled via databricks apps init --features analytics
-features:
-  - analytics
-
-# Environment variables (set during deploy)
 env:
-  - name: DATABRICKS_HOST
-    description: Workspace URL
   - name: DATABRICKS_WAREHOUSE_ID
-    description: SQL warehouse ID for analytics queries
-  # - name: COMMODITY_FORECAST_ENDPOINT
-  #   description: P4-COMMODITY model serving endpoint URL
+    value: "7b65956f30d66feb"

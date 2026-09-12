@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Regulatory Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            background: '#ffffff',
+            foreground: '#0f172a',
+            primary: { DEFAULT: '#1e40af', foreground: '#ffffff' },
+            muted: { DEFAULT: '#f1f5f9', foreground: '#64748b' },
+            border: '#e2e8f0',
+          },
+        },
+      },
+    };
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

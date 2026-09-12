@@ -18,7 +18,8 @@ SELECT
 
   (SELECT COUNT(*)
    FROM cdm_tmforum.tmf_shared.document
-   WHERE classification IN ('legal', 'regulatory', 'compliance', 'policy')) AS documents_indexed,
+   WHERE type IN ('policy', 'compliance_document', 'regulatory_filing', 'agreement', 'license')
+     OR nature IN ('regulatory', 'administrative', 'legal')) AS documents_indexed,
 
   (SELECT COUNT(DISTINCT geographic_scope)
    FROM cdm_tmforum.tmf_marketsales.policy

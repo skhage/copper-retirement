@@ -137,7 +137,7 @@ User question
 
 | Filter | Source | Values |
 |---|---|---|
-| **State** | `tmf_enterprise.regulator.jurisdiction` + synthetic `state_puc_requirements` | 6 LEGACY_STATES (CA, WA, OR, AZ, MN, ID) + Federal |
+| **State** | `tmf_enterprise.regulator.jurisdiction` + synthetic `state_puc_requirements` | 6 LEGACY_STATES (CO, WA, OR, AZ, MN, ID) + Federal |
 | **Regulator type** | `regulator.type` | federal, state_puc, municipal |
 | **Compliance status** | Computed from checklist | clear, pending, blocked, overdue |
 | **Requirement type** | Synthetic `regulatory_requirements_by_jurisdiction` | section_214, state_puc_filing, residential_notice, 911_coordination, environmental |
@@ -215,6 +215,8 @@ User question
 
 ### Decision Gate: P0-DATAGEN-REG vs PROFILE-POLICY-RULES
 
+> **RESOLVED 2026-09-12** — @data-planner confirmed all policy/rule text is 100% hashes. Full synthesis via P0-DATAGEN-REG is mandatory.
+
 @data-analyst `PROFILE-POLICY-RULES` task will determine whether the 110K rows in `policy` + `policy_rule` contain **meaningful regulatory content** or are entirely synthetic hashes. This decision affects P7-REG UX:
 
 | If PROFILE-POLICY-RULES finds... | Impact on P7-REG |
@@ -242,12 +244,12 @@ A clickable demo of Demo Beat 4 that works **before P6-REG agent, P0-DATAGEN-REG
 | 2 | "Do we still need Section 214 authorization?" | YES — still required when copper retirement causes service discontinuance. FCC 26-19 eliminated Section 251(c)(5) filing, NOT Section 214. | FCC 26-19 para. 23-31 |
 | 3 | "What notice do we give residential customers?" | 90-day direct notice to affected residential customers. Required even under streamlined rules. | FCC 26-19 para. 55-58, 47 CFR §63.71 |
 | 4 | "What changed with FCC 26-19?" | Eliminated Section 251(c)(5) network-change FCC filing. Streamlined 214(a): 31-day auto-grants, blanket grandfathering, added 911 coordination. | FCC 26-19 full order |
-| 5 | "What are California's requirements?" | CPUC has additional requirements: Advice Letter filing (90 days), environmental review under CEQA, low-income program transition (Lifeline). | CPUC D.XX-XX-XXX |
+| 5 | "What are Colorado's requirements?" | Colorado PUC (CPUC) requires 90-day notice aligned with federal baseline, broadband availability certification in retirement area, and rural service continuity plan. Lifeline transition coordination required. | 4 CCR 723-2-XXX |
 | 6 | "911 coordination requirements?" | FCC 26-19 added 911-coordination requirement. Must notify PSAPs and coordinate with 911 authorities before copper retirement in area. | FCC 26-19 para. 62-67 |
 | 7 | "What's the timeline for copper retirement in Oregon?" | Oregon PUC requires 120-day advance notice (longer than federal 90-day). Environmental impact assessment for rural areas. | OAR 860-023-0XXX |
 | 8 | "Can we retire mid-contract?" | No — active MSA/contract constrains timing. Must wait for contract expiration or negotiate early termination. Check `ironclad_clm_source.contract_record` for active contracts. | Contract terms + FCC guidance |
 | 9 | "What about wholesale/reseller customers?" | Different notice requirements for wholesale vs retail. Wholesale: 180-day notice per interconnection agreements. Retail: 90-day per FCC 26-19. | FCC 26-19 para. 71-75, ICA terms |
-| 10 | "Environmental requirements for underground copper?" | Varies by state. CA: CEQA review. OR: DEQ notification. AZ: minimal. Federal: no blanket EPA requirement for copper removal. | State-specific environmental regs |
+| 10 | "Environmental requirements for underground copper?" | Varies by state. CO: CPUC notification. OR: DEQ notification. AZ: minimal. Federal: no blanket EPA requirement for copper removal. | State-specific environmental regs |
 | 11 | "What is blanket grandfathering authority?" | FCC 26-19 grants carriers blanket authority to grandfather copper services — can transition customers to equivalent service without individual tariff filings. | FCC 26-19 para. 38-42 |
 | 12 | "Notice requirements for Idaho?" | Idaho PUC follows federal baseline: 90-day residential notice, Section 214 when applicable. No additional state-specific copper retirement rules as of 2026. | IDAPA 31.XX.XX |
 | 13 | "Arizona PUC requirements?" | ACC (Arizona Corporation Commission): 90-day notice aligned with federal. Requires alternative service plan filed 60 days before retirement date. | AAC R14-2-XXX |
@@ -256,10 +258,10 @@ A clickable demo of Demo Beat 4 that works **before P6-REG agent, P0-DATAGEN-REG
 
 #### 7.2 Mock Jurisdiction Data (6 states + Federal)
 
-| Jurisdiction | Regulator | Notice Period | Filing Type | Section 214 Required | Residential Notice | Special Requirements |
+| Jurisdiction | Regulator | puc_notice_days | Filing Type | Section 214 Required | residential_notice_days | Special Requirements |
 |---|---|---|---|---|---|---|
 | Federal | FCC | 90 days | Section 214(a) | Yes (when discontinuance) | 90 days direct | 911 coordination, blanket grandfathering |
-| California | CPUC | 90 days + Advice Letter | Advice Letter + 214 | Yes | 90 days | CEQA environmental review, Lifeline transition |
+| Colorado | CPUC | 90 days | CPUC Filing + 214 | Yes | 90 days | Broadband availability certification, rural service continuity |
 | Washington | WUTC | 90 days | WUTC Filing + 214 | Yes | 90 days | 911 coordination certificate, migration plan |
 | Oregon | OPUC | 120 days | OPUC Filing + 214 | Yes | 120 days | Rural environmental assessment, extended notice |
 | Arizona | ACC | 90 days | ACC Filing + 214 | Yes | 90 days | Alternative service plan (60 days before) |
@@ -273,7 +275,7 @@ A clickable demo of Demo Beat 4 that works **before P6-REG agent, P0-DATAGEN-REG
 | DOC-001 | FCC 26-19: Accelerating Wireline Broadband Deployment | fcc_order | Federal | 2026-04-15 |
 | DOC-002 | 47 CFR §63.71 — Procedures for Discontinuance | federal_regulation | Federal | 2024-01-01 |
 | DOC-003 | Section 214(a) Streamlined Application Guide | guidance | Federal | 2026-05-01 |
-| DOC-004 | CPUC Advice Letter Requirements for Network Changes | puc_docket | California | 2025-08-01 |
+| DOC-004 | CPUC Network Retirement Notice Requirements | puc_docket | Colorado | 2025-08-01 |
 | DOC-005 | Oregon PUC Copper Retirement Notice Requirements | puc_docket | Oregon | 2025-03-15 |
 | DOC-006 | MN PUC Cold-Weather Service Continuity Standards | puc_docket | Minnesota | 2024-11-01 |
 | DOC-007 | 911 Coordination Requirements for Network Transitions | guidance | Federal | 2026-04-15 |

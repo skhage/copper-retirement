@@ -1,6 +1,6 @@
 -- device_detail.sql
 -- Per-device detail for a selected H3 hex cell or state filter
--- This query works NOW with existing data (no blockers)
+-- This query works NOW with empty h3_cell param; h3_cell filtering requires P2-H3
 --
 -- Parameters:
 --   :h3_cell      - H3 cell index or '' for all
@@ -16,7 +16,7 @@ SELECT
   CAST(ga.latitude AS DOUBLE)                       AS latitude,
   CAST(ga.longitude AS DOUBLE)                      AS longitude,
   ga.state_or_province                              AS state,
-  ga.city,
+  ga.locality                         AS city,
   -- Alarm counts per device
   COUNT(DISTINCT a.alarm_id)                        AS alarm_count,
   SUM(CASE WHEN a.perceived_severity = 'critical' THEN 1 ELSE 0 END) AS critical_alarms,
@@ -30,12 +30,12 @@ INNER JOIN cdm_tmforum.tmf_shared.geographic_address ga
 LEFT JOIN cdm_tmforum.tmf_resource.alarm a
   ON a.physical_resource_id = pd.physical_device_id
 WHERE pd.device_type IN ('cpe', 'ont', 'olt', 'patch_panel')
-  AND (:h3_cell = '' OR ga.h3_index = :h3_cell)
+  AND (:h3_cell = '' OR ga.h3_res9 = CAST(:h3_cell AS BIGINT))
   AND (:state_filter = '' OR ga.state_or_province = :state_filter)
   AND (:device_type = '' OR pd.device_type = :device_type)
 GROUP BY
   pd.physical_device_id, pd.device_type, pd.serial_number,
   pd.status, pd.installation_date,
-  ga.latitude, ga.longitude, ga.state_or_province, ga.city
+  ga.latitude, ga.longitude, ga.state_or_province, ga.locality
 ORDER BY critical_alarms DESC, alarm_count DESC
 LIMIT 100

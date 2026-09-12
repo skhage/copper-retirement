@@ -2,6 +2,11 @@
 # Databricks Apps deployment config
 # Demo Beat 4: "Are we clear on regs everywhere we touch?"
 
+command:
+  - sh
+  - -c
+  - "npm install && npm run build && npm start"
+
 name: regulatory-assistant
 description: |
   Regulatory compliance assistant for LakeLink Fiber's copper retirement program.

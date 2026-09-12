@@ -117,10 +117,10 @@ const MOCK_QA: AgentQA[] = [
   },
   {
     id: 5,
-    question: "What are California's requirements?",
-    answer: "California (CPUC) imposes additional requirements beyond federal rules: (1) Advice Letter filing to CPUC at least 90 days in advance. (2) Environmental review under CEQA for underground plant removal. (3) Lifeline program transition plan for low-income subscribers. (4) State-level 911 coordination with Cal OES. California's notice period is effectively 120 days when accounting for CPUC processing.",
+    question: "What are Colorado's requirements?",
+    answer: "Colorado PUC (CPUC) requires 90-day advance notice aligned with the federal baseline: (1) CPUC filing with broadband availability certification demonstrating replacement service meets or exceeds retired service in the retirement area. (2) Rural service continuity plan for areas with limited alternatives. (3) Lifeline program transition coordination for low-income subscribers. (4) No separate state environmental review (unlike some states).",
     citations: [
-      { id: 6, document_title: 'CPUC Decision D.XX-XX-XXX: Copper Retirement Procedures', paragraph_ref: 'Section III.A', effective_date: '2025-01-15', jurisdiction: 'California', excerpt: 'The Commission requires carriers to file an Advice Letter at least 90 days before planned copper retirement, with environmental review under CEQA for underground facilities...', confidence: 'medium', doc_id: 'CPUC-DXX' },
+      { id: 6, document_title: 'CPUC Rule 4 CCR 723-2: Copper Retirement Procedures', paragraph_ref: 'Section III.A', effective_date: '2025-01-15', jurisdiction: 'Colorado', excerpt: 'The Commission requires carriers to file notice at least 90 days before planned copper retirement, with broadband availability certification demonstrating adequate replacement service...', confidence: 'medium', doc_id: 'CPUC-4CCR' },
     ],
   },
   {
@@ -150,7 +150,7 @@ const MOCK_QA: AgentQA[] = [
   {
     id: 9,
     question: 'What are the penalties for non-compliance?',
-    answer: 'Non-compliance with Section 214 requirements can result in: (1) FCC enforcement action including fines up to $100,000 per violation per day. (2) State PUC penalties vary by jurisdiction (CA: up to $100,000/day, OR: up to $10,000/day). (3) Forced service restoration if retirement proceeds without proper authorization. (4) Citizen complaints triggering formal FCC proceedings.',
+    answer: 'Non-compliance with Section 214 requirements can result in: (1) FCC enforcement action including fines up to $100,000 per violation per day. (2) State PUC penalties vary by jurisdiction (CO: up to $50,000/day, OR: up to $10,000/day). (3) Forced service restoration if retirement proceeds without proper authorization. (4) Citizen complaints triggering formal FCC proceedings.',
     citations: [
       { id: 10, document_title: '47 U.S.C. §503(b): Forfeiture Penalties', paragraph_ref: '§503(b)(2)(B)', effective_date: '2021-01-01', jurisdiction: 'Federal', excerpt: 'Any person who willfully or repeatedly fails to comply with the provisions of this Act shall be liable for a forfeiture penalty...', confidence: 'high', doc_id: 'USC-47-503' },
     ],
@@ -158,7 +158,7 @@ const MOCK_QA: AgentQA[] = [
   {
     id: 10,
     question: 'How do we handle Lifeline subscribers?',
-    answer: 'Lifeline subscribers require special handling during copper retirement: (1) Must be individually notified with language-accessible communications. (2) Migration to equivalent-or-better Lifeline service must be arranged at no cost to the subscriber. (3) California requires a specific Lifeline transition plan filed with CPUC. (4) Federal Lifeline obligations continue regardless of technology transition.',
+    answer: 'Lifeline subscribers require special handling during copper retirement: (1) Must be individually notified with language-accessible communications. (2) Migration to equivalent-or-better Lifeline service must be arranged at no cost to the subscriber. (3) Colorado requires Lifeline transition coordination with CPUC. (4) Federal Lifeline obligations continue regardless of technology transition.',
     citations: [
       { id: 11, document_title: 'FCC 26-19: Accelerating Wireline Broadband Deployment', paragraph_ref: 'para. 71-74', effective_date: '2026-04-15', jurisdiction: 'Federal', excerpt: 'Carriers must ensure that Lifeline-eligible subscribers maintain access to equivalent or superior service during and after technology transitions...', confidence: 'high', doc_id: 'FCC-26-19' },
     ],
@@ -168,7 +168,7 @@ const MOCK_QA: AgentQA[] = [
 // --- Mock jurisdiction data (6 LEGACY_STATES from synthetic_assets.py) ---
 
 const MOCK_JURISDICTIONS: JurisdictionRow[] = [
-  { state: 'CA', state_name: 'California', federal_regulator: 'FCC', state_puc: 'CPUC', notice_period_days: 120, filing_type: 'Advice Letter + Section 214', section_214_required: true, residential_notice_days: 90, compliance_status: 'pending', pending_filings: 3, next_deadline: '2026-11-15' },
+  { state: 'CO', state_name: 'Colorado', federal_regulator: 'FCC', state_puc: 'CPUC', notice_period_days: 90, filing_type: 'CPUC Filing + Section 214', section_214_required: true, residential_notice_days: 90, compliance_status: 'pending', pending_filings: 3, next_deadline: '2026-11-15' },
   { state: 'WA', state_name: 'Washington', federal_regulator: 'FCC', state_puc: 'WUTC', notice_period_days: 90, filing_type: 'Section 214', section_214_required: true, residential_notice_days: 90, compliance_status: 'clear', pending_filings: 0, next_deadline: '2027-01-20' },
   { state: 'OR', state_name: 'Oregon', federal_regulator: 'FCC', state_puc: 'Oregon PUC', notice_period_days: 120, filing_type: 'AR 650 + Section 214', section_214_required: true, residential_notice_days: 90, compliance_status: 'pending', pending_filings: 2, next_deadline: '2026-12-01' },
   { state: 'AZ', state_name: 'Arizona', federal_regulator: 'FCC', state_puc: 'ACC', notice_period_days: 90, filing_type: 'Section 214', section_214_required: true, residential_notice_days: 90, compliance_status: 'clear', pending_filings: 0, next_deadline: '2027-03-01' },
@@ -179,11 +179,11 @@ const MOCK_JURISDICTIONS: JurisdictionRow[] = [
 // --- Mock compliance checklist ---
 
 const MOCK_CHECKLIST: ChecklistItem[] = [
-  { id: 'CA-WC001-214', state: 'CA', wire_center: 'LA-Downtown', requirement: 'Section 214 application filed', requirement_type: 'section_214', status: 'pending', due_date: '2026-10-01', completed_date: null, notes: 'Application drafted, pending legal review' },
-  { id: 'CA-WC001-CPUC', state: 'CA', wire_center: 'LA-Downtown', requirement: 'CPUC Advice Letter submitted', requirement_type: 'state_puc', status: 'pending', due_date: '2026-10-01', completed_date: null, notes: 'Waiting on Section 214 filing first' },
-  { id: 'CA-WC001-NOTICE', state: 'CA', wire_center: 'LA-Downtown', requirement: '90-day residential notice mailed', requirement_type: 'residential_notice', status: 'blocked', due_date: '2026-10-15', completed_date: null, notes: 'Blocked — customer list needs verification' },
-  { id: 'CA-WC001-911', state: 'CA', wire_center: 'LA-Downtown', requirement: 'PSAP coordination completed', requirement_type: '911_coordination', status: 'complete', due_date: '2026-09-01', completed_date: '2026-08-28', notes: 'LAPD PSAP notified, acknowledgement received' },
-  { id: 'CA-WC001-CEQA', state: 'CA', wire_center: 'LA-Downtown', requirement: 'CEQA environmental review', requirement_type: 'environmental', status: 'pending', due_date: '2026-11-01', completed_date: null, notes: 'Environmental assessment in progress' },
+  { id: 'CO-WC001-214', state: 'CO', wire_center: 'Denver-Downtown', requirement: 'Section 214 application filed', requirement_type: 'section_214', status: 'pending', due_date: '2026-10-01', completed_date: null, notes: 'Application drafted, pending legal review' },
+  { id: 'CO-WC001-CPUC', state: 'CO', wire_center: 'Denver-Downtown', requirement: 'CPUC filing with broadband certification', requirement_type: 'state_puc', status: 'pending', due_date: '2026-10-01', completed_date: null, notes: 'Waiting on Section 214 filing first' },
+  { id: 'CO-WC001-NOTICE', state: 'CO', wire_center: 'Denver-Downtown', requirement: '90-day residential notice mailed', requirement_type: 'residential_notice', status: 'blocked', due_date: '2026-10-15', completed_date: null, notes: 'Blocked — customer list needs verification' },
+  { id: 'CO-WC001-911', state: 'CO', wire_center: 'Denver-Downtown', requirement: 'PSAP coordination completed', requirement_type: '911_coordination', status: 'complete', due_date: '2026-09-01', completed_date: '2026-08-28', notes: 'Denver PD PSAP notified, acknowledgement received' },
+  { id: 'CO-WC001-RURAL', state: 'CO', wire_center: 'Denver-Downtown', requirement: 'Rural service continuity plan', requirement_type: 'state_puc', status: 'pending', due_date: '2026-11-01', completed_date: null, notes: 'Broadband availability assessment in progress' },
   { id: 'OR-WC010-214', state: 'OR', wire_center: 'Portland-Central', requirement: 'Section 214 application filed', requirement_type: 'section_214', status: 'complete', due_date: '2026-09-15', completed_date: '2026-09-10', notes: '31-day auto-grant period started' },
   { id: 'OR-WC010-PUC', state: 'OR', wire_center: 'Portland-Central', requirement: 'Oregon PUC AR 650 notice', requirement_type: 'state_puc', status: 'pending', due_date: '2026-10-01', completed_date: null, notes: 'Service migration plan being prepared' },
   { id: 'OR-WC010-NOTICE', state: 'OR', wire_center: 'Portland-Central', requirement: '90-day residential notice mailed', requirement_type: 'residential_notice', status: 'pending', due_date: '2026-10-15', completed_date: null, notes: 'Notices printed, mailing scheduled' },
@@ -201,7 +201,7 @@ const MOCK_CHECKLIST: ChecklistItem[] = [
 const MOCK_DOCUMENTS: RegDocument[] = [
   { doc_id: 'FCC-26-19', title: 'FCC 26-19: Accelerating Wireline Broadband Deployment', document_type: 'fcc_order', issuing_body: 'Federal Communications Commission', jurisdiction: 'Federal', effective_date: '2026-04-15', effective_end_date: null, keywords: ['section 214', 'copper retirement', '251(c)(5)', 'broadband deployment', 'tech-transition'], summary: 'Eliminates Section 251(c)(5) network-change filing. Streamlines Section 214(a) discontinuance with 31-day auto-grants. Adds 911 coordination. 90-day residential notice retained.' },
   { doc_id: '47CFR-63-71', title: '47 CFR §63.71 — Discontinuance Notice Requirements', document_type: 'legislative', issuing_body: 'Code of Federal Regulations', jurisdiction: 'Federal', effective_date: '2026-04-15', effective_end_date: null, keywords: ['notice requirements', 'discontinuance', 'residential subscribers'], summary: 'Specifies notice requirements for service discontinuance including 90-day direct notice to residential subscribers.' },
-  { doc_id: 'CPUC-DXX', title: 'CPUC Decision D.XX-XX-XXX: Copper Retirement Procedures', document_type: 'puc_docket', issuing_body: 'California Public Utilities Commission', jurisdiction: 'California', effective_date: '2025-01-15', effective_end_date: null, keywords: ['advice letter', 'CEQA', 'lifeline', 'copper retirement', 'California'], summary: 'Establishes California-specific copper retirement procedures including Advice Letter filing, CEQA review, and Lifeline transition requirements.' },
+  { doc_id: 'CPUC-4CCR', title: 'CPUC Rule 4 CCR 723-2: Copper Retirement Procedures', document_type: 'puc_docket', issuing_body: 'Colorado Public Utilities Commission', jurisdiction: 'Colorado', effective_date: '2025-01-15', effective_end_date: null, keywords: ['broadband certification', 'rural continuity', 'lifeline', 'copper retirement', 'Colorado'], summary: 'Establishes Colorado-specific copper retirement procedures including broadband availability certification, rural service continuity planning, and Lifeline transition coordination.' },
   { doc_id: 'OR-PUC-AR650', title: 'Oregon PUC AR 650: Telecommunications Service Retirement', document_type: 'puc_docket', issuing_body: 'Oregon Public Utility Commission', jurisdiction: 'Oregon', effective_date: '2024-07-01', effective_end_date: null, keywords: ['120-day notice', 'service migration', 'rural exemption', 'Oregon'], summary: '120-day advance notice. Service migration plan required. Public comment period. Rural area extended 180-day notice.' },
   { doc_id: 'ACC-79XXX', title: 'ACC Decision No. 79XXX: Wireline Service Modifications', document_type: 'puc_docket', issuing_body: 'Arizona Corporation Commission', jurisdiction: 'Arizona', effective_date: '2023-11-20', effective_end_date: null, keywords: ['competitive areas', 'COLR', 'streamlined', 'Arizona'], summary: '60-day state notice (federal 90-day governs). Streamlined approval in competitive areas. COLR obligations preserved.' },
   { doc_id: 'USC-47-503', title: '47 U.S.C. §503(b): Forfeiture Penalties', document_type: 'legislative', issuing_body: 'United States Code', jurisdiction: 'Federal', effective_date: '2021-01-01', effective_end_date: null, keywords: ['penalties', 'enforcement', 'forfeiture', 'compliance'], summary: 'Establishes forfeiture penalties up to $100,000 per violation per day for non-compliance with Communications Act provisions.' },
@@ -227,7 +227,7 @@ export const SUGGESTED_QUESTIONS = [
   'Do we still need Section 214 authorization?',
   'What notice do we give residential customers?',
   'What changed with FCC 26-19?',
-  "What are California's requirements?",
+  "What are Colorado's requirements?",
   '911 coordination requirements?',
   'What are the penalties for non-compliance?',
   'How do we handle Lifeline subscribers?',

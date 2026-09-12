@@ -12,13 +12,12 @@ WITH copper_services AS (
     cfs.customer_id,
     cfs.service_type,
     ga.state_or_province AS state
+  -- NOTE: customer table has no geographic_address_id; join geo via CFS directly
   FROM cdm_tmforum.tmf_service.customer_facing_service cfs
-  INNER JOIN cdm_tmforum.tmf_customer.customer c
-    ON c.customer_id = cfs.customer_id
   LEFT JOIN cdm_tmforum.tmf_shared.geographic_address ga
-    ON ga.geographic_address_id = c.geographic_address_id
+    ON ga.geographic_address_id = cfs.geographic_address_id
   WHERE cfs.service_type IN ('voice', 'fixed_line', 'broadband')
-    AND cfs.status = 'active'
+    AND cfs.status IN ('active', 'feasibility_checked', 'designed')
 )
 SELECT
   -- Revenue at risk: proxy $45/mo voice, $75/mo broadband, $35/mo fixed_line

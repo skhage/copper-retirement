@@ -12,10 +12,8 @@ SELECT
   w.status                      AS work_status,
   w.category                    AS work_category,
   w.priority,
-  w.scheduled_start_date,
-  w.scheduled_end_date,
-  w.actual_start_date,
-  w.actual_end_date,
+  w.actual_start_timestamp                AS scheduled_start,
+  w.actual_end_timestamp                  AS scheduled_end,
   w.party_id                    AS contractor_party_id,
   bpa.type                      AS contractor_type,
   bpa.status                    AS contractor_status,
@@ -27,5 +25,5 @@ LEFT JOIN cdm_tmforum.tmf_businesspartner.bp_agreement bpa
 WHERE w.type IN ('repair', 'emergency')
   AND (:work_status_filter = '' OR w.status = :work_status_filter)
   AND (:work_type_filter = '' OR w.type = :work_type_filter)
-ORDER BY w.scheduled_start_date DESC
+ORDER BY w.actual_start_timestamp DESC
 LIMIT 100

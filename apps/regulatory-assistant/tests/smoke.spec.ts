@@ -50,7 +50,7 @@ test('four-tab navigation works', async ({ page }) => {
 
   // Switch to Jurisdiction Map tab
   await page.getByRole('button', { name: 'Jurisdiction Map' }).click();
-  await expect(page.getByText('California')).toBeVisible();
+  await expect(page.getByText('Colorado')).toBeVisible();
   await expect(page.getByText('Oregon')).toBeVisible();
 
   // Switch to Checklist tab
@@ -70,7 +70,7 @@ test('suggested questions are visible on Ask tab', async ({ page }) => {
   await expect(page.getByText('Do we still need Section 214 authorization?')).toBeVisible();
   await expect(page.getByText('What notice do we give residential customers?')).toBeVisible();
   await expect(page.getByText('What changed with FCC 26-19?')).toBeVisible();
-  await expect(page.getByText("What are California's requirements?")).toBeVisible();
+  await expect(page.getByText("What are Colorado's requirements?")).toBeVisible();
   await expect(page.getByText('911 coordination requirements?')).toBeVisible();
   await expect(page.getByText('What are the penalties for non-compliance?')).toBeVisible();
   await expect(page.getByText('How do we handle Lifeline subscribers?')).toBeVisible();

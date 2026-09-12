@@ -2,6 +2,11 @@
 # Databricks Apps deployment config
 # Scaffold: analytics + lakebase (read gold tables + write plan edits)
 
+command:
+  - sh
+  - -c
+  - "npm install && npm run build && npm start"
+
 name: retirement-plan
 description: |
   Retirement plan tracker for LakeLink Fiber's copper retirement program.
