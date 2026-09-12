@@ -1,0 +1,12 @@
+command:
+  - python
+  - app.py
+env:
+  - name: LAKEBASE_ENDPOINT
+    value: "projects/copper-task-board/branches/production/endpoints/primary"
+  - name: PGHOST
+    value: "ep-rough-bar-d229503i.database.us-east-1.cloud.databricks.com"
+  - name: PGPORT
+    value: "5432"
+  - name: PGDATABASE
+    value: "databricks_postgres"
