@@ -297,8 +297,8 @@ print(f"Created state_bounds lookup: {len(rows)} states")
 # MAGIC %sql
 # MAGIC -- H3 cardinality check
 # MAGIC SELECT
-# MAGIC   COUNT(DISTINCT /* h3_latlng_to_cell(latitude, longitude, 7) */ 1) AS unique_h3_res7,
-# MAGIC   COUNT(DISTINCT /* h3_latlng_to_cell(latitude, longitude, 8) */ 1) AS unique_h3_res8,
-# MAGIC   COUNT(DISTINCT /* h3_latlng_to_cell(latitude, longitude, 9) */ 1) AS unique_h3_res9
+# MAGIC   COUNT(DISTINCT h3_longlatash3(longitude, latitude, 7)) AS unique_h3_res7,
+# MAGIC   COUNT(DISTINCT h3_longlatash3(longitude, latitude, 8)) AS unique_h3_res8,
+# MAGIC   COUNT(DISTINCT h3_longlatash3(longitude, latitude, 9)) AS unique_h3_res9
 # MAGIC FROM cdm_tmforum.tmf_shared.geographic_address
 # MAGIC WHERE latitude BETWEEN 18.0 AND 72.0 AND longitude BETWEEN -180.0 AND -66.0
