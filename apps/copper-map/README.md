@@ -15,7 +15,7 @@ network disruption, and what-if scenario analysis.
 ## Overview
 
 Interactive H3 hex-grid map showing **wire center retirement impact** across
-LakeLink's network footprint. Each wire center shows:
+Lakelink's network footprint. Each wire center shows:
 - **Customer impact** — affected customers (residential + business), contract-locked count, churn risk
 - **Revenue at risk** — MRR from copper services (voice, broadband, fixed line)
 - **Network disruption** — cascading service impact score, fiber readiness
