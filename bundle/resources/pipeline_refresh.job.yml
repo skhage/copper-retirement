@@ -1,0 +1,26 @@
+# Copper Retirement — Pipeline Refresh Job
+# Triggers a full refresh of the bronze→silver→gold pipeline.
+# Schedule: daily 6 AM ET (adjustable per target).
+
+resources:
+  jobs:
+    pipeline_refresh_job:
+      name: 'copper-retirement-refresh-${bundle.target}'
+
+      tasks:
+        - task_key: 'refresh_pipeline'
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.copper_retirement_pipeline.id}
+            full_refresh: true
+
+      schedule:
+        quartz_cron_expression: '0 0 6 * * ?'
+        timezone_id: 'America/New_York'
+
+      tags:
+        project: copper-retirement
+        beat: '1'
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: 'users'

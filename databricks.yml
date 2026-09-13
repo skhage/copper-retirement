@@ -8,11 +8,29 @@ variables:
   catalog_name:
     description: Unity Catalog catalog for the copper-retirement project (pre-existing TMF SID catalog).
     default: cdm_tmforum
+  warehouse_id:
+    description: SQL warehouse for dashboard and query execution.
+    lookup:
+      warehouse: 'Shared SQL Warehouse'
 
 targets:
   dev:
     mode: development
     default: true
+    workspace:
+      host: https://fevm-cmegdemos.cloud.databricks.com
+    variables:
+      catalog_name: cdm_tmforum
+
+  staging:
+    mode: development
+    workspace:
+      host: https://fevm-cmegdemos.cloud.databricks.com
+    variables:
+      catalog_name: cdm_tmforum
+
+  prod:
+    mode: production
     workspace:
       host: https://fevm-cmegdemos.cloud.databricks.com
     variables:

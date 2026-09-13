@@ -1,0 +1,28 @@
+# Copper Retirement — Lakeflow Spark Declarative Pipeline
+# Bronze→Silver→Gold transformations for copper retirement analysis.
+# Pipeline ID (manual): b52532a2-6398-44ed-b239-9e95cafb745c
+#
+# NOTE: This DAB resource will create a NEW managed pipeline on `bundle deploy`.
+# The manually-created pipeline above can be decommissioned once this is validated.
+
+resources:
+  pipelines:
+    copper_retirement_pipeline:
+      name: 'copper-retirement-pipeline-${bundle.target}'
+
+      catalog: ${var.catalog_name}
+      target: copper_retirement
+
+      libraries:
+        - glob:
+            include: ../../pipeline/**
+
+      serverless: true
+      development: true
+      photon: true
+      channel: current
+      continuous: false
+
+      permissions:
+        - level: CAN_VIEW
+          group_name: 'users'
