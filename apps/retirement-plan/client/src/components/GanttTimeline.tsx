@@ -101,10 +101,14 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
           return (
             <div
               key={wc.wire_center_id}
-              className={`flex items-center h-8 cursor-pointer rounded transition-colors ${
+              role="button"
+              tabIndex={0}
+              aria-label={`Wire center ${wc.wire_center_name}, Wave ${wc.wave}, ${wc.status.replace(/_/g, ' ')}`}
+              className={`flex items-center h-8 cursor-pointer rounded transition-colors focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none ${
                 isSelected ? 'bg-primary/5 ring-1 ring-primary/30' : 'hover:bg-muted/50'
               }`}
               onClick={() => onWireCenterSelect(isSelected ? null : wc)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onWireCenterSelect(isSelected ? null : wc); } }}
             >
               {/* Label */}
               <div className="w-48 flex-shrink-0 flex items-center gap-1 px-1">

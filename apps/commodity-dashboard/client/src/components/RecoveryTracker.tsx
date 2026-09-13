@@ -49,7 +49,8 @@ export function RecoveryTracker({ filters, onFilterChange }: Props) {
         <select
           value={filters.scrap_grade}
           onChange={(e) => onFilterChange({ ...filters, scrap_grade: e.target.value })}
-          className="text-sm border rounded px-2 py-1"
+          aria-label="Filter by scrap grade"
+          className="text-sm border rounded px-2 py-1 focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
         >
           <option value="all">All Grades</option>
           {Object.entries(SCRAP_GRADES).map(([key, meta]) => (

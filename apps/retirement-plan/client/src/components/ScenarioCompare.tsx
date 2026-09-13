@@ -31,7 +31,7 @@ export function ScenarioCompare() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold">Optimizer Scenarios</h2>
         <button
-          className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded hover:opacity-90 transition-colors"
+          className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded hover:opacity-90 transition-colors focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:ring-offset-2 focus-visible:outline-none"
           onClick={() => {
             console.log('[retirement-plan] Requesting new scenario run...');
             // TODO: POST /api/plan/scenario when P4-SEQ is available
@@ -97,12 +97,13 @@ export function ScenarioCompare() {
               {s.status !== 'active' && (
                 <button
                   onClick={() => handleSetActive(s.scenario_id)}
-                  className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded hover:opacity-90 transition-colors"
+                  aria-label={`Set ${s.name} as active scenario`}
+                  className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded hover:opacity-90 transition-colors focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
                 >
                   Set Active
                 </button>
               )}
-              <button className="text-xs border px-2 py-1 rounded hover:bg-muted transition-colors">
+              <button className="text-xs border px-2 py-1 rounded hover:bg-muted transition-colors focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none">
                 View Detail
               </button>
             </div>

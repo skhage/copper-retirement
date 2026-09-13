@@ -38,7 +38,8 @@ export function ContractorScorecard({ filters, onFilterChange }: Props) {
         <select
           value={filters.contractor_type}
           onChange={(e) => onFilterChange({ ...filters, contractor_type: e.target.value })}
-          className="text-sm border rounded px-2 py-1"
+          aria-label="Filter by contractor type"
+          className="text-sm border rounded px-2 py-1 focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
         >
           <option value="all">All Types</option>
           {contractorTypes.map((t) => (
@@ -110,8 +111,10 @@ export function ContractorScorecard({ filters, onFilterChange }: Props) {
 
             {/* Assign button */}
             <button
-              className="mt-3 w-full text-xs px-3 py-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors font-medium"
+              aria-label={`Assign ${c.name} to project`}
+              className="mt-3 w-full text-xs px-3 py-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors font-medium focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
               onClick={() => {
+                if (!window.confirm(`Assign ${c.name} to project?`)) return;
                 // TODO: POST /api/commodity/assign-contractor
                 console.log(`[commodity-dashboard] Assign contractor ${c.contractor_id}`);
               }}

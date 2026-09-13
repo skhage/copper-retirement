@@ -59,7 +59,8 @@ export default function App() {
           <select
             value={filters.state}
             onChange={(e) => setFilters({ ...filters, state: e.target.value })}
-            className="text-sm border rounded px-2 py-1"
+            aria-label="Filter by state"
+            className="text-sm border rounded px-2 py-1 focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
           >
             <option value="all">All States</option>
             <option value="CO">Colorado</option>
@@ -84,7 +85,7 @@ export default function App() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none ${
               activeTab === tab.key
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'

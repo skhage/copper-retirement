@@ -67,7 +67,11 @@ export function MigrationTable({ filters, onFilterChange, onWireCenterSelect }: 
               <th
                 key={key}
                 onClick={() => handleSort(key)}
-                className="px-3 py-2 text-left font-medium cursor-pointer hover:text-primary"
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort(key); } }}
+                tabIndex={0}
+                role="columnheader"
+                aria-sort={sortKey === key ? (sortAsc ? 'ascending' : 'descending') : 'none'}
+                className="px-3 py-2 text-left font-medium cursor-pointer hover:text-primary focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
               >
                 {label}{sortIcon(key)}
               </th>

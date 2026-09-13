@@ -33,7 +33,8 @@ export function WaveSelector({ filters, onFilterChange }: Props) {
       <select
         value={filters.wave}
         onChange={(e) => update('wave', e.target.value)}
-        className="text-xs border rounded px-2 py-1 bg-background"
+        aria-label="Filter by wave"
+        className="text-xs border rounded px-2 py-1 bg-background focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
       >
         {WAVES.map((w) => (
           <option key={w} value={w}>
@@ -46,7 +47,8 @@ export function WaveSelector({ filters, onFilterChange }: Props) {
       <select
         value={filters.state}
         onChange={(e) => update('state', e.target.value)}
-        className="text-xs border rounded px-2 py-1 bg-background"
+        aria-label="Filter by state"
+        className="text-xs border rounded px-2 py-1 bg-background focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
       >
         {STATES.map((s) => (
           <option key={s} value={s}>
@@ -59,7 +61,8 @@ export function WaveSelector({ filters, onFilterChange }: Props) {
       <select
         value={filters.status}
         onChange={(e) => update('status', e.target.value)}
-        className="text-xs border rounded px-2 py-1 bg-background"
+        aria-label="Filter by status"
+        className="text-xs border rounded px-2 py-1 bg-background focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
       >
         {STATUSES.map((s) => (
           <option key={s} value={s}>
@@ -72,7 +75,8 @@ export function WaveSelector({ filters, onFilterChange }: Props) {
       <select
         value={filters.constraint}
         onChange={(e) => update('constraint', e.target.value)}
-        className="text-xs border rounded px-2 py-1 bg-background"
+        aria-label="Filter by constraint"
+        className="text-xs border rounded px-2 py-1 bg-background focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
       >
         {CONSTRAINTS.map((c) => (
           <option key={c} value={c}>

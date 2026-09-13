@@ -6,6 +6,7 @@
  */
 import { mockMilestones } from '../mock/mockData';
 import { formatCurrency, formatCount, formatPercent } from '../lib/formatters';
+import { X } from 'lucide-react';
 import { ConstraintFlags } from './ConstraintFlags';
 import type { WireCenterPlan } from '../mock/mockData';
 
@@ -36,9 +37,10 @@ export function CostBenefitPanel({ wireCenter, onClose }: Props) {
         </div>
         <button
           onClick={onClose}
-          className="text-xs text-muted-foreground hover:text-foreground"
+          aria-label="Close detail panel"
+          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none rounded"
         >
-          ✕ Close
+          <X size={14} strokeWidth={1.5} /> Close
         </button>
       </div>
 

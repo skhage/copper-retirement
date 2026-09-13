@@ -61,7 +61,9 @@ export function PriceChart() {
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="w-full" preserveAspectRatio="xMidYMid meet">
+      <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="w-full" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Copper price history and forecast chart">
+        <title>LME copper spot price 2018–2025 with AI forecast</title>
+        <desc>Line chart showing historical LME copper spot price and 3M forward, plus 12-month AI forecast with confidence bands</desc>
         {/* Grid lines */}
         {yTicks.map((y) => (
           <g key={y}>

@@ -49,6 +49,8 @@ export function ConstraintFlags({ constraint, size = 'sm' }: Props) {
     <span
       className={`inline-flex items-center gap-0.5 rounded ${config.color} ${textSize} ${padding} font-medium`}
       title={config.label}
+      aria-label={config.label}
+      role="img"
     >
       <span>{config.icon}</span>
       {size === 'md' && <span>{config.label}</span>}
