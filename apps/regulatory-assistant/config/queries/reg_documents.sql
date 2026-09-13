@@ -1,37 +1,33 @@
 -- reg_documents.sql
--- Fetch regulatory documents for the Document Browser.
--- Source: cdm_tmforum.tmf_shared.document (10K rows, ~1,679 legal/regulatory)
---
--- Filter for legal/regulatory documents. Schema is usable for layout;
--- text content fields are synthetic hashes pending real doc ingestion (P1-REG).
+-- Fetch regulatory documents from the live FCC regulatory corpus.
+-- Source: cdm_tmforum.copper_retirement.fcc_regulatory_document (305 docs)
+-- Includes FCC orders, state PUC dockets, guidance, retirement notices, and Section 214 filings.
 
 SELECT
   d.document_id,
-  d.name                AS document_title,
-  d.type                AS document_type,
-  d.classification_level AS classification,
-  d.status              AS document_status,
-  d.file_type,
-  d.file_size_bytes,
-  d.language_code,
-  d.version_number,
-  d.author_name AS author,
-  d.created_date,
-  d.last_modified_date,
-  d.effective_start_date,
-  d.effective_end_date,
-  d.description
-FROM cdm_tmforum.tmf_shared.document d
-WHERE (d.type IN ('policy', 'compliance_document', 'regulatory_filing', 'agreement', 'license')
-       OR d.nature IN ('regulatory', 'administrative', 'legal'))
-  AND (
+  d.title                    AS document_title,
+  d.document_type,
+  d.issuing_body,
+  d.jurisdiction_state_code  AS jurisdiction,
+  d.effective_date,
+  d.document_status,
+  d.regulatory_topic,
+  d.summary_text             AS description,
+  d.citation_reference,
+  d.docket_number,
+  d.notice_period_days,
+  d.word_count,
+  d.page_count
+FROM cdm_tmforum.copper_retirement.fcc_regulatory_document d
+WHERE (
     :document_type_filter = ''
-    OR d.type = :document_type_filter
+    OR d.document_type = :document_type_filter
   )
   AND (
     :search_term = ''
-    OR LOWER(d.name) LIKE CONCAT('%', LOWER(:search_term), '%')
-    OR LOWER(d.description) LIKE CONCAT('%', LOWER(:search_term), '%')
+    OR LOWER(COALESCE(d.title, '')) LIKE CONCAT('%', LOWER(:search_term), '%')
+    OR LOWER(COALESCE(d.summary_text, '')) LIKE CONCAT('%', LOWER(:search_term), '%')
+    OR LOWER(COALESCE(d.regulatory_topic, '')) LIKE CONCAT('%', LOWER(:search_term), '%')
   )
-ORDER BY d.last_modified_date DESC
+ORDER BY d.effective_date DESC
 LIMIT 200

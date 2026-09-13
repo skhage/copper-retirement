@@ -67,7 +67,7 @@ export function MigrationTable({ filters, onFilterChange, onWireCenterSelect }: 
               <th
                 key={key}
                 onClick={() => handleSort(key)}
-                className="px-3 py-2 text-left font-medium cursor-pointer hover:text-blue-600"
+                className="px-3 py-2 text-left font-medium cursor-pointer hover:text-primary"
               >
                 {label}{sortIcon(key)}
               </th>
@@ -94,7 +94,7 @@ export function MigrationTable({ filters, onFilterChange, onWireCenterSelect }: 
                 <div className="flex items-center gap-1">
                   <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-blue-500 rounded-full"
+                      className="h-full bg-primary rounded-full"
                       style={{ width: `${wc.completion_pct}%` }}
                     />
                   </div>
@@ -106,7 +106,7 @@ export function MigrationTable({ filters, onFilterChange, onWireCenterSelect }: 
                   wc.status === 'in_progress' ? 'bg-amber-100 text-amber-700' :
                   wc.status === 'completed' ? 'bg-green-100 text-green-700' :
                   wc.status === 'on_hold' ? 'bg-red-100 text-red-700' :
-                  'bg-slate-100 text-slate-600'
+                  'bg-muted text-muted-foreground'
                 }`}>
                   {wc.status.replace(/_/g, ' ')}
                 </span>

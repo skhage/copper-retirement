@@ -7,8 +7,9 @@
  * All data is SYNTHETIC — for demo scaffolding only.
  */
 
-// --- Feature flag: set to false to use live agent + SQL queries ---
-export const USE_MOCK_DATA = true;
+// --- Feature flag: false = live corpus (fcc_regulatory_document), true = mock only ---
+// Components now try live API first and fall back to mock automatically.
+export const USE_MOCK_DATA = false;
 
 // --- Types ---
 

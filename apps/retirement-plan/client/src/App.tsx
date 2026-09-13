@@ -56,7 +56,7 @@ export default function App() {
         <div>
           <h1 className="text-2xl font-bold">Retirement Plan Tracker</h1>
           <p className="text-sm text-muted-foreground">
-            LakeLink Fiber — Copper Retirement Program
+            Lakelink Fiber — Copper Retirement Program
           </p>
         </div>
         <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
@@ -78,7 +78,7 @@ export default function App() {
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === tab
-                ? 'border-blue-600 text-blue-600'
+                ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >

@@ -1,45 +1,86 @@
 /**
  * RegKPIs.tsx
  * Top bar KPI cards for the Regulatory Assistant.
- * Shows: jurisdictions covered, pending filings, days until next deadline,
- *        compliance %, overdue items, documents indexed.
+ * Fetches live KPIs from the fcc_regulatory_document corpus.
+ * Falls back to mock KPIs if the API is unavailable.
  *
- * Uses AppKit Card/CardContent and follows BRAND_GUIDE §6 KPI Card spec:
+ * Follows BRAND_GUIDE §6 KPI Card spec:
  *   - Background: --ll-surface-elevated (#FFFFFF)
  *   - Label: uppercase, tracking-wide, --ll-text-secondary (#6E8898), 12px
  *   - Value: --ll-text-primary (#1B3139) or semantic color, 28px bold
  *   - Subtitle: --ll-text-secondary, 11px (optional)
  *   - Border: 1px #E5E2DD, radius 8px, no shadows
- *
- * Layout: grid-cols-6 (6 KPIs — brand guide allows 6 for 6 items).
  */
-import { USE_MOCK_DATA, getMockKPIs } from '../mock/mockData';
+import { useState, useEffect } from 'react';
+import { fetchKPIs } from '../api/corpus';
+import { getMockKPIs } from '../mock/mockData';
 
 /* Lakelink Fiber semantic status colors (BRAND_GUIDE §2) */
-const LL_CRITICAL = '#FF3621';
-const LL_HIGH     = '#FF8C69';
-const LL_MEDIUM   = '#FFD700';
-const LL_LOW      = '#00A972';
 const LL_TEXT_PRIMARY   = '#1B3139';
 const LL_TEXT_SECONDARY = '#6E8898';
 const LL_BORDER = '#E5E2DD';
+const LL_ACCENT = '#00A972';
 
 interface RegKPIsProps {
   jurisdictionFilter: string;
 }
 
-export function RegKPIs({ jurisdictionFilter }: RegKPIsProps) {
-  // TODO: Replace with useAnalyticsQuery('reg_kpis', params) when live
-  const kpis = USE_MOCK_DATA ? getMockKPIs() : getMockKPIs();
+interface KPICard {
+  label: string;
+  value: string | number;
+  color: string;
+  sub?: string;
+}
 
-  const cards: { label: string; value: string | number; color: string; sub?: string }[] = [
-    { label: 'Jurisdictions', value: kpis.jurisdictions_covered, color: LL_TEXT_PRIMARY, sub: 'States covered' },
-    { label: 'Pending Filings', value: kpis.pending_filings, color: kpis.pending_filings > 0 ? LL_MEDIUM : LL_TEXT_PRIMARY, sub: 'Awaiting submission' },
-    { label: 'Next Deadline', value: `${kpis.days_until_next_deadline}d`, color: kpis.days_until_next_deadline < 30 ? LL_HIGH : LL_TEXT_PRIMARY, sub: 'Until next filing' },
-    { label: 'Compliance', value: `${kpis.compliance_pct}%`, color: kpis.compliance_pct < 80 ? LL_MEDIUM : LL_LOW, sub: 'Overall rate' },
-    { label: 'Overdue', value: kpis.overdue_items, color: kpis.overdue_items > 0 ? LL_CRITICAL : LL_TEXT_PRIMARY, sub: 'Items past due' },
-    { label: 'Documents', value: kpis.documents_indexed, color: LL_TEXT_PRIMARY, sub: 'Indexed for search' },
-  ];
+export function RegKPIs({ jurisdictionFilter }: RegKPIsProps) {
+  const [cards, setCards] = useState<KPICard[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const liveKpis = await fetchKPIs(jurisdictionFilter);
+        if (cancelled) return;
+
+        if (liveKpis) {
+          const totalDocs = parseInt(liveKpis.total_documents) || 0;
+          const federalDocs = parseInt(liveKpis.federal_docs) || 0;
+          const stateDocs = parseInt(liveKpis.state_docs) || 0;
+          const jurisdictions = parseInt(liveKpis.jurisdictions_covered) || 0;
+          const docTypes = parseInt(liveKpis.document_types) || 0;
+          const totalWords = parseInt(liveKpis.total_words) || 0;
+
+          setCards([
+            { label: 'Documents', value: totalDocs, color: LL_ACCENT, sub: 'In corpus' },
+            { label: 'Jurisdictions', value: jurisdictions, color: LL_TEXT_PRIMARY, sub: 'States + Federal' },
+            { label: 'Federal Docs', value: federalDocs, color: LL_TEXT_PRIMARY, sub: 'FCC orders/guidance' },
+            { label: 'State Docs', value: stateDocs, color: LL_TEXT_PRIMARY, sub: 'PUC dockets/notices' },
+            { label: 'Doc Types', value: docTypes, color: LL_TEXT_PRIMARY, sub: 'Categories' },
+            { label: 'Total Words', value: totalWords > 1000 ? `${Math.round(totalWords / 1000)}K` : totalWords, color: LL_TEXT_PRIMARY, sub: 'Corpus size' },
+          ]);
+          return;
+        }
+      } catch {
+        // Fall through to mock
+      }
+
+      if (cancelled) return;
+      // Mock fallback
+      const mockKpis = getMockKPIs();
+      setCards([
+        { label: 'Jurisdictions', value: mockKpis.jurisdictions_covered, color: LL_TEXT_PRIMARY, sub: 'States covered' },
+        { label: 'Pending Filings', value: mockKpis.pending_filings, color: LL_TEXT_PRIMARY, sub: 'Awaiting submission' },
+        { label: 'Next Deadline', value: `${mockKpis.days_until_next_deadline}d`, color: LL_TEXT_PRIMARY, sub: 'Until next filing' },
+        { label: 'Compliance', value: `${mockKpis.compliance_pct}%`, color: LL_TEXT_PRIMARY, sub: 'Overall rate' },
+        { label: 'Overdue', value: mockKpis.overdue_items, color: LL_TEXT_PRIMARY, sub: 'Items past due' },
+        { label: 'Documents', value: mockKpis.documents_indexed, color: LL_TEXT_PRIMARY, sub: 'Indexed for search' },
+      ]);
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, [jurisdictionFilter]);
 
   return (
     <div className="grid grid-cols-6 gap-3">

@@ -36,14 +36,14 @@ const QUARTERS = [
 
 // Wave color palette
 const WAVE_COLORS: Record<number, string> = {
-  1: 'bg-red-500',
-  2: 'bg-orange-500',
-  3: 'bg-amber-500',
-  4: 'bg-yellow-500',
-  5: 'bg-lime-500',
-  6: 'bg-green-500',
-  7: 'bg-teal-500',
-  8: 'bg-cyan-500',
+  1: 'bg-[#FF3621]',
+  2: 'bg-[#1B3139]',
+  3: 'bg-[#00A972]',
+  4: 'bg-[#6E8898]',
+  5: 'bg-[#FF8C69]',
+  6: 'bg-[#4A7C6F]',
+  7: 'bg-[#C42D1A]',
+  8: 'bg-[#2E4A55]',
 };
 
 const STATUS_OPACITY: Record<string, string> = {
@@ -102,7 +102,7 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
             <div
               key={wc.wire_center_id}
               className={`flex items-center h-8 cursor-pointer rounded transition-colors ${
-                isSelected ? 'bg-blue-50 ring-1 ring-blue-300' : 'hover:bg-muted/50'
+                isSelected ? 'bg-primary/5 ring-1 ring-primary/30' : 'hover:bg-muted/50'
               }`}
               onClick={() => onWireCenterSelect(isSelected ? null : wc)}
             >

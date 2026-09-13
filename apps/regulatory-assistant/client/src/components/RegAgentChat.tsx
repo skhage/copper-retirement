@@ -3,22 +3,21 @@
  * Chat interface to P6-REG regulatory RAG agent.
  * Screen 1 (Ask) — default landing.
  *
- * In mock mode: uses pre-built Q&A pairs from mockData.ts
- * In live mode: sends messages to P6-REG Model Serving endpoint via SSE
+ * Live mode: searches fcc_regulatory_document corpus via /api/corpus/search
+ * Fallback: uses pre-built Q&A pairs from mockData.ts
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { SuggestedQuestions } from './SuggestedQuestions';
-import {
-  USE_MOCK_DATA,
-  findMockAnswer,
-} from '../mock/mockData';
-import type { Citation, AgentQA } from '../mock/mockData';
+import { searchCorpus, documentToCitation, composeAnswer } from '../api/corpus';
+import { findMockAnswer } from '../mock/mockData';
+import type { Citation } from '../mock/mockData';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   citations?: Citation[];
   confidence?: 'high' | 'medium' | 'low';
+  source?: 'live' | 'mock';
 }
 
 interface RegAgentChatProps {
@@ -45,9 +44,43 @@ export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentCh
     setInput('');
     setIsLoading(true);
 
-    if (USE_MOCK_DATA) {
-      // Simulate agent response delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      // Try live corpus search first
+      const docs = await searchCorpus(question, jurisdictionFilter);
+      if (docs.length > 0) {
+        const answer = composeAnswer(docs, question);
+        const citations: Citation[] = docs.slice(0, 4).map((doc, i) =>
+          documentToCitation(doc, i)
+        );
+        setMessages((prev) => [...prev, {
+          role: 'assistant',
+          content: answer,
+          citations,
+          confidence: citations.some((c) => c.confidence === 'high') ? 'high' : 'medium',
+          source: 'live',
+        }]);
+      } else {
+        // No live results — fall back to mock Q&A
+        const match = findMockAnswer(question);
+        const assistantMsg: ChatMessage = match
+          ? {
+              role: 'assistant',
+              content: match.answer,
+              citations: match.citations,
+              confidence: 'high',
+              source: 'mock',
+            }
+          : {
+              role: 'assistant',
+              content: `No matching documents found in the regulatory corpus for that query. Try specific terms like "Section 214", "copper retirement", "notice", or a state name (CO, WA, OR, AZ, MN, ID).\n\nJurisdiction context: ${jurisdictionFilter === 'all' ? 'All states' : jurisdictionFilter}.`,
+              citations: [],
+              confidence: 'low',
+            };
+        setMessages((prev) => [...prev, assistantMsg]);
+      }
+    } catch {
+      // API error — graceful fallback to mock
+      console.warn('[RegAgentChat] Live search unavailable, using mock fallback');
       const match = findMockAnswer(question);
       const assistantMsg: ChatMessage = match
         ? {
@@ -55,27 +88,16 @@ export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentCh
             content: match.answer,
             citations: match.citations,
             confidence: 'high',
+            source: 'mock',
           }
         : {
             role: 'assistant',
-            content: `I don't have specific guidance for that question in my current knowledge base. This may require review by the legal/regulatory team. Jurisdiction context: ${jurisdictionFilter === 'all' ? 'All states' : jurisdictionFilter}.`,
+            content: `I don't have specific guidance for that question. This may require review by the legal/regulatory team. Jurisdiction context: ${jurisdictionFilter === 'all' ? 'All states' : jurisdictionFilter}.`,
             citations: [],
             confidence: 'low',
+            source: 'mock',
           };
       setMessages((prev) => [...prev, assistantMsg]);
-    } else {
-      // TODO: Connect to P6-REG Model Serving endpoint via SSE
-      // const endpoint = '/api/agent/chat';
-      // const response = await fetch(endpoint, {
-      //   method: 'POST',
-      //   body: JSON.stringify({ message: question, jurisdiction: jurisdictionFilter }),
-      // });
-      // Stream and parse SSE response...
-      setMessages((prev) => [...prev, {
-        role: 'assistant',
-        content: 'Agent endpoint not yet deployed. Set USE_MOCK_DATA = true for demo.',
-        confidence: 'low',
-      }]);
     }
 
     setIsLoading(false);
@@ -98,9 +120,9 @@ export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentCh
           <div className="text-center py-12">
             <h2 className="text-xl font-semibold mb-2">Ask about regulatory requirements</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Get guidance on copper retirement compliance, FCC rules, state PUC requirements, and notice procedures.
+              Search 305 regulatory documents — FCC orders, state PUC dockets, guidance, and notice templates.
               {jurisdictionFilter !== 'all' && (
-                <span className="block mt-1">Showing results for: <strong>{jurisdictionFilter}</strong></span>
+                <span className="block mt-1">Filtering for: <strong>{jurisdictionFilter}</strong></span>
               )}
             </p>
             <SuggestedQuestions onSelect={handleSuggestedQuestion} />
@@ -120,6 +142,14 @@ export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentCh
               }`}
             >
               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+
+              {/* Source indicator */}
+              {msg.role === 'assistant' && msg.source === 'live' && (
+                <div className="mt-1 text-xs text-green-700 flex items-center gap-1">
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#00A972', display: 'inline-block' }} />
+                  Live corpus
+                </div>
+              )}
 
               {/* Citations */}
               {msg.citations && msg.citations.length > 0 && (
@@ -142,7 +172,7 @@ export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentCh
               {/* Confidence indicator */}
               {msg.role === 'assistant' && msg.confidence === 'low' && (
                 <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                  ⚠ Low confidence answer. Consider verifying with legal.
+                  No matching documents found. Consider verifying with legal.
                   <button className="ml-2 underline font-medium">Escalate</button>
                 </div>
               )}
@@ -171,7 +201,7 @@ export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentCh
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about copper retirement regulations..."
+          placeholder="Search the regulatory corpus..."
           className="flex-1 border rounded-lg px-4 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
           disabled={isLoading}
         />

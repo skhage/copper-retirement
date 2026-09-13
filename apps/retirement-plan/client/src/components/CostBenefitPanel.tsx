@@ -26,10 +26,10 @@ export function CostBenefitPanel({ wireCenter, onClose }: Props) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold">{wc.wire_center_name}</h3>
-          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
             Wave {wc.wave}
           </span>
-          <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">
             {wc.state}
           </span>
           <ConstraintFlags constraint={wc.constraint} size="md" />
@@ -64,7 +64,7 @@ export function CostBenefitPanel({ wireCenter, onClose }: Props) {
         </div>
         <div className="rounded border p-3">
           <p className="text-xs text-muted-foreground">Net Annual Savings</p>
-          <p className="text-lg font-bold text-blue-600">
+          <p className="text-lg font-bold text-accent">
             {formatCurrency(wc.net_savings_usd)}
           </p>
         </div>
