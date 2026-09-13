@@ -47,8 +47,9 @@ export default function App() {
       {/* Header */}
       <div className="px-6 pt-4 pb-2 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Copper Retirement Impact Map</h1>
-          <p className="text-sm text-muted-foreground">LakeLink Fiber — Where to dig, what it costs, who it affects</p>
+          <p className="text-base" style={{ fontWeight: 600, color: '#1B3139', lineHeight: 1.2 }}>Lakelink Fiber</p>
+          <h1 className="text-2xl font-bold mt-1" style={{ color: '#1B3139' }}>Copper Retirement Impact Map</h1>
+          <p className="text-sm text-muted-foreground">Where to dig, what it costs, who it affects</p>
         </div>
         <div className="flex items-center gap-3">
           {USE_MOCK_DATA && <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">SYNTHETIC DATA</span>}
