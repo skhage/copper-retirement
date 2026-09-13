@@ -53,7 +53,7 @@ export function ContractorScorecard({ filters, onFilterChange }: Props) {
       {/* Contractor cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sorted.map((c) => (
-          <div key={c.contractor_id} className="bg-white border rounded-lg p-4 shadow-sm">
+          <div key={c.contractor_id} className="bg-card border rounded-lg p-4 shadow-sm">
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
               <div>
@@ -110,7 +110,7 @@ export function ContractorScorecard({ filters, onFilterChange }: Props) {
 
             {/* Assign button */}
             <button
-              className="mt-3 w-full text-xs px-3 py-1.5 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors font-medium"
+              className="mt-3 w-full text-xs px-3 py-1.5 bg-primary/10 text-primary rounded hover:bg-primary/20 transition-colors font-medium"
               onClick={() => {
                 // TODO: POST /api/commodity/assign-contractor
                 console.log(`[commodity-dashboard] Assign contractor ${c.contractor_id}`);

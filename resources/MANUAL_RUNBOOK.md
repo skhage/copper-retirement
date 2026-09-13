@@ -128,6 +128,7 @@ or missing spatial joins.
   Phase 3 Pipelines
   └── P3-DLP         (Lakeflow declarative pipeline)
       └── depends on: P2-JOIN
+      └── SEE: resources/DLP_PIPELINE_RUNBOOK.md for interactive config steps
 
   Phase 4 ML
   ├── P4-RISK-COMPOSITE-TARGET  (depends on: FIX-COORDINATES)

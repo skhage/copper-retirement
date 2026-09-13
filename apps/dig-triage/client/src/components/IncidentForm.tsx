@@ -9,6 +9,7 @@
  * Currently submits to /api/triage/incident (mock endpoint).
  */
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import { SEVERITY_LEVELS, getMockStates } from '../mock/mockData';
 import type { Severity, CableType } from '../mock/mockData';
 
@@ -54,12 +55,13 @@ export function IncidentForm({ onClose, onSubmit }: IncidentFormProps) {
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
       <div className="bg-card rounded-lg border shadow-xl w-[520px] max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-bold text-red-600">Report New Incident</h2>
+          <h2 className="text-lg font-bold text-primary">Report New Incident</h2>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground text-xl leading-none"
+            aria-label="Close"
+            className="text-muted-foreground hover:text-foreground text-xl leading-none focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none rounded"
           >
-            ×
+            <X size={20} strokeWidth={1.5} />
           </button>
         </div>
 
@@ -71,7 +73,8 @@ export function IncidentForm({ onClose, onSubmit }: IncidentFormProps) {
               <select
                 value={severity}
                 onChange={(e) => setSeverity(e.target.value as Severity)}
-                className="w-full border rounded px-2 py-1.5 text-sm"
+                aria-label="Incident severity"
+                className="w-full border rounded px-2 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
               >
                 {SEVERITY_LEVELS.map((s) => (
                   <option key={s} value={s}>{s.toUpperCase()}</option>
@@ -83,7 +86,8 @@ export function IncidentForm({ onClose, onSubmit }: IncidentFormProps) {
               <select
                 value={state}
                 onChange={(e) => setState(e.target.value)}
-                className="w-full border rounded px-2 py-1.5 text-sm"
+                aria-label="State"
+                className="w-full border rounded px-2 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
               >
                 {getMockStates().map((s) => (
                   <option key={s} value={s}>{s}</option>
@@ -102,7 +106,7 @@ export function IncidentForm({ onClose, onSubmit }: IncidentFormProps) {
                 value={latitude}
                 onChange={(e) => setLatitude(e.target.value)}
                 placeholder="e.g., 39.7392"
-                className="w-full border rounded px-2 py-1.5 text-sm"
+                className="w-full border rounded px-2 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
                 required
               />
             </div>
@@ -114,7 +118,7 @@ export function IncidentForm({ onClose, onSubmit }: IncidentFormProps) {
                 value={longitude}
                 onChange={(e) => setLongitude(e.target.value)}
                 placeholder="e.g., -104.9903"
-                className="w-full border rounded px-2 py-1.5 text-sm"
+                className="w-full border rounded px-2 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
                 required
               />
             </div>
@@ -130,7 +134,8 @@ export function IncidentForm({ onClose, onSubmit }: IncidentFormProps) {
               <select
                 value={cableType}
                 onChange={(e) => setCableType(e.target.value as CableType)}
-                className="w-full border rounded px-2 py-1.5 text-sm"
+                aria-label="Cable type"
+                className="w-full border rounded px-2 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
               >
                 {CABLE_TYPES.map((t) => (
                   <option key={t} value={t}>{t.replace('_', ' ')}</option>
@@ -142,7 +147,8 @@ export function IncidentForm({ onClose, onSubmit }: IncidentFormProps) {
               <select
                 value={rootCause}
                 onChange={(e) => setRootCause(e.target.value)}
-                className="w-full border rounded px-2 py-1.5 text-sm"
+                aria-label="Root cause"
+                className="w-full border rounded px-2 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
               >
                 {ROOT_CAUSES.map((c) => (
                   <option key={c} value={c}>{c.replace('_', ' ')}</option>
@@ -188,13 +194,13 @@ export function IncidentForm({ onClose, onSubmit }: IncidentFormProps) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm border rounded-md hover:bg-muted"
+              className="px-4 py-2 text-sm border rounded-md hover:bg-muted focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
+              className="px-4 py-2 text-sm bg-primary text-white rounded-md hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:ring-offset-2 focus-visible:outline-none"
             >
               Submit Incident
             </button>

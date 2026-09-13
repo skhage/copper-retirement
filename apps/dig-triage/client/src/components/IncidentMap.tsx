@@ -61,11 +61,11 @@ export function IncidentMap({ filters, onIncidentSelect, selectedIncident }: Inc
 
       {/* Placeholder map — swap for deck.gl ScatterplotLayer */}
       <div
-        className="relative bg-slate-100 overflow-hidden"
+        className="relative bg-muted overflow-hidden"
         style={{ width: '100%', height: MAP_HEIGHT, maxWidth: MAP_WIDTH }}
       >
         {/* US outline placeholder */}
-        <div className="absolute inset-0 flex items-center justify-center text-slate-300 text-sm">
+        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">
           [deck.gl map placeholder — install deps to activate]
         </div>
 
@@ -78,7 +78,8 @@ export function IncidentMap({ filters, onIncidentSelect, selectedIncident }: Inc
             <button
               key={inc.incident_id}
               onClick={() => onIncidentSelect(isSelected ? null : inc)}
-              className="absolute rounded-full border-2 border-white shadow-md hover:scale-125 transition-transform cursor-pointer"
+              aria-label={`Incident ${inc.incident_id}: ${inc.severity} severity, ${inc.cable_damage_type} in ${inc.state}`}
+              className="absolute rounded-full border-2 border-white shadow-md hover:scale-125 transition-transform cursor-pointer focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
               style={{
                 left: `${(x / MAP_WIDTH) * 100}%`,
                 top: `${(y / MAP_HEIGHT) * 100}%`,
@@ -87,7 +88,7 @@ export function IncidentMap({ filters, onIncidentSelect, selectedIncident }: Inc
                 backgroundColor: SEVERITY_COLORS[inc.severity] || '#888',
                 transform: 'translate(-50%, -50%)',
                 zIndex: isSelected ? 10 : 1,
-                outline: isSelected ? '3px solid #1a73e8' : 'none',
+                outline: isSelected ? '3px solid #FF3621' : 'none',
               }}
               title={`${inc.incident_id}: ${inc.severity} — ${inc.cable_damage_type} (${inc.state})`}
             />

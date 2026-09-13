@@ -6,6 +6,7 @@
  */
 import type { Incident } from '../mock/mockData';
 import { SEVERITY_COLORS, STATUS_COLORS } from '../mock/mockData';
+import { X } from 'lucide-react';
 import {
   formatCurrency,
   formatHours,
@@ -46,9 +47,10 @@ export function IncidentDetailPanel({ incident, onClose }: IncidentDetailPanelPr
         </div>
         <button
           onClick={onClose}
-          className="text-muted-foreground hover:text-foreground text-lg leading-none"
+          aria-label="Close detail panel"
+          className="text-muted-foreground hover:text-foreground text-lg leading-none focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none rounded"
         >
-          ×
+          <X size={18} strokeWidth={1.5} />
         </button>
       </div>
 

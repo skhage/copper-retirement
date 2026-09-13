@@ -16,42 +16,42 @@ export function PlanKPIs() {
       label: 'Wire Centers',
       value: formatCount(kpis.total_wire_centers),
       sub: `${formatPercent(kpis.pct_completed)} complete`,
-      color: 'text-blue-600',
+      color: 'text-[#1B3139]',
     },
     {
       label: 'Planned',
       value: formatPercent(kpis.pct_planned),
       sub: 'awaiting start',
-      color: 'text-slate-600',
+      color: 'text-[#6E8898]',
     },
     {
       label: 'In Flight',
       value: formatPercent(kpis.pct_in_flight),
       sub: 'active migration',
-      color: 'text-amber-600',
+      color: 'text-primary',
     },
     {
       label: 'Completed',
       value: formatPercent(kpis.pct_completed),
       sub: 'fully retired',
-      color: 'text-green-600',
+      color: 'text-accent',
     },
     {
       label: 'Budget Remaining',
       value: formatCurrency(kpis.total_budget_remaining),
       sub: `of ${formatCurrency(kpis.total_budget_allocated)} allocated`,
-      color: 'text-purple-600',
+      color: 'text-[#FF8C69]',
     },
     {
       label: 'Customers Remaining',
       value: formatCount(kpis.customers_remaining),
       sub: `${formatCount(kpis.customers_migrated)} migrated`,
-      color: 'text-red-600',
+      color: 'text-primary',
     },
   ];
 
   return (
-    <div className="grid grid-cols-6 gap-3 mb-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
       {cards.map((card) => (
         <div
           key={card.label}

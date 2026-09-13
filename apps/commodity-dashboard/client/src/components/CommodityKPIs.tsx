@@ -62,7 +62,7 @@ export function CommodityKPIs() {
       {cards.map((card) => (
         <div
           key={card.label}
-          className="bg-white border rounded-lg p-3 shadow-sm"
+          className="bg-card border rounded-lg p-3 shadow-sm"
         >
           <p className="text-xs text-muted-foreground font-medium">{card.label}</p>
           <p className={`text-lg font-bold mt-1 ${card.color ?? ''}`}>{card.value}</p>

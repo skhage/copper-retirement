@@ -144,7 +144,7 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
               <div
                 className={`inline-block max-w-[95%] rounded-lg px-3 py-2 text-sm ${
                   msg.role === 'user'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-[#1B3139] text-white'
                     : 'bg-muted'
                 }`}
               >
@@ -171,7 +171,7 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
                       <span className="text-xs font-semibold uppercase" style={{
                         color: action.priority === 'critical' ? '#EB1600'
                           : action.priority === 'high' ? '#FF8C00'
-                          : '#666',
+                          : '#6E8898',
                       }}>
                         {action.type} — {action.priority}
                       </span>
@@ -187,13 +187,15 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
                       <div className="flex gap-2 mt-2">
                         <button
                           onClick={() => handleActionDecision(action, 'approved')}
-                          className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                          aria-label={`Approve action: ${action.type}`}
+                          className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:outline-none"
                         >
                           Approve
                         </button>
                         <button
                           onClick={() => handleActionDecision(action, 'rejected')}
-                          className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                          aria-label={`Reject action: ${action.type}`}
+                          className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:outline-none"
                         >
                           Reject
                         </button>
@@ -234,13 +236,15 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Ask the triage agent..."
-            className="flex-1 border rounded px-3 py-1.5 text-sm"
+            aria-label="Message for triage agent"
+            className="flex-1 border rounded px-3 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
             disabled={!selectedIncident}
           />
           <button
             onClick={handleSend}
             disabled={!selectedIncident || !inputValue.trim()}
-            className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            aria-label="Send message"
+            className="px-4 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             Send
           </button>

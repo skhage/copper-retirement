@@ -45,18 +45,18 @@ export function PriceChart() {
   const yearLabels = [2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
 
   return (
-    <div className="bg-white border rounded-lg p-4 shadow-sm">
+    <div className="bg-card border rounded-lg p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold">Copper Price History & Forecast</h2>
         <div className="flex gap-4 text-xs">
           <span className="flex items-center gap-1">
-            <span className="w-3 h-0.5 bg-blue-600 inline-block" /> LME Spot
+            <span className="w-3 h-0.5 bg-primary inline-block" /> LME Spot
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-3 h-0.5 bg-emerald-500 inline-block" /> 3M Forward
+            <span className="w-3 h-0.5 bg-accent inline-block" /> 3M Forward
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-3 h-0.5 bg-orange-500 inline-block border-dashed" /> AI Forecast
+            <span className="w-3 h-0.5 bg-[#FF8C69] inline-block border-dashed" /> AI Forecast
           </span>
         </div>
       </div>
@@ -67,9 +67,9 @@ export function PriceChart() {
           <g key={y}>
             <line
               x1={PAD.left} y1={scaleY(y)} x2={CHART_W - PAD.right} y2={scaleY(y)}
-              stroke="#e5e7eb" strokeWidth={1}
+              stroke="#E5E2DD" strokeWidth={1}
             />
-            <text x={PAD.left - 8} y={scaleY(y) + 4} textAnchor="end" fontSize={10} fill="#6b7280">
+            <text x={PAD.left - 8} y={scaleY(y) + 4} textAnchor="end" fontSize={10} fill="#6E8898">
               ${y.toFixed(2)}
             </text>
           </g>
@@ -81,17 +81,17 @@ export function PriceChart() {
             key={year}
             x={scaleX(i * 12, prices.length)}
             y={CHART_H - 8}
-            textAnchor="middle" fontSize={10} fill="#6b7280"
+            textAnchor="middle" fontSize={10} fill="#6E8898"
           >
             {year}
           </text>
         ))}
 
         {/* Spot line */}
-        <path d={spotPath} fill="none" stroke="#2563eb" strokeWidth={2} />
+        <path d={spotPath} fill="none" stroke="#FF3621" strokeWidth={2} />
 
         {/* 3M forward line */}
-        <path d={fwd3mPath} fill="none" stroke="#10b981" strokeWidth={1.5} strokeDasharray="4,2" />
+        <path d={fwd3mPath} fill="none" stroke="#00A972" strokeWidth={1.5} strokeDasharray="4,2" />
 
         {/* Forecast region placeholder */}
         <rect
@@ -99,19 +99,19 @@ export function PriceChart() {
           y={PAD.top}
           width={80}
           height={INNER_H}
-          fill="#f97316" fillOpacity={0.08}
+          fill="#FF8C69" fillOpacity={0.08}
         />
         <text
           x={CHART_W - PAD.right - 40}
           y={PAD.top + INNER_H / 2}
-          textAnchor="middle" fontSize={10} fill="#f97316" fontWeight="500"
+          textAnchor="middle" fontSize={10} fill="#FF8C69" fontWeight="500"
         >
           AI Forecast
         </text>
         <text
           x={CHART_W - PAD.right - 40}
           y={PAD.top + INNER_H / 2 + 14}
-          textAnchor="middle" fontSize={9} fill="#f97316"
+          textAnchor="middle" fontSize={9} fill="#FF8C69"
         >
           12-mo horizon
         </text>
@@ -122,12 +122,12 @@ export function PriceChart() {
             <circle
               cx={scaleX(prices.length - 1, prices.length)}
               cy={scaleY(prices[prices.length - 1].spot_usd_lb)}
-              r={4} fill="#2563eb"
+              r={4} fill="#FF3621"
             />
             <text
               x={scaleX(prices.length - 1, prices.length) + 8}
               y={scaleY(prices[prices.length - 1].spot_usd_lb) + 4}
-              fontSize={11} fill="#2563eb" fontWeight="600"
+              fontSize={11} fill="#FF3621" fontWeight="600"
             >
               {formatPriceLb(prices[prices.length - 1].spot_usd_lb)}
             </text>

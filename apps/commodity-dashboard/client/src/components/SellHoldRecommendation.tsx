@@ -11,7 +11,7 @@ export function SellHoldRecommendation() {
   const rec = USE_MOCK_DATA ? mockRecommendation : mockRecommendation;
 
   return (
-    <div className="bg-white border rounded-lg p-4 shadow-sm">
+    <div className="bg-card border rounded-lg p-4 shadow-sm">
       <h3 className="text-sm font-semibold mb-3">AI Recommendation</h3>
 
       {/* Badge */}
@@ -32,11 +32,11 @@ export function SellHoldRecommendation() {
         </div>
         <div className="text-center">
           <p className="text-xs text-muted-foreground">3-mo Target</p>
-          <p className="text-sm font-semibold text-blue-600">{formatPriceLb(rec.forecast_3m)}</p>
+          <p className="text-sm font-semibold text-primary">{formatPriceLb(rec.forecast_3m)}</p>
         </div>
         <div className="text-center">
           <p className="text-xs text-muted-foreground">12-mo Target</p>
-          <p className="text-sm font-semibold text-blue-600">{formatPriceLb(rec.forecast_12m)}</p>
+          <p className="text-sm font-semibold text-primary">{formatPriceLb(rec.forecast_12m)}</p>
         </div>
       </div>
 

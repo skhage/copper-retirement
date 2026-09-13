@@ -21,37 +21,37 @@ export function TriageKPIs() {
     {
       label: 'Open Incidents',
       value: formatCount(kpis.open_incidents),
-      color: 'text-red-600',
+      color: 'text-primary',
       subtext: `${kpis.critical_incidents} critical`,
     },
     {
       label: 'Avg Resolution',
       value: `${kpis.avg_resolution_hours.toFixed(1)}h`,
-      color: 'text-orange-600',
+      color: 'text-[#FF8C69]',
       subtext: 'resolved incidents',
     },
     {
       label: 'This Week',
       value: formatCount(kpis.incidents_this_week),
-      color: 'text-blue-600',
+      color: 'text-[#1B3139]',
       subtext: 'new incidents',
     },
     {
       label: 'Reroutes Pending',
       value: formatCount(kpis.reroutes_pending),
-      color: 'text-purple-600',
+      color: 'text-[#6E8898]',
       subtext: 'awaiting approval',
     },
     {
       label: 'Active Contractors',
       value: formatCount(kpis.active_contractors),
-      color: 'text-teal-600',
+      color: 'text-accent',
       subtext: 'available for dispatch',
     },
     {
       label: 'Critical',
       value: formatCount(kpis.critical_incidents),
-      color: 'text-red-700',
+      color: 'text-primary',
       subtext: 'require immediate action',
     },
   ];

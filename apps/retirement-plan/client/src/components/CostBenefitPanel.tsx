@@ -119,7 +119,7 @@ export function CostBenefitPanel({ wireCenter, onClose }: Props) {
                       ? 'bg-amber-500'
                       : m.status === 'at_risk'
                       ? 'bg-red-500'
-                      : 'bg-slate-300'
+                      : 'bg-muted'
                   }`}
                 />
                 <span className="font-medium">{m.name}</span>

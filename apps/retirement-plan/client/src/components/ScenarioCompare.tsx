@@ -31,7 +31,7 @@ export function ScenarioCompare() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold">Optimizer Scenarios</h2>
         <button
-          className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition-colors"
+          className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded hover:opacity-90 transition-colors"
           onClick={() => {
             console.log('[retirement-plan] Requesting new scenario run...');
             // TODO: POST /api/plan/scenario when P4-SEQ is available
@@ -47,8 +47,8 @@ export function ScenarioCompare() {
             key={s.scenario_id}
             className={`rounded-lg border p-4 transition-all ${
               s.status === 'active'
-                ? 'ring-2 ring-blue-500 bg-blue-50/50'
-                : 'hover:border-blue-300'
+                ? 'ring-2 ring-primary bg-primary/5'
+                : 'hover:border-primary/30'
             }`}
           >
             {/* Header */}
@@ -57,10 +57,10 @@ export function ScenarioCompare() {
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
                   s.status === 'active'
-                    ? 'bg-green-100 text-green-700'
+                    ? 'bg-accent/10 text-accent'
                     : s.status === 'draft'
-                    ? 'bg-slate-100 text-slate-600'
-                    : 'bg-gray-100 text-gray-500'
+                    ? 'bg-muted text-muted-foreground'
+                    : 'bg-muted text-muted-foreground'
                 }`}
               >
                 {s.status}
@@ -97,7 +97,7 @@ export function ScenarioCompare() {
               {s.status !== 'active' && (
                 <button
                   onClick={() => handleSetActive(s.scenario_id)}
-                  className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition-colors"
+                  className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded hover:opacity-90 transition-colors"
                 >
                   Set Active
                 </button>
