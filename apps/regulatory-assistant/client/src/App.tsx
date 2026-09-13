@@ -56,9 +56,10 @@ export default function App() {
       <div className="border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Regulatory Assistant</h1>
+            <p className="text-base" style={{ fontWeight: 600, color: '#1B3139', lineHeight: 1.2 }}>Lakelink Fiber</p>
+            <h1 className="text-2xl font-bold mt-1" style={{ color: '#1B3139' }}>Regulatory Assistant</h1>
             <p className="text-sm text-muted-foreground">
-              LakeLink Fiber — Copper Retirement Compliance
+              Copper Retirement Compliance
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -79,7 +80,7 @@ export default function App() {
                 <option value="ID">Idaho</option>
               </select>
             </div>
-            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+            <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#FFD70033', color: '#1B3139' }}>
               SYNTHETIC DATA
             </span>
           </div>

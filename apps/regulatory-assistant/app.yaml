@@ -9,7 +9,7 @@ command:
 
 name: regulatory-assistant
 description: |
-  Regulatory compliance assistant for LakeLink Fiber's copper retirement program.
+  Regulatory compliance assistant for Lakelink Fiber's copper retirement program.
   Demo Beat 4: "Are we clear on regs everywhere we touch?"
   Chat interface to P6-REG regulatory RAG agent with citation display,
   jurisdiction map, compliance checklist, and document browser.

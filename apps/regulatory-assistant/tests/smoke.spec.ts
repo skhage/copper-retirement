@@ -21,7 +21,7 @@ test('app renders heading and regulatory KPIs', async ({ page }) => {
 
   // Verify subtitle
   await expect(
-    page.getByText('LakeLink Fiber — Copper Retirement Compliance')
+    page.getByText('Copper Retirement Compliance')
   ).toBeVisible();
 
   // Verify synthetic data badge

@@ -220,6 +220,9 @@ __marimo__/
 # macOS
 .DS_Store
 
+# MLflow experiments (unsupported by Databricks Git folders)
+experiments/
+
 # Node / React / TypeScript (Databricks Apps)
 node_modules/
 .next/

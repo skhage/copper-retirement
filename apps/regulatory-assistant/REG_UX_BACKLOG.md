@@ -56,7 +56,7 @@ A telco executive asks: "We're retiring copper in 6 states. What are the regulat
 | `JurisdictionContext` | Sticky header showing active jurisdiction filter (e.g., "Showing: Texas" or "All States"). Clicking opens jurisdiction selector. | LOW |
 
 #### Screen 2: Jurisdiction Map
-**Purpose:** Geographic overview of regulatory landscape across LakeLink's footprint.
+**Purpose:** Geographic overview of regulatory landscape across Lakelink's footprint.
 
 | Component | Description | Complexity |
 |---|---|---|

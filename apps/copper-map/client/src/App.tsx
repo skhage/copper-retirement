@@ -52,7 +52,7 @@ export default function App() {
           <p className="text-sm text-muted-foreground">Where to dig, what it costs, who it affects</p>
         </div>
         <div className="flex items-center gap-3">
-          {USE_MOCK_DATA && <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">SYNTHETIC DATA</span>}
+          {USE_MOCK_DATA && <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#FFD70033', color: '#1B3139' }}>SYNTHETIC DATA</span>}
         </div>
       </div>
 
