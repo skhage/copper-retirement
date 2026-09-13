@@ -1,31 +1,72 @@
 /**
  * SummaryKPIs.tsx
- * Top bar showing key metrics: total copper devices, % critical risk,
- * customers affected, wire centers remaining.
+ * Converged KPI bar: Copper Devices, Critical Risk %, Revenue at Risk,
+ * States, Services Affected.
  *
- * Uses useAnalyticsQuery in live mode, mock data in scaffold mode.
- * No prebuilt KpiCard in AppKit — composed from Card + custom layout.
+ * Follows BRAND_GUIDE §6 KPI Card spec:
+ *   - Background: --ll-surface-elevated (#FFFFFF)
+ *   - Label: uppercase, tracking-wide, --ll-text-secondary (#6E8898), 12px
+ *   - Value: --ll-text-primary (#1B3139) or semantic color, 28px bold
+ *   - Subtitle: --ll-text-secondary, 11px
+ *   - Border: 1px #E5E2DD, radius 8px, no shadows
+ *
+ * Shared between AppKit (client/) and Dash (app.py) — both must show
+ * the same 5 metrics in the same order.
  */
-import { useMemo } from 'react';
 import { Card, CardContent, Skeleton } from '@databricks/appkit-ui/react';
-import { useAnalyticsQuery } from '@databricks/appkit-ui/react';
-import { formatCount, formatPercent } from '../lib/formatters';
-import { USE_MOCK_DATA, getMockKPIs } from '../mock/mockData';
-import type { MapKPIs } from '../mock/mockData';
+import { USE_MOCK_DATA, getConvergedKPIs } from '../mock/retirementData';
+import type { ConvergedKPIs } from '../mock/retirementData';
+
+/* Lakelink Fiber brand tokens */
+const LL_CRITICAL = '#FF3621';
+const LL_TEXT_PRIMARY = '#1B3139';
+
+interface KPICard {
+  label: string;
+  value: string;
+  sub: string;
+  color: string;
+}
+
+function buildCards(k: ConvergedKPIs): KPICard[] {
+  return [
+    {
+      label: 'Copper Devices',
+      value: k.copper_devices.toLocaleString(),
+      sub: 'Across all wire centers',
+      color: LL_TEXT_PRIMARY,
+    },
+    {
+      label: 'Critical Risk',
+      value: `${k.critical_risk_pct}%`,
+      sub: 'Wire centers retire-now',
+      color: k.critical_risk_pct >= 40 ? LL_CRITICAL : LL_TEXT_PRIMARY,
+    },
+    {
+      label: 'Revenue at Risk',
+      value: `$${(k.revenue_at_risk_mrr / 1000).toFixed(0)}K`,
+      sub: `$${(k.revenue_at_risk_mrr * 12 / 1_000_000).toFixed(1)}M annualized`,
+      color: LL_CRITICAL,
+    },
+    {
+      label: 'States',
+      value: String(k.states_count),
+      sub: 'With copper plant',
+      color: LL_TEXT_PRIMARY,
+    },
+    {
+      label: 'Services Affected',
+      value: k.services_affected.toLocaleString(),
+      sub: 'Copper-dependent',
+      color: LL_TEXT_PRIMARY,
+    },
+  ];
+}
 
 export function SummaryKPIs() {
-  const params = useMemo(() => ({}), []);
-  const { data, loading, error } = useAnalyticsQuery('map_kpis', params, {
-    autoStart: !USE_MOCK_DATA,
-  });
+  const kpis = USE_MOCK_DATA ? getConvergedKPIs() : getConvergedKPIs(); // TODO: live query
 
-  const kpis: MapKPIs | null = USE_MOCK_DATA
-    ? getMockKPIs()
-    : data && (data as unknown[])[0]
-      ? (data as unknown[])[0] as MapKPIs
-      : null;
-
-  if (!USE_MOCK_DATA && loading) {
+  if (!kpis) {
     return (
       <div className="grid grid-cols-5 gap-3 mb-4">
         {Array.from({ length: 5 }).map((_, i) => (
@@ -40,28 +81,46 @@ export function SummaryKPIs() {
     );
   }
 
-  if (!USE_MOCK_DATA && error) {
-    return <div className="text-destructive mb-4">KPI load error: {String(error)}</div>;
-  }
-
-  if (!kpis) return null;
-
-  const cards = [
-    { label: 'Copper Devices', value: formatCount(kpis.total_copper_devices), sub: `CPE ${formatCount(kpis.cpe_count)} | ONT ${formatCount(kpis.ont_count)} | OLT ${formatCount(kpis.olt_count)}` },
-    { label: 'Critical Risk', value: formatPercent(kpis.pct_critical_approx), sub: `${formatCount(kpis.critical_alarm_count)} critical alarms` },
-    { label: 'Total Alarms', value: formatCount(kpis.total_alarms), sub: 'Across copper plant' },
-    { label: 'States', value: String(kpis.states_with_copper), sub: 'With copper plant' },
-    { label: 'Wire Centers', value: formatCount(kpis.wire_centers_remaining), sub: 'Remaining to retire' },
-  ];
+  const cards = buildCards(kpis);
 
   return (
     <div className="grid grid-cols-5 gap-3 mb-4">
       {cards.map((c) => (
-        <Card key={c.label}>
+        <Card key={c.label} style={{ border: '1px solid #E5E2DD', borderRadius: 8 }}>
           <CardContent className="p-3">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">{c.label}</p>
-            <p className="text-2xl font-bold mt-1">{c.value}</p>
-            <p className="text-xs text-muted-foreground mt-1">{c.sub}</p>
+            <p
+              role="status"
+              aria-label={c.label}
+              style={{
+                fontSize: '0.75rem',
+                color: '#6E8898',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                margin: 0,
+              }}
+            >
+              {c.label}
+            </p>
+            <p
+              style={{
+                fontSize: '1.75rem',
+                fontWeight: 700,
+                color: c.color,
+                margin: '4px 0 0',
+                lineHeight: 1.2,
+              }}
+            >
+              {c.value}
+            </p>
+            <p
+              style={{
+                fontSize: '0.6875rem',
+                color: '#6E8898',
+                margin: '4px 0 0',
+              }}
+            >
+              {c.sub}
+            </p>
           </CardContent>
         </Card>
       ))}

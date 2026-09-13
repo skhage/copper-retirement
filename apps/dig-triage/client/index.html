@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dig-Safe Triage Console — Lakelink Fiber</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            background: '#F9F7F4',
+            foreground: '#1B3139',
+            primary: { DEFAULT: '#FF3621', foreground: '#FFFFFF' },
+            accent: { DEFAULT: '#00A972', foreground: '#FFFFFF' },
+            muted: { DEFAULT: '#F0EEEA', foreground: '#6E8898' },
+            border: '#E5E2DD',
+          },
+        },
+      },
+    };
+  </script>
+</head>
+<body class="bg-background text-foreground">
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

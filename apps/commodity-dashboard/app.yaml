@@ -2,6 +2,11 @@
 # Databricks Apps deployment config
 # Scaffold: analytics (read-only commodity + contractor data)
 
+command:
+  - sh
+  - -c
+  - "npm install && npm run build && npm start"
+
 name: commodity-dashboard
 description: |
   Commodity & workforce dashboard for LakeLink Fiber's copper retirement program.

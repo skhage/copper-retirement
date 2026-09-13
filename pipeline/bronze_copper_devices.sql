@@ -9,18 +9,15 @@ AS
 SELECT
   pd.physical_device_id,
   pd.device_type,
-  pd.device_status,
+  pd.status AS device_status,
   pd.serial_number,
   pd.firmware_version,
-  pd.manufacture_date,
+  pd.commissioned_date AS manufacture_date,
   pd.installation_date,
   pd.geographic_address_id,
-  pd.geographic_site_id,
-  pd.site_latitude,
-  pd.site_longitude,
   pd.h3_res8,
-  ga.state_code,
-  ga.city,
+  ga.state_or_province AS state_code,
+  ga.locality AS city,
   ga.latitude AS addr_latitude,
   ga.longitude AS addr_longitude,
   ga.h3_res8 AS addr_h3_res8,
@@ -29,4 +26,4 @@ SELECT
 FROM cdm_tmforum.tmf_enterprise.physical_device pd
 LEFT JOIN cdm_tmforum.tmf_shared.geographic_address ga
   ON pd.geographic_address_id = ga.geographic_address_id
-WHERE pd.device_type IN ('CPE', 'ONT', 'OLT', 'patch_panel');
+WHERE pd.device_type IN ('cpe', 'ont', 'olt', 'patch_panel');

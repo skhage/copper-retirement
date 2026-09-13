@@ -23,7 +23,7 @@ work_metrics AS (
     w.party_id,
     COUNT(*) AS total_work_orders,
     SUM(CASE WHEN w.status = 'completed' THEN 1 ELSE 0 END) AS completed_orders,
-    SUM(CASE WHEN w.sla_met THEN 1 ELSE 0 END) AS sla_met_orders,
+    SUM(CASE WHEN w.sla_met_flag THEN 1 ELSE 0 END) AS sla_met_orders,
     COUNT(DISTINCT w.type) AS work_type_diversity
   FROM cdm_tmforum.tmf_enterprise.work w
   GROUP BY w.party_id

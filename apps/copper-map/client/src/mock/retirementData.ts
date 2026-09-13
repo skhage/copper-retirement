@@ -72,10 +72,10 @@ export interface Filters {
 }
 
 export const PRIORITY_COLORS: Record<string, string> = {
-  'retire-now': '#EB1600',
-  'plan-next': '#FF8C00',
+  'retire-now': '#FF3621',
+  'plan-next': '#FF8C69',
   'evaluate': '#FFD700',
-  'defer': '#40d1f5',
+  'defer': '#60A5FA',
 };
 
 export const PRIORITY_TIERS = ['retire-now', 'plan-next', 'evaluate', 'defer'] as const;
@@ -135,3 +135,23 @@ export function getMockWireCenters(filters?: Partial<Filters>): WireCenterImpact
 
 export function getMockKPIs(): RetirementKPIs { return { ...MOCK_KPIS }; }
 export function getMockWireCenter(id: string) { return WCS.find((w) => w.wire_center_id === id); }
+
+/** Converged KPI set (BRAND_GUIDE §6 — used by SummaryKPIs and app.py) */
+export interface ConvergedKPIs {
+  copper_devices: number;
+  critical_risk_pct: number;
+  revenue_at_risk_mrr: number;
+  states_count: number;
+  services_affected: number;
+}
+
+export function getConvergedKPIs(): ConvergedKPIs {
+  const retireNow = WCS.filter((w) => w.priority_tier === 'retire-now').length;
+  return {
+    copper_devices: WCS.reduce((s, w) => s + w.copper_devices, 0),
+    critical_risk_pct: Math.round((retireNow / WCS.length) * 1000) / 10,
+    revenue_at_risk_mrr: MOCK_KPIS.total_revenue_at_risk_mrr,
+    states_count: new Set(WCS.map((w) => w.state)).size,
+    services_affected: MOCK_KPIS.total_services_affected,
+  };
+}

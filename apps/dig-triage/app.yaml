@@ -2,6 +2,11 @@
 # Databricks Apps deployment config
 # Scaffold: analytics + lakebase (read incidents + write triage actions)
 
+command:
+  - sh
+  - -c
+  - "npm install && npm run build && npm start"
+
 name: dig-triage
 description: |
   Dig-safe triage console for LakeLink Fiber's copper retirement program.

@@ -18,13 +18,13 @@
  * All data is SYNTHETIC until FIX-COORDINATES + P2-H3 + P4-RISK land.
  */
 import { useState, useCallback } from 'react';
-import { Card, CardContent } from '@databricks/appkit-ui/react';
 import { ImpactDetailPanel } from './components/ImpactDetailPanel';
 import { WhatIfChat } from './components/WhatIfChat';
+import { SummaryKPIs } from './components/SummaryKPIs';
+import { LakeLinkHeader } from './components/LakeLinkHeader';
 import {
   USE_MOCK_DATA,
   getMockWireCenters,
-  getMockKPIs,
   PRIORITY_COLORS,
   PRIORITY_TIERS,
 } from './mock/retirementData';
@@ -36,7 +36,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'map' | 'table' | 'whatif'>('map');
 
   const wireCenters = getMockWireCenters(filters);
-  const kpis = getMockKPIs();
   const states = [...new Set(getMockWireCenters().map((w) => w.state))].sort();
 
   const handleSelectWC = useCallback((wc: WireCenterImpact) => { setSelectedWC(wc); }, []);
@@ -44,50 +43,15 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="px-6 pt-4 pb-2 flex items-center justify-between">
-        <div>
-          <p className="text-base" style={{ fontWeight: 600, color: '#1B3139', lineHeight: 1.2 }}>Lakelink Fiber</p>
-          <h1 className="text-2xl font-bold mt-1" style={{ color: '#1B3139' }}>Copper Retirement Impact Map</h1>
-          <p className="text-sm text-muted-foreground">Where to dig, what it costs, who it affects</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {USE_MOCK_DATA && <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#FFD70033', color: '#1B3139' }}>SYNTHETIC DATA</span>}
-        </div>
-      </div>
+      {/* Header — shared LakeLinkHeader (BRAND_GUIDE §6) */}
+      <LakeLinkHeader
+        subtitle="Copper Retirement Impact Map"
+        tagline="Where to dig, what it costs, who it affects"
+      />
 
-      {/* KPI bar */}
-      <div className="px-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-4">
-        <Card><CardContent className="p-3">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Revenue at Risk</p>
-          <p className="text-xl font-bold text-red-600">${(kpis.total_revenue_at_risk_mrr / 1000).toFixed(0)}K <span className="text-xs font-normal">MRR</span></p>
-          <p className="text-xs text-muted-foreground">${(kpis.total_revenue_at_risk_mrr * 12 / 1000000).toFixed(1)}M annualized</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-3">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Customers on Copper</p>
-          <p className="text-xl font-bold">{kpis.total_customers_on_copper.toLocaleString()}</p>
-          <p className="text-xs text-muted-foreground">{kpis.contract_locked_customers} contract-locked</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-3">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Wire Centers</p>
-          <p className="text-xl font-bold">{kpis.wire_centers_to_retire}</p>
-          <p className="text-xs text-muted-foreground">Targeted for retirement</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-3">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Services Affected</p>
-          <p className="text-xl font-bold">{kpis.total_services_affected.toLocaleString()}</p>
-          <p className="text-xs text-muted-foreground">Copper-dependent</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-3">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Net Retirement Cost</p>
-          <p className="text-xl font-bold">${(kpis.total_net_cost / 1000000).toFixed(1)}M</p>
-          <p className="text-xs text-muted-foreground">After scrap recovery</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-3">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Fiber Ready</p>
-          <p className="text-xl font-bold text-green-600">{kpis.fiber_ready_pct_avg}%</p>
-          <p className="text-xs text-muted-foreground">Avg across wire centers</p>
-        </CardContent></Card>
+      {/* KPI bar — converged 5-card layout (BRAND_GUIDE §6) */}
+      <div className="px-6">
+        <SummaryKPIs />
       </div>
 
       {/* Tab bar */}

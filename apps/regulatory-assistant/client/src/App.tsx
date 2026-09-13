@@ -16,6 +16,7 @@ import { ComplianceChecklist } from './components/ComplianceChecklist';
 import { DocumentBrowser } from './components/DocumentBrowser';
 import { RegKPIs } from './components/RegKPIs';
 import { CitationSidebar } from './components/CitationSidebar';
+import { LakeLinkHeader } from './components/LakeLinkHeader';
 import type { ActiveTab, Citation } from './mock/mockData';
 
 const TABS: { key: ActiveTab; label: string }[] = [
@@ -52,42 +53,33 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-base" style={{ fontWeight: 600, color: '#1B3139', lineHeight: 1.2 }}>Lakelink Fiber</p>
-            <h1 className="text-2xl font-bold mt-1" style={{ color: '#1B3139' }}>Regulatory Assistant</h1>
-            <p className="text-sm text-muted-foreground">
-              Copper Retirement Compliance
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Jurisdiction context (global filter) */}
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Jurisdiction:</span>
-              <select
-                value={jurisdictionFilter}
-                onChange={(e) => setJurisdictionFilter(e.target.value)}
-                className="border rounded px-2 py-1 text-sm bg-background"
-              >
-                <option value="all">All States</option>
-                <option value="CO">Colorado</option>
-                <option value="WA">Washington</option>
-                <option value="OR">Oregon</option>
-                <option value="AZ">Arizona</option>
-                <option value="MN">Minnesota</option>
-                <option value="ID">Idaho</option>
-              </select>
-            </div>
-            <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#FFD70033', color: '#1B3139' }}>
-              SYNTHETIC DATA
-            </span>
-          </div>
+      {/* Header — shared LakeLinkHeader (BRAND_GUIDE §6) */}
+      <LakeLinkHeader
+        subtitle="Regulatory Assistant"
+        tagline="Copper Retirement Compliance"
+      >
+        {/* Jurisdiction context (global filter) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.875rem' }}>
+          <span style={{ color: '#6E8898' }}>Jurisdiction:</span>
+          <select
+            value={jurisdictionFilter}
+            onChange={(e) => setJurisdictionFilter(e.target.value)}
+            className="border rounded px-2 py-1 text-sm bg-background"
+          >
+            <option value="all">All States</option>
+            <option value="CO">Colorado</option>
+            <option value="WA">Washington</option>
+            <option value="OR">Oregon</option>
+            <option value="AZ">Arizona</option>
+            <option value="MN">Minnesota</option>
+            <option value="ID">Idaho</option>
+          </select>
         </div>
+      </LakeLinkHeader>
 
-        {/* Tab navigation */}
-        <div className="flex gap-1 mt-4">
+      {/* Tab navigation */}
+      <div className="px-6 border-b">
+        <div className="flex gap-1 pt-2">
           {TABS.map((tab) => (
             <button
               key={tab.key}

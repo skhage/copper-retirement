@@ -1,10 +1,14 @@
 """data.py — Live data layer for Copper Prioritization Map (P7-MAP)
 
 Queries cdm_tmforum catalog tables via SQL warehouse.
-Computes H3 on-the-fly using h3_longlatash3() since h3_res9 columns
-are currently 100% NULL (pending populate_h3_indexes notebook run).
+Uses pre-populated h3_res8 columns (populated 2026-09-12) with
+h3_toparent() for coarser resolutions. No more on-the-fly H3
+computation from raw lat/lon.
 
 @app-developer 2026-09-12 — UPGRADE-COPPER-MAP-LIVE-DATA
+@app-developer 2026-09-13 — P7-MAP-LIVE-DATA-PREP: switched to
+  pre-populated h3_res8 columns via h3_toparent() for performance.
+  Added h3_h3tostring() for human-readable hex IDs.
 """
 import os
 import logging
@@ -19,7 +23,7 @@ H3_RES = int(os.environ.get("H3_RESOLUTION", "4"))  # res 4 for US-wide view
 
 QUERY_HEX_RISK = """
 SELECT
-  h3_longlatash3(CAST(ga.longitude AS DOUBLE), CAST(ga.latitude AS DOUBLE), {h3_res}) AS h3_cell,
+  h3_h3tostring(h3_toparent(ga.h3_res8, {h3_res})) AS h3_cell,
   AVG(CAST(ga.latitude AS DOUBLE))   AS center_lat,
   AVG(CAST(ga.longitude AS DOUBLE))  AS center_lon,
   ga.state_or_province               AS state,
@@ -38,10 +42,10 @@ INNER JOIN cdm_tmforum.tmf_enterprise.physical_device pd
   AND pd.device_type IN ('cpe', 'ont', 'olt', 'patch_panel')
 LEFT JOIN cdm_tmforum.tmf_resource.alarm a
   ON a.physical_resource_id = pd.physical_device_id
-WHERE ga.latitude IS NOT NULL AND ga.longitude IS NOT NULL
+WHERE ga.h3_res8 IS NOT NULL
   AND ('{state_filter}' = '' OR ga.state_or_province = '{state_filter}')
 GROUP BY
-  h3_longlatash3(CAST(ga.longitude AS DOUBLE), CAST(ga.latitude AS DOUBLE), {h3_res}),
+  h3_toparent(ga.h3_res8, {h3_res}),
   ga.state_or_province
 ORDER BY copper_devices DESC
 LIMIT 500
@@ -229,15 +233,19 @@ def load_kpis() -> dict:
     if not rows:
         return {}
     r = rows[0]
+    devices = r.get("total_devices", 0) or 0
+    pct_crit = float(r.get("pct_crit", 0) or 0)
     return {
-        "devices": r.get("total_devices", 0) or 0,
+        "devices": devices,
+        "copper_devices": devices,  # alias for app.py KPI display
         "cpe": r.get("cpe", 0) or 0,
         "ont": r.get("ont", 0) or 0,
         "olt": r.get("olt", 0) or 0,
         "pp": r.get("pp", 0) or 0,
         "alarms": r.get("total_alarms", 0) or 0,
         "crit_alarms": r.get("crit_alarms", 0) or 0,
-        "pct_crit": float(r.get("pct_crit", 0) or 0),
+        "pct_crit": pct_crit,
+        "critical_risk_pct": pct_crit,  # alias for app.py KPI display
         "states": r.get("states", 0) or 0,
         "revenue_at_risk_mrr": r.get("revenue_at_risk_mrr", 0) or 0,
         "customers_on_copper": r.get("customers_on_copper", 0) or 0,

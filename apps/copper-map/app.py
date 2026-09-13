@@ -11,7 +11,11 @@ All underlying data is SYNTHETIC (generated for demo).
 Bugs fixed:
   - ga.city → ga.locality (column name mismatch)
   - customer.geographic_address_id doesn't exist → join via CFS
-  - h3_res9 is 100% NULL → compute H3 on-the-fly with h3_longlatash3()
+  - h3_res9 was 100% NULL → now using pre-populated h3_res8 via h3_toparent()
+@app-developer 2026-09-13 — P7-MAP-LIVE-DATA-PREP
+  - Switched to pre-populated h3_res8 columns (no more on-the-fly H3)
+  - Fixed KPI key mismatch (copper_devices, critical_risk_pct aliases)
+  - Added h3_h3tostring() for readable hex cell IDs
 """
 import os
 import logging
@@ -87,6 +91,11 @@ KPIS = {
     "devices": 2672, "cpe": 688, "ont": 663, "olt": 661, "pp": 660,
     "alarms": 26943, "crit_alarms": 9978, "pct_crit": 37.3,
     "states": 6, "wire_centers": 200,
+    # Converged KPIs (matches SummaryKPIs.tsx)
+    "copper_devices": 975,
+    "critical_risk_pct": 58.3,
+    "revenue_at_risk_mrr": 297600,
+    "services_affected": 2626,
 }
 
 # ── Bootstrap initial data (live or mock) ─────────────────────────────────────
@@ -121,6 +130,38 @@ else:
 TIERS = ["critical", "high", "medium", "low"]
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
+def lakelink_header(subtitle, tagline=None, data_source="MOCK", show_synthetic=True):
+    """Shared Lakelink Fiber nav header (BRAND_GUIDE §6 Nav Header).
+    Equivalent to LakeLinkHeader.tsx for Dash apps.
+    """
+    badge_color = LL_INFO if data_source == "LIVE" else RISK_COLORS["medium"]
+    badge_text = f"{data_source} DATA"
+    if show_synthetic:
+        badge_text += " \u00B7 SYNTHETIC"
+    left = [
+        html.P("Lakelink Fiber", className="mb-0",
+               style={"fontSize": "1rem", "fontWeight": 600, "color": LL_SECONDARY,
+                      "lineHeight": 1.2}),
+        html.H3(subtitle, className="mb-0 mt-1",
+                style={"fontWeight": 700, "color": LL_TEXT_PRIMARY}),
+    ]
+    if tagline:
+        left.append(html.P(tagline, className="mb-0",
+                           style={"fontSize": "0.8125rem", "color": LL_TEXT_SECONDARY}))
+    return dbc.Row([
+        dbc.Col(left, width="auto"),
+        dbc.Col([
+            dbc.Badge(
+                badge_text,
+                style={"fontSize": "0.6875rem", "backgroundColor": f"{badge_color}33",
+                       "color": LL_SECONDARY, "border": f"1px solid {LL_BORDER}",
+                       "padding": "4px 10px", "fontWeight": 500},
+            ),
+        ], width="auto", className="d-flex align-items-center"),
+    ], justify="between", style={"background": LL_SURFACE, "borderBottom": f"1px solid {LL_BORDER}",
+                                  "padding": "16px 24px 12px"})
+
 
 def kpi_card(label, value, color=LL_TEXT_PRIMARY, sub=None):
     children = [
@@ -241,57 +282,38 @@ app = dash.Dash(
 )
 
 app.layout = dbc.Container([
-    # ── Header ──
-    dbc.Row([
-        dbc.Col([
-            html.Div("Lakelink Fiber", style={
-                "fontSize": "1rem", "fontWeight": 600, "color": LL_SECONDARY,
-                "lineHeight": 1.2,
-            }),
-            html.H3("Copper Prioritization Map", className="mb-0 mt-1",
-                    style={"fontWeight": 700, "color": LL_TEXT_PRIMARY}),
-            html.P("Copper Retirement Program",
-                   style={"fontSize": "0.85rem", "color": LL_TEXT_SECONDARY,
-                          "marginBottom": 0}),
-        ], width="auto"),
-        dbc.Col([
-            dbc.Badge(
-                f"{'LIVE DATA' if DATA_SOURCE == 'LIVE' else 'MOCK DATA'} • SYNTHETIC",
-                style={
-                    "fontSize": "0.7rem",
-                    "verticalAlign": "middle",
-                    "backgroundColor": LL_INFO if DATA_SOURCE == "LIVE" else RISK_COLORS["medium"],
-                    "color": LL_TEXT_PRIMARY,
-                    "border": f"1px solid {LL_BORDER}",
-                    "padding": "0.4rem 0.55rem",
-                },
-            ),
-        ], width="auto", className="d-flex align-items-center"),
-    ], className="mb-3 mt-2", justify="between", style={"borderBottom": f"1px solid {LL_BORDER}", "paddingBottom": "12px"}),
+    # ── Header (shared lakelink_header) ──
+    lakelink_header(
+        subtitle="Copper Prioritization Map",
+        tagline="Copper Retirement Program",
+        data_source=DATA_SOURCE,
+    ),
 
-    # ── KPI Row ──
+    # ── KPI Row (converged 5 metrics — matches SummaryKPIs.tsx) ──
     dbc.Row([
         dbc.Col(kpi_card(
-            "Total Copper Devices", f"{KPIS['devices']:,}", LL_INFO,
-            f"CPE {KPIS['cpe']}  |  ONT {KPIS['ont']}  |  OLT {KPIS['olt']}  |  PP {KPIS['pp']}",
-        ), md=3),
+            "Copper Devices", f"{KPIS['copper_devices']:,}",
+            sub="Across all wire centers",
+        )),
         dbc.Col(kpi_card(
-            "Critical Risk", f"{KPIS['pct_crit']}%", RISK_COLORS["critical"],
-            f"{KPIS['crit_alarms']:,} critical alarms",
-        ), md=3),
+            "Critical Risk", f"{KPIS['critical_risk_pct']}%",
+            color=LL_PRIMARY if KPIS['critical_risk_pct'] >= 40 else LL_TEXT_PRIMARY,
+            sub="Wire centers retire-now",
+        )),
         dbc.Col(kpi_card(
             "Revenue at Risk",
-            f"${KPIS.get('revenue_at_risk_mrr', 0):,}/mo" if KPIS.get('revenue_at_risk_mrr') else f"{KPIS['alarms']:,} alarms",
-            RISK_COLORS["medium"],
-            f"{KPIS.get('customers_on_copper', 0):,} customers" if KPIS.get('customers_on_copper') else None,
-        ), md=2),
-        dbc.Col(kpi_card("States", str(KPIS["states"]), RISK_COLORS["low"]), md=2),
+            f"${KPIS['revenue_at_risk_mrr'] // 1000:,}K",
+            color=LL_PRIMARY,
+            sub=f"${KPIS['revenue_at_risk_mrr'] * 12 / 1_000_000:.1f}M annualized",
+        )),
         dbc.Col(kpi_card(
-            "Services Affected",
-            f"{KPIS.get('services_affected', 0):,}" if KPIS.get('services_affected') else str(KPIS.get("wire_centers", "TBD")),
-            LL_SECONDARY,
-            "copper voice/broadband/fixed",
-        ), md=2),
+            "States", str(KPIS["states"]),
+            sub="With copper plant",
+        )),
+        dbc.Col(kpi_card(
+            "Services Affected", f"{KPIS['services_affected']:,}",
+            sub="Copper-dependent",
+        )),
     ], className="mb-3 g-2"),
 
     # ── Filters + Map ──
