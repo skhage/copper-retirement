@@ -11,7 +11,7 @@ CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.silver_revenue
   CONSTRAINT positive_deferred EXPECT (total_deferred_amount >= 0)
 )
 COMMENT 'Silver layer: ASC 606 revenue recognition constraints on copper retirement — flags circuits with deferred revenue that block safe decommissioning'
-CLUSTER BY (constraint_severity, customer_id)
+CLUSTER BY (customer_id)
 AS
 WITH recognized_totals AS (
   -- Pre-aggregate recognized amounts per transaction (avoids correlated subquery)

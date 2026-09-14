@@ -9,7 +9,7 @@ CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.silver_contrac
   CONSTRAINT valid_customer EXPECT (customer_id IS NOT NULL)
 )
 COMMENT 'Silver layer: contract constraints on copper retirement — maps active MSAs to copper services and devices'
-CLUSTER BY (constraint_status, customer_id)
+-- CLUSTER BY removed: constraint_status and customer_id are aliased columns
 AS
 WITH contract_customer AS (
   -- Resolve contract → customer via MDM crosswalk

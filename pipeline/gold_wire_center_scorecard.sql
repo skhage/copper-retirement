@@ -4,7 +4,7 @@
 
 CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.gold_wire_center_scorecard
 COMMENT 'Gold layer: per-wire-center retirement readiness scorecard'
-CLUSTER BY (state_code, retirement_priority_rank)
+CLUSTER BY (state_code)
 AS
 WITH device_metrics AS (
   SELECT
