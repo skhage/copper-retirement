@@ -41,7 +41,15 @@ export function ScenarioCompare() {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      {scenarios.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-sm text-muted-foreground">No optimizer scenarios available yet.</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Run the P4-SEQ optimizer to generate migration scenarios.
+          </p>
+        </div>
+      ) : (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {scenarios.map((s) => (
           <div
             key={s.scenario_id}
@@ -110,6 +118,7 @@ export function ScenarioCompare() {
           </div>
         ))}
       </div>
+      )}
 
       <p className="text-[10px] text-muted-foreground mt-3">
         Scenarios from P4-SEQ optimizer (mock data — optimizer not yet deployed).

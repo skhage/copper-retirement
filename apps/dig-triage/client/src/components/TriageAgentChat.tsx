@@ -82,6 +82,10 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
   }
 
   function handleActionDecision(action: AgentAction, decision: ActionDecision) {
+    if (decision === 'rejected') {
+      const confirmed = window.confirm('Reject this agent recommendation? This cannot be undone.');
+      if (!confirmed) return;
+    }
     console.log(`[triage-chat] Action ${action.action_id}: ${decision}`);
     // TODO: POST to /api/triage/action
     // Update action status in UI

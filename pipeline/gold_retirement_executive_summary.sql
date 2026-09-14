@@ -7,16 +7,20 @@ COMMENT 'Gold layer: per-state executive summary of copper retirement program'
 CLUSTER BY (state_code)
 AS
 WITH device_summary AS (
+  -- Use ML model predictions for risk tiers (4-tier: low/medium/high/critical)
+  -- silver_copper_plant_enriched.computed_risk_tier only has binary rates → 2 tiers
   SELECT
-    state_code,
+    scp.state_code,
     COUNT(*) AS total_copper_devices,
-    SUM(CASE WHEN device_status = 'active' THEN 1 ELSE 0 END) AS active_devices,
-    SUM(CASE WHEN computed_risk_tier = 'critical' THEN 1 ELSE 0 END) AS critical_risk_count,
-    SUM(CASE WHEN computed_risk_tier = 'high' THEN 1 ELSE 0 END) AS high_risk_count,
-    COUNT(DISTINCT wire_center_id) AS wire_center_count,
-    SUM(CASE WHEN fiber_ready THEN 1 ELSE 0 END) AS fiber_ready_devices
-  FROM cdm_tmforum.copper_retirement.silver_copper_plant_enriched
-  GROUP BY state_code
+    SUM(CASE WHEN scp.device_status = 'active' THEN 1 ELSE 0 END) AS active_devices,
+    SUM(CASE WHEN grp.risk_tier_predicted = 'critical' THEN 1 ELSE 0 END) AS critical_risk_count,
+    SUM(CASE WHEN grp.risk_tier_predicted = 'high' THEN 1 ELSE 0 END) AS high_risk_count,
+    COUNT(DISTINCT scp.wire_center_id) AS wire_center_count,
+    SUM(CASE WHEN scp.fiber_ready THEN 1 ELSE 0 END) AS fiber_ready_devices
+  FROM cdm_tmforum.copper_retirement.silver_copper_plant_enriched scp
+  LEFT JOIN cdm_tmforum.copper_retirement.gold_device_risk_predictions grp
+    ON scp.physical_device_id = grp.physical_device_id
+  GROUP BY scp.state_code
 ),
 service_summary AS (
   SELECT
@@ -74,10 +78,10 @@ SELECT
   COALESCE(cs.total_crew_capacity, 0) AS total_crew_capacity,
   COALESCE(cs.preferred_contractors, 0) AS preferred_contractors,
 
-  -- Program health indicator
+  -- Program health indicator (considers critical + high risk devices)
   CASE
-    WHEN ds.critical_risk_count > ds.total_copper_devices * 0.3 THEN 'red'
-    WHEN ds.critical_risk_count > ds.total_copper_devices * 0.15 THEN 'amber'
+    WHEN (ds.critical_risk_count + ds.high_risk_count) > ds.total_copper_devices * 0.5 THEN 'red'
+    WHEN (ds.critical_risk_count + ds.high_risk_count) > ds.total_copper_devices * 0.3 THEN 'amber'
     ELSE 'green'
   END AS program_health_status,
 

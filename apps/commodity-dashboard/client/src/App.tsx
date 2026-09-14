@@ -45,36 +45,35 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Commodity & Workforce Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
-            Lakelink Fiber — Copper Retirement Program
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-background">
+      {/* Lakelink Fiber nav bar */}
+      <nav className="flex items-center gap-3 px-4 py-3 bg-[#1B3139] text-white">
+        <span className="text-lg font-semibold">Lakelink Fiber</span>
+        <span className="text-sm opacity-70">|</span>
+        <span className="text-sm">Commodity & Workforce Dashboard</span>
+        <div className="ml-auto flex items-center gap-3">
           {/* State filter (global) */}
           <select
             value={filters.state}
             onChange={(e) => setFilters({ ...filters, state: e.target.value })}
             aria-label="Filter by state"
-            className="text-sm border rounded px-2 py-1 focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
+            className="text-sm bg-white/10 border border-white/20 rounded px-2 py-1 text-white focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
           >
-            <option value="all">All States</option>
-            <option value="CO">Colorado</option>
-            <option value="MN">Minnesota</option>
-            <option value="WA">Washington</option>
-            <option value="OR">Oregon</option>
-            <option value="AZ">Arizona</option>
-            <option value="ID">Idaho</option>
+            <option value="all" className="text-black">All States</option>
+            <option value="CO" className="text-black">Colorado</option>
+            <option value="MN" className="text-black">Minnesota</option>
+            <option value="WA" className="text-black">Washington</option>
+            <option value="OR" className="text-black">Oregon</option>
+            <option value="AZ" className="text-black">Arizona</option>
+            <option value="ID" className="text-black">Idaho</option>
           </select>
           <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
             SYNTHETIC DATA
           </span>
         </div>
-      </div>
+      </nav>
+
+      <div className="p-4">
 
       {/* KPI bar */}
       <CommodityKPIs />
@@ -118,6 +117,7 @@ export default function App() {
       {activeTab === 'contractors' && (
         <ContractorScorecard filters={filters} onFilterChange={setFilters} />
       )}
+      </div>
     </div>
   );
 }

@@ -60,19 +60,16 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Dig-Safe Triage Console</h1>
-          <p className="text-sm text-muted-foreground">
-            Lakelink Fiber — Copper Retirement Program
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-background">
+      {/* Lakelink Fiber nav bar */}
+      <nav className="flex items-center gap-3 px-4 py-3 bg-[#1B3139] text-white">
+        <span className="text-lg font-semibold">Lakelink Fiber</span>
+        <span className="text-sm opacity-70">|</span>
+        <span className="text-sm">Dig-Safe Triage Console</span>
+        <div className="ml-auto flex items-center gap-3">
           <button
             onClick={handleReportIncident}
-            className="px-4 py-2 bg-primary text-white rounded-md text-sm font-medium hover:bg-primary/90 transition-colors focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:ring-offset-2 focus-visible:outline-none"
+            className="px-4 py-2 bg-[#FF3621] text-white rounded-md text-sm font-medium hover:bg-[#FF3621]/90 transition-colors focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             + Report Incident
           </button>
@@ -80,7 +77,9 @@ export default function App() {
             SYNTHETIC DATA
           </span>
         </div>
-      </div>
+      </nav>
+
+      <div className="p-4">
 
       {/* KPI bar */}
       <TriageKPIs />
@@ -142,6 +141,7 @@ export default function App() {
       {showForm && (
         <IncidentForm onClose={handleFormClose} onSubmit={handleFormSubmit} />
       )}
+      </div>
     </div>
   );
 }

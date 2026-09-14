@@ -124,7 +124,7 @@ export function IncidentForm({ onClose, onSubmit }: IncidentFormProps) {
             </div>
           </div>
           <p className="text-xs text-muted-foreground -mt-2">
-            TODO: Click-on-map to set coordinates (requires deck.gl integration)
+            Enter GPS coordinates manually. Map selection coming soon.
           </p>
 
           {/* Cable type + Root cause */}

@@ -16,6 +16,13 @@ Bugs fixed:
   - Switched to pre-populated h3_res8 columns (no more on-the-fly H3)
   - Fixed KPI key mismatch (copper_devices, critical_risk_pct aliases)
   - Added h3_h3tostring() for readable hex cell IDs
+@app-developer 2026-09-14 — P7-MAP-GOLD-INTEGRATION
+  - Gold tables now primary data source (wire_center_scorecard + executive_summary)
+  - Map plots wire centers with retirement readiness scoring
+  - New Wire Center Scorecard table with priority rank, readiness, fiber status
+  - State-level Executive Summary table with program health
+  - Richer KPIs: fiber readiness, wire centers, contractor capacity
+  - Falls back to base-table queries if gold tables unavailable
 """
 import os
 import logging
@@ -34,7 +41,10 @@ LIVE_DATA = os.environ.get("LIVE_DATA", "true").lower() in ("true", "1", "yes")
 _live_ok = False
 if LIVE_DATA:
     try:
-        from data import load_hex_cells, load_kpis, load_devices, load_filter_options
+        from data import (
+            load_hex_cells, load_kpis, load_devices, load_filter_options,
+            load_gold_wire_centers, load_gold_kpis, load_gold_executive_summary,
+        )
         _live_ok = True
         logger.info("[copper-map] Live data module loaded. Querying cdm_tmforum.")
     except Exception as e:
@@ -98,22 +108,46 @@ KPIS = {
     "services_affected": 2626,
 }
 
-# ── Bootstrap initial data (live or mock) ─────────────────────────────────────
+# ── Bootstrap initial data (gold tables > base tables > mock) ────────────────
+_gold_ok = False
+GOLD_WIRE_CENTERS = []
+GOLD_EXEC_SUMMARY = []
+
 if _live_ok:
+    # Try gold tables first (preferred)
     try:
-        logger.info("[copper-map] Loading initial data from cdm_tmforum...")
-        HEX_CELLS = load_hex_cells()
-        KPIS = load_kpis()
-        DEVICES = load_devices()
+        logger.info("[copper-map] Trying gold tables (primary source)...")
+        GOLD_WIRE_CENTERS = load_gold_wire_centers()
+        KPIS = load_gold_kpis()
+        GOLD_EXEC_SUMMARY = load_gold_executive_summary()
+        HEX_CELLS = GOLD_WIRE_CENTERS  # wire centers as map points
+        DEVICES = load_devices()  # device detail still from base tables
         _filter_opts = load_filter_options()
-        KPIS.setdefault("wire_centers", "TBD")
-        DATA_SOURCE = "LIVE"
-        logger.info(f"[copper-map] Loaded {len(HEX_CELLS)} hex cells, "
-                    f"{len(DEVICES)} devices from live catalog.")
+        KPIS.setdefault("wire_centers", len(GOLD_WIRE_CENTERS))
+        _gold_ok = True
+        DATA_SOURCE = "LIVE (GOLD)"
+        logger.info(f"[copper-map] Gold data loaded: {len(GOLD_WIRE_CENTERS)} wire centers, "
+                    f"{len(GOLD_EXEC_SUMMARY)} state summaries, {len(DEVICES)} devices.")
     except Exception as e:
-        logger.warning(f"[copper-map] Live query failed ({e}). Falling back to mock.")
-        _live_ok = False
-        DATA_SOURCE = "MOCK"
+        logger.warning(f"[copper-map] Gold tables unavailable ({e}). Trying base tables...")
+        _gold_ok = False
+
+    # Fallback to base tables if gold failed
+    if not _gold_ok:
+        try:
+            logger.info("[copper-map] Loading from base tables (fallback)...")
+            HEX_CELLS = load_hex_cells()
+            KPIS = load_kpis()
+            DEVICES = load_devices()
+            _filter_opts = load_filter_options()
+            KPIS.setdefault("wire_centers", "TBD")
+            DATA_SOURCE = "LIVE"
+            logger.info(f"[copper-map] Loaded {len(HEX_CELLS)} hex cells, "
+                        f"{len(DEVICES)} devices from base tables.")
+        except Exception as e:
+            logger.warning(f"[copper-map] Base table query failed ({e}). Falling back to mock.")
+            _live_ok = False
+            DATA_SOURCE = "MOCK"
 
 if not _live_ok:
     DATA_SOURCE = "MOCK"
@@ -194,10 +228,17 @@ def build_map(cells):
             lat=[c["lat"] for c in tier_cells],
             lon=[c["lon"] for c in tier_cells],
             text=[
-                f"<b>{c['state']}</b><br>"
-                f"{c['devices']} devices<br>"
-                f"Risk score: {c['risk']}<br>"
-                f"Alarms: {c['alarms']:,} ({c['crit']:,} critical)"
+                (f"<b>{c.get('wire_center', c['state'])}</b> ({c['state']})<br>"
+                 f"{c['devices']} devices<br>"
+                 f"Readiness: {c.get('readiness', 'N/A')}<br>"
+                 f"Risk score: {c['risk']}<br>"
+                 f"Services: {c.get('services', 0):,} | Customers: {c.get('customers', 0):,}<br>"
+                 f"Rank: #{c.get('priority_rank', 'N/A')}")
+                if _gold_ok else
+                (f"<b>{c['state']}</b><br>"
+                 f"{c['devices']} devices<br>"
+                 f"Risk score: {c['risk']}<br>"
+                 f"Alarms: {c['alarms']:,} ({c['crit']:,} critical)")
                 for c in tier_cells
             ],
             hoverinfo="text",
@@ -240,8 +281,13 @@ def build_map(cells):
 
 
 def filter_cells(state_val, tier_val):
-    """Filter hex cells. In LIVE mode, re-queries with state filter."""
-    if _live_ok and state_val:
+    """Filter map cells. Gold mode uses wire centers; base mode uses H3 hex cells."""
+    if _gold_ok and state_val:
+        try:
+            cells = load_gold_wire_centers(state_filter=state_val)
+        except Exception:
+            cells = HEX_CELLS
+    elif _live_ok and state_val and not _gold_ok:
         try:
             cells = load_hex_cells(state_filter=state_val)
         except Exception:
@@ -289,16 +335,16 @@ app.layout = dbc.Container([
         data_source=DATA_SOURCE,
     ),
 
-    # ── KPI Row (converged 5 metrics — matches SummaryKPIs.tsx) ──
+    # ── KPI Row (6 metrics when gold data available) ──
     dbc.Row([
         dbc.Col(kpi_card(
             "Copper Devices", f"{KPIS['copper_devices']:,}",
-            sub="Across all wire centers",
+            sub=f"{KPIS.get('wire_centers', 'TBD')} wire centers",
         )),
         dbc.Col(kpi_card(
             "Critical Risk", f"{KPIS['critical_risk_pct']}%",
             color=LL_PRIMARY if KPIS['critical_risk_pct'] >= 40 else LL_TEXT_PRIMARY,
-            sub="Wire centers retire-now",
+            sub=f"{KPIS.get('critical_risk_devices', KPIS.get('crit_alarms', 0)):,} devices",
         )),
         dbc.Col(kpi_card(
             "Revenue at Risk",
@@ -307,12 +353,18 @@ app.layout = dbc.Container([
             sub=f"${KPIS['revenue_at_risk_mrr'] * 12 / 1_000_000:.1f}M annualized",
         )),
         dbc.Col(kpi_card(
+            "Fiber Ready",
+            f"{KPIS.get('fiber_ready_pct', 0):.0f}%" if _gold_ok else "N/A",
+            color=LL_ACCENT if KPIS.get('fiber_ready_pct', 0) >= 50 else LL_TEXT_PRIMARY,
+            sub=f"{KPIS.get('fiber_ready_devices', 0):,} devices" if _gold_ok else "Requires gold data",
+        )),
+        dbc.Col(kpi_card(
             "States", str(KPIS["states"]),
             sub="With copper plant",
         )),
         dbc.Col(kpi_card(
             "Services Affected", f"{KPIS['services_affected']:,}",
-            sub="Copper-dependent",
+            sub=f"{KPIS.get('customers_on_copper', 0):,} customers",
         )),
     ], className="mb-3 g-2"),
 
@@ -423,6 +475,141 @@ app.layout = dbc.Container([
                 ],
                 sort_action="native",
                 page_size=10,
+            ),
+            style={"padding": "0"},
+        ),
+    ], style={"backgroundColor": LL_SURFACE_ELEVATED, "border": f"1px solid {LL_BORDER}",
+             "borderRadius": "8px"}, className="mb-4"),
+
+    # ── Wire Center Scorecard (gold data only) ──
+    dbc.Card([
+        dbc.CardHeader(
+            dbc.Row([
+                dbc.Col(html.H6("Wire Center Scorecard", className="mb-0",
+                        style={"color": LL_TEXT_SECONDARY, "fontSize": "0.85rem"})),
+                dbc.Col(dbc.Badge(
+                    f"{len(GOLD_WIRE_CENTERS)} wire centers" if _gold_ok else "Requires gold tables",
+                    style={"fontSize": "0.65rem", "backgroundColor": f"{LL_ACCENT}22",
+                           "color": LL_ACCENT if _gold_ok else LL_TEXT_SECONDARY,
+                           "border": f"1px solid {LL_BORDER}", "padding": "3px 8px"},
+                ), width="auto"),
+            ], justify="between", align="center"),
+            style={"backgroundColor": LL_SURFACE, "borderBottom": f"1px solid {LL_BORDER}"},
+        ),
+        dbc.CardBody(
+            dash_table.DataTable(
+                id="wc-table",
+                columns=[
+                    {"name": "Rank", "id": "priority_rank"},
+                    {"name": "Wire Center", "id": "wire_center"},
+                    {"name": "CLLI", "id": "clli"},
+                    {"name": "State", "id": "state"},
+                    {"name": "Devices", "id": "devices"},
+                    {"name": "Services", "id": "services"},
+                    {"name": "Customers", "id": "customers"},
+                    {"name": "Readiness", "id": "readiness"},
+                    {"name": "Risk", "id": "risk"},
+                    {"name": "Tier", "id": "tier"},
+                    {"name": "Fiber Ready", "id": "fiber_ready"},
+                ],
+                data=[{
+                    "priority_rank": c.get("priority_rank", ""),
+                    "wire_center": c.get("wire_center", ""),
+                    "clli": c.get("clli", ""),
+                    "state": c.get("state", ""),
+                    "devices": c.get("devices", 0),
+                    "services": c.get("services", 0),
+                    "customers": c.get("customers", 0),
+                    "readiness": c.get("readiness", 0),
+                    "risk": c.get("risk", 0),
+                    "tier": c.get("tier", ""),
+                    "fiber_ready": "Yes" if c.get("fiber_ready") else "No",
+                } for c in GOLD_WIRE_CENTERS] if _gold_ok else [],
+                style_header={
+                    "backgroundColor": LL_SURFACE, "color": LL_TEXT_SECONDARY,
+                    "fontWeight": 600, "borderBottom": f"1px solid {LL_BORDER}",
+                    "fontSize": "0.8rem",
+                },
+                style_cell={
+                    "backgroundColor": LL_SURFACE_ELEVATED, "color": LL_TEXT_PRIMARY,
+                    "border": f"1px solid {LL_BORDER}", "fontSize": "0.8rem",
+                    "padding": "8px 12px",
+                },
+                style_data_conditional=[
+                    {"if": {"filter_query": "{tier} eq 'critical'"},
+                     "color": RISK_COLORS["critical"], "fontWeight": 600},
+                    {"if": {"filter_query": "{tier} eq 'high'"},
+                     "color": RISK_COLORS["high"]},
+                    {"if": {"filter_query": "{fiber_ready} eq 'Yes'"},
+                     "backgroundColor": f"{LL_ACCENT}0D"},
+                ],
+                sort_action="native",
+                page_size=15,
+            ) if _gold_ok else html.P(
+                "Wire Center Scorecard requires gold table data from the DLP pipeline.",
+                style={"color": LL_TEXT_SECONDARY, "fontSize": "0.85rem", "padding": "16px"},
+            ),
+            style={"padding": "0"},
+        ),
+    ], style={"backgroundColor": LL_SURFACE_ELEVATED, "border": f"1px solid {LL_BORDER}",
+             "borderRadius": "8px"}, className="mb-4"),
+
+    # ── Executive Summary by State (gold data only) ──
+    dbc.Card([
+        dbc.CardHeader(
+            dbc.Row([
+                dbc.Col(html.H6("State Executive Summary", className="mb-0",
+                        style={"color": LL_TEXT_SECONDARY, "fontSize": "0.85rem"})),
+                dbc.Col(dbc.Badge(
+                    "Program Health" if _gold_ok else "Requires gold tables",
+                    style={"fontSize": "0.65rem", "backgroundColor": f"{LL_INFO}22",
+                           "color": LL_INFO if _gold_ok else LL_TEXT_SECONDARY,
+                           "border": f"1px solid {LL_BORDER}", "padding": "3px 8px"},
+                ), width="auto"),
+            ], justify="between", align="center"),
+            style={"backgroundColor": LL_SURFACE, "borderBottom": f"1px solid {LL_BORDER}"},
+        ),
+        dbc.CardBody(
+            dash_table.DataTable(
+                id="exec-summary-table",
+                columns=[
+                    {"name": "State", "id": "state_code"},
+                    {"name": "Copper Devices", "id": "total_copper_devices"},
+                    {"name": "Active", "id": "active_devices"},
+                    {"name": "Critical Risk", "id": "critical_risk_count"},
+                    {"name": "High Risk", "id": "high_risk_count"},
+                    {"name": "Wire Centers", "id": "wire_center_count"},
+                    {"name": "Fiber Ready %", "id": "fiber_ready_pct"},
+                    {"name": "Services at Risk", "id": "total_affected_services"},
+                    {"name": "Customers", "id": "total_affected_customers"},
+                    {"name": "Dig Incidents", "id": "total_dig_incidents"},
+                    {"name": "Contractors", "id": "available_contractors"},
+                    {"name": "Health", "id": "program_health_status"},
+                ],
+                data=GOLD_EXEC_SUMMARY if _gold_ok else [],
+                style_header={
+                    "backgroundColor": LL_SURFACE, "color": LL_TEXT_SECONDARY,
+                    "fontWeight": 600, "borderBottom": f"1px solid {LL_BORDER}",
+                    "fontSize": "0.8rem",
+                },
+                style_cell={
+                    "backgroundColor": LL_SURFACE_ELEVATED, "color": LL_TEXT_PRIMARY,
+                    "border": f"1px solid {LL_BORDER}", "fontSize": "0.8rem",
+                    "padding": "8px 12px",
+                },
+                style_data_conditional=[
+                    {"if": {"filter_query": "{program_health_status} eq 'at_risk'"},
+                     "color": RISK_COLORS["critical"], "fontWeight": 600},
+                    {"if": {"filter_query": "{program_health_status} eq 'on_track'"},
+                     "color": LL_ACCENT, "fontWeight": 600},
+                    {"if": {"filter_query": "{program_health_status} eq 'needs_attention'"},
+                     "color": RISK_COLORS["medium"], "fontWeight": 600},
+                ],
+                sort_action="native",
+                page_size=10,
+            ) if _gold_ok else html.P(
+                "Executive Summary requires gold table data from the DLP pipeline.",
+                style={"color": LL_TEXT_SECONDARY, "fontSize": "0.85rem", "padding": "16px"},
             ),
             style={"padding": "0"},
         ),

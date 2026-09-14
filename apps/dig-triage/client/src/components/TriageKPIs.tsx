@@ -57,7 +57,7 @@ export function TriageKPIs() {
   ];
 
   return (
-    <div className="grid grid-cols-6 gap-3 mb-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
       {cards.map((card) => (
         <div
           key={card.label}

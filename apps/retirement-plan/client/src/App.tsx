@@ -50,19 +50,20 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Retirement Plan Tracker</h1>
-          <p className="text-sm text-muted-foreground">
-            Lakelink Fiber — Copper Retirement Program
-          </p>
+    <div className="min-h-screen bg-background">
+      {/* Lakelink Fiber nav bar */}
+      <nav className="flex items-center gap-3 px-4 py-3 bg-[#1B3139] text-white">
+        <span className="text-lg font-semibold">Lakelink Fiber</span>
+        <span className="text-sm opacity-70">|</span>
+        <span className="text-sm">Retirement Plan Tracker</span>
+        <div className="ml-auto">
+          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+            SYNTHETIC DATA
+          </span>
         </div>
-        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-          SYNTHETIC DATA
-        </span>
-      </div>
+      </nav>
+
+      <div className="p-4">
 
       {/* KPI bar */}
       <PlanKPIs />
@@ -119,6 +120,7 @@ export default function App() {
           />
         </div>
       )}
+      </div>
     </div>
   );
 }
