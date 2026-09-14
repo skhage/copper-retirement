@@ -82,7 +82,205 @@ async function executeSql(statement, parameters = []) {
 }
 
 // ---------------------------------------------------------------------------
-// API: Search corpus (for RAG chat)
+// RAG Chat — Vector Search retrieval + Foundation Model API generation
+// ---------------------------------------------------------------------------
+const VS_INDEX_NAME = 'cdm_tmforum.copper_retirement.regulatory_doc_chunks_vs_index';
+const VS_ENDPOINT_NAME = 'cmeg-demos-vs';
+const LLM_ENDPOINT = 'databricks-meta-llama-3-3-70b-instruct';
+const TOP_K = 8;
+const SCORE_THRESHOLD = 0.55;
+
+const RAG_SYSTEM_PROMPT = `You are a regulatory compliance assistant for LakeLink Fiber, a telecommunications carrier retiring legacy copper infrastructure and migrating customers to fiber.
+
+Your role is to answer questions about regulatory requirements for copper line retirement, based ONLY on the source documents provided in the context. You must:
+
+1. **Cite sources** — Reference specific docket numbers, CFR citations, and document titles when making claims.
+2. **Distinguish federal vs. state** — FCC rules (47 U.S.C. § 214, 47 C.F.R. §§ 63.71, 63.602) set the floor; state PUCs may impose additional requirements.
+3. **Flag notice periods** — Always highlight applicable notice periods (e.g., 180-day FCC, 90-day residential, state-specific).
+4. **Be precise** — Use exact regulatory language when available. Do not paraphrase in ways that change legal meaning.
+5. **Acknowledge gaps** — If the provided context does not contain enough information to answer, say so clearly rather than speculating.
+6. **Legacy states context** — LakeLink operates in CO, MN, WA, OR, ID, AZ. Flag when state-specific rules apply to these states.
+
+Format your response as:
+- **Answer**: Direct answer to the question
+- **Key Requirements**: Bulleted list of specific regulatory requirements
+- **Citations**: List of source documents referenced
+- **Caveats**: Any limitations or uncertainties in the answer`;
+
+/**
+ * Query Databricks Vector Search REST API for regulatory document chunks.
+ */
+async function queryVectorSearch(query, filters) {
+  const host = process.env.DATABRICKS_HOST;
+  if (!host) throw new Error('DATABRICKS_HOST not set');
+
+  const authHeaders = await getAuthHeaders();
+  if (!authHeaders) throw new Error('No auth credentials available');
+
+  const cleanHost = host.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const url = `https://${cleanHost}/api/2.0/vector-search/indexes/${VS_INDEX_NAME}/query`;
+
+  const body = {
+    query_text: query,
+    columns: [
+      'chunk_id', 'title', 'embedding_text', 'docket_number',
+      'regulatory_topic', 'jurisdiction_state_code', 'citation_reference',
+      'notice_period_days', 'issuing_body', 'issued_date', 'document_status',
+      'document_type',
+    ],
+    num_results: TOP_K,
+  };
+  if (filters) body.filters_json = JSON.stringify(filters);
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { ...authHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Vector Search query failed (${resp.status}): ${errText}`);
+  }
+
+  const data = await resp.json();
+  const colNames = (data.manifest?.columns || []).map((c) => c.name);
+  const rows = data.result?.data_array || [];
+
+  return rows
+    .map((row) => Object.fromEntries(colNames.map((col, i) => [col, row[i]])))
+    .filter((chunk) => (chunk.score || 0) >= SCORE_THRESHOLD);
+}
+
+/**
+ * Format retrieved chunks into a context string for the LLM.
+ */
+function formatContext(chunks) {
+  if (chunks.length === 0) return 'No relevant regulatory documents were found.';
+
+  return chunks
+    .map((c, i) => {
+      const meta = [
+        c.docket_number && `Docket: ${c.docket_number}`,
+        c.citation_reference && `Citation: ${c.citation_reference}`,
+        c.jurisdiction_state_code && `Jurisdiction: ${c.jurisdiction_state_code}`,
+        c.notice_period_days && `Notice period: ${c.notice_period_days} days`,
+        c.issued_date && `Issued: ${c.issued_date}`,
+      ]
+        .filter(Boolean)
+        .join(' | ');
+
+      return `[Source ${i + 1}] ${c.title || 'Untitled'}\nMetadata: ${meta}\nContent:\n${c.embedding_text || '(no text)'}\n`;
+    })
+    .join('\n---\n');
+}
+
+/**
+ * Call the Foundation Model API (OpenAI-compatible) for generation.
+ */
+async function generateAnswer(query, context) {
+  const host = process.env.DATABRICKS_HOST;
+  if (!host) throw new Error('DATABRICKS_HOST not set');
+
+  const authHeaders = await getAuthHeaders();
+  if (!authHeaders) throw new Error('No auth credentials available');
+
+  const cleanHost = host.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const url = `https://${cleanHost}/serving-endpoints/${LLM_ENDPOINT}/invocations`;
+
+  const userMessage = `Based on the following regulatory source documents, answer the question.
+
+--- REGULATORY SOURCES ---
+${context}
+--- END SOURCES ---
+
+Question: ${query}`;
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { ...authHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messages: [
+        { role: 'system', content: RAG_SYSTEM_PROMPT },
+        { role: 'user', content: userMessage },
+      ],
+      max_tokens: 2048,
+      temperature: 0.1,
+    }),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`FMAPI generation failed (${resp.status}): ${errText}`);
+  }
+
+  const data = await resp.json();
+  return data.choices?.[0]?.message?.content || 'No response generated.';
+}
+
+/**
+ * /api/agent/chat — Full RAG pipeline: VS retrieval → context → FMAPI generation.
+ */
+app.post('/api/agent/chat', async (req, res) => {
+  try {
+    const { question, jurisdiction } = req.body;
+    if (!question) return res.status(400).json({ error: 'Missing question' });
+
+    // Build VS filters
+    const filters = {};
+    if (jurisdiction && jurisdiction !== 'all') {
+      filters.jurisdiction_state_code = jurisdiction;
+    }
+    const hasFilters = Object.keys(filters).length > 0;
+
+    // Step 1: Retrieve relevant chunks
+    const chunks = await queryVectorSearch(
+      question,
+      hasFilters ? filters : undefined
+    );
+    console.log(`[agent/chat] Retrieved ${chunks.length} chunks for: "${question.slice(0, 80)}"`);
+
+    // Step 2: Format context
+    const context = formatContext(chunks);
+
+    // Step 3: Generate answer via FMAPI
+    const answer = await generateAnswer(question, context);
+
+    // Step 4: Package sources for citation display
+    const sources = chunks.map((c) => ({
+      title: c.title,
+      docket_number: c.docket_number,
+      citation_reference: c.citation_reference,
+      jurisdiction: c.jurisdiction_state_code,
+      notice_period_days: c.notice_period_days,
+      issuing_body: c.issuing_body,
+      issued_date: c.issued_date,
+      document_type: c.document_type,
+      score: typeof c.score === 'number' ? Math.round(c.score * 10000) / 10000 : null,
+      excerpt: (c.embedding_text || '').slice(0, 300),
+    }));
+
+    res.json({
+      answer,
+      sources,
+      num_sources: sources.length,
+      model: LLM_ENDPOINT,
+      source_type: 'rag',
+    });
+  } catch (err) {
+    console.error('[agent/chat] Error:', err.message);
+    // Return error but don't crash — client can fall back to corpus search
+    res.status(500).json({
+      error: err.message,
+      answer: null,
+      sources: [],
+      source_type: 'error',
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// API: Search corpus (keyword fallback for RAG chat)
 // ---------------------------------------------------------------------------
 app.post('/api/corpus/search', async (req, res) => {
   try {
@@ -264,4 +462,6 @@ app.listen(port, '0.0.0.0', () => {
   console.log(`  DATABRICKS_HOST: ${process.env.DATABRICKS_HOST ? 'set' : 'NOT SET'}`);
   console.log(`  DATABRICKS_WAREHOUSE_ID: ${process.env.DATABRICKS_WAREHOUSE_ID ? 'set' : 'NOT SET'}`);
   console.log(`  Auth: ${process.env.DATABRICKS_TOKEN ? 'TOKEN' : process.env.DATABRICKS_CLIENT_ID ? 'OAUTH' : 'NONE'}`);
+  console.log(`  RAG: VS index=${VS_INDEX_NAME}, LLM=${LLM_ENDPOINT}`);
+  console.log(`  Endpoints: /api/agent/chat (RAG), /api/corpus/search (keyword), /api/corpus/documents, /api/corpus/kpis`);
 });
