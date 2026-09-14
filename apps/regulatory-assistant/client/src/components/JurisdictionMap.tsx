@@ -1,15 +1,20 @@
 /**
  * JurisdictionMap.tsx
  * Screen 2 — Jurisdiction Map.
- * US state choropleth (NOT deck.gl H3 — different from P7-MAP).
+ * US state choropleth using react-simple-maps (AlbersUsa projection).
  * Color by compliance status: green (clear), yellow (pending), red (blocked/overdue).
- * Click state to set jurisdiction filter.
+ * Click state to set jurisdiction filter. Hover shows tooltip.
  *
  * Includes JurisdictionTable and StateRegCard inline.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
-  USE_MOCK_DATA,
+  ComposableMap,
+  Geographies,
+  Geography,
+  Annotation,
+} from 'react-simple-maps';
+import {
   getMockJurisdictions,
   COMPLIANCE_COLORS,
 } from '../mock/mockData';
@@ -20,18 +25,33 @@ interface JurisdictionMapProps {
   onStateSelect: (state: string) => void;
 }
 
-// US state approximate positions for the scaffold placeholder
-const STATE_POSITIONS: Record<string, { x: number; y: number }> = {
-  CA: { x: 80, y: 180 },
-  WA: { x: 95, y: 60 },
-  OR: { x: 80, y: 110 },
-  AZ: { x: 140, y: 250 },
-  MN: { x: 370, y: 100 },
-  ID: { x: 145, y: 100 },
+// US Atlas TopoJSON (states)
+const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json';
+
+// Map full state name → abbreviation for matching TopoJSON → jurisdiction data
+const STATE_NAME_TO_ABBR: Record<string, string> = {
+  Alabama: 'AL', Alaska: 'AK', Arizona: 'AZ', Arkansas: 'AR', California: 'CA',
+  Colorado: 'CO', Connecticut: 'CT', Delaware: 'DE', Florida: 'FL', Georgia: 'GA',
+  Hawaii: 'HI', Idaho: 'ID', Illinois: 'IL', Indiana: 'IN', Iowa: 'IA',
+  Kansas: 'KS', Kentucky: 'KY', Louisiana: 'LA', Maine: 'ME', Maryland: 'MD',
+  Massachusetts: 'MA', Michigan: 'MI', Minnesota: 'MN', Mississippi: 'MS', Missouri: 'MO',
+  Montana: 'MT', Nebraska: 'NE', Nevada: 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
+  'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND',
+  Ohio: 'OH', Oklahoma: 'OK', Oregon: 'OR', Pennsylvania: 'PA', 'Rhode Island': 'RI',
+  'South Carolina': 'SC', 'South Dakota': 'SD', Tennessee: 'TN', Texas: 'TX', Utah: 'UT',
+  Vermont: 'VT', Virginia: 'VA', Washington: 'WA', 'West Virginia': 'WV',
+  Wisconsin: 'WI', Wyoming: 'WY',
 };
+
+// Lakelink brand palette for non-jurisdiction states
+const DEFAULT_FILL = '#E8E4DF';       // warm neutral
+const HOVER_FILL = '#6E8898';          // brand muted steel
+const STROKE_COLOR = '#FFFFFF';
 
 export function JurisdictionMap({ jurisdictionFilter, onStateSelect }: JurisdictionMapProps) {
   const [selectedState, setSelectedState] = useState<JurisdictionRow | null>(null);
+  const [tooltipContent, setTooltipContent] = useState('');
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
 
   const jurisdictions = useMemo(
     () => getMockJurisdictions(jurisdictionFilter !== 'all' ? jurisdictionFilter : undefined),
@@ -40,42 +60,119 @@ export function JurisdictionMap({ jurisdictionFilter, onStateSelect }: Jurisdict
 
   const allJurisdictions = useMemo(() => getMockJurisdictions(), []);
 
-  const handleStateClick = (jurisdiction: JurisdictionRow) => {
+  // Quick lookup: state abbreviation → jurisdiction row
+  const jurisdictionByAbbr = useMemo(() => {
+    const map = new Map<string, JurisdictionRow>();
+    for (const j of allJurisdictions) {
+      map.set(j.state, j);
+    }
+    return map;
+  }, [allJurisdictions]);
+
+  const handleStateClick = useCallback((jurisdiction: JurisdictionRow) => {
     setSelectedState(jurisdiction);
     onStateSelect(jurisdiction.state);
-  };
+  }, [onStateSelect]);
+
+  const handleGeoClick = useCallback(
+    (geoName: string) => {
+      const abbr = STATE_NAME_TO_ABBR[geoName];
+      if (!abbr) return;
+      const jRow = jurisdictionByAbbr.get(abbr);
+      if (jRow) handleStateClick(jRow);
+    },
+    [jurisdictionByAbbr, handleStateClick]
+  );
 
   return (
     <div className="space-y-6">
-      {/* Placeholder map */}
-      <div className="relative bg-muted rounded-lg overflow-hidden" style={{ height: 400 }}>
-        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-          <p className="text-sm">US State Choropleth — install mapping library to render full map</p>
-        </div>
+      {/* SVG Choropleth */}
+      <div
+        className="relative bg-muted rounded-lg overflow-hidden"
+        style={{ height: 440 }}
+        onMouseLeave={() => { setTooltipContent(''); setTooltipPos(null); }}
+      >
+        {/* Tooltip */}
+        {tooltipContent && tooltipPos && (
+          <div
+            className="pointer-events-none absolute z-10 rounded px-2 py-1 text-xs font-medium text-white shadow-lg"
+            style={{
+              left: tooltipPos.x + 12,
+              top: tooltipPos.y - 28,
+              backgroundColor: '#1B3139',
+            }}
+          >
+            {tooltipContent}
+          </div>
+        )}
 
-        {/* Clickable state markers */}
-        {allJurisdictions.map((j) => {
-          const pos = STATE_POSITIONS[j.state];
-          if (!pos) return null;
-          return (
-            <button
-              key={j.state}
-              onClick={() => handleStateClick(j)}
-              className="absolute flex flex-col items-center group"
-              style={{ left: pos.x, top: pos.y }}
-            >
-              <div
-                className="w-10 h-10 rounded-full border-2 border-white shadow-md flex items-center justify-center text-xs font-bold text-white group-hover:scale-110 transition-transform"
-                style={{ backgroundColor: COMPLIANCE_COLORS[j.compliance_status] }}
-              >
-                {j.state}
-              </div>
-              <span className="text-[10px] mt-0.5 text-muted-foreground">
-                {j.compliance_status}
-              </span>
-            </button>
-          );
-        })}
+        <ComposableMap projection="geoAlbersUsa" width={800} height={440}>
+          <Geographies geography={GEO_URL}>
+            {({ geographies }) =>
+              geographies.map((geo) => {
+                const geoName: string = geo.properties.name;
+                const abbr = STATE_NAME_TO_ABBR[geoName];
+                const jRow = abbr ? jurisdictionByAbbr.get(abbr) : undefined;
+                const fill = jRow
+                  ? COMPLIANCE_COLORS[jRow.compliance_status]
+                  : DEFAULT_FILL;
+                const isSelected =
+                  selectedState && abbr === selectedState.state;
+
+                return (
+                  <Geography
+                    key={geo.rsmKey}
+                    geography={geo}
+                    fill={fill}
+                    stroke={isSelected ? '#1B3139' : STROKE_COLOR}
+                    strokeWidth={isSelected ? 2 : 0.5}
+                    style={{
+                      default: { outline: 'none' },
+                      hover: { fill: jRow ? fill : HOVER_FILL, outline: 'none', opacity: 0.85, cursor: 'pointer' },
+                      pressed: { outline: 'none' },
+                    }}
+                    onClick={() => handleGeoClick(geoName)}
+                    onMouseMove={(evt: React.MouseEvent) => {
+                      const rect = (evt.currentTarget as SVGElement).closest('div')?.getBoundingClientRect();
+                      if (rect) {
+                        setTooltipPos({ x: evt.clientX - rect.left, y: evt.clientY - rect.top });
+                      }
+                      setTooltipContent(
+                        jRow
+                          ? `${geoName} (${abbr}) — ${jRow.compliance_status}`
+                          : geoName
+                      );
+                    }}
+                    onMouseLeave={() => {
+                      setTooltipContent('');
+                      setTooltipPos(null);
+                    }}
+                  />
+                );
+              })
+            }
+          </Geographies>
+        </ComposableMap>
+
+        {/* Legend */}
+        <div className="absolute bottom-3 left-3 flex gap-3 bg-background/80 backdrop-blur rounded px-3 py-1.5 text-xs">
+          {(['clear', 'pending', 'blocked', 'overdue'] as const).map((s) => (
+            <div key={s} className="flex items-center gap-1">
+              <span
+                className="inline-block w-3 h-3 rounded-sm"
+                style={{ backgroundColor: COMPLIANCE_COLORS[s] }}
+              />
+              <span className="capitalize">{s}</span>
+            </div>
+          ))}
+          <div className="flex items-center gap-1">
+            <span
+              className="inline-block w-3 h-3 rounded-sm"
+              style={{ backgroundColor: DEFAULT_FILL }}
+            />
+            <span>No data</span>
+          </div>
+        </div>
       </div>
 
       {/* State detail card (when selected) */}
