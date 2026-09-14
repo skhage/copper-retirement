@@ -22,7 +22,7 @@ interface JurisdictionMapProps {
 
 // US state approximate positions for the scaffold placeholder
 const STATE_POSITIONS: Record<string, { x: number; y: number }> = {
-  CA: { x: 80, y: 180 },
+  CO: { x: 220, y: 190 },
   WA: { x: 95, y: 60 },
   OR: { x: 80, y: 110 },
   AZ: { x: 140, y: 250 },

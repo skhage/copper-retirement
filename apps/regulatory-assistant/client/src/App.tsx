@@ -57,6 +57,7 @@ export default function App() {
       <LakeLinkHeader
         subtitle="Regulatory Assistant"
         tagline="Copper Retirement Compliance"
+        dataSource="LIVE"
       >
         {/* Jurisdiction context (global filter) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.875rem' }}>
@@ -78,17 +79,30 @@ export default function App() {
       </LakeLinkHeader>
 
       {/* Tab navigation */}
-      <div className="px-6 border-b">
-        <div className="flex gap-1 pt-2">
+      <div style={{ padding: '0 24px', borderBottom: '1px solid #E5E2DD' }}>
+        <div style={{ display: 'flex', gap: 4, paddingTop: 8 }}>
           {TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
-                activeTab === tab.key
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted'
-              }`}
+              style={{
+                padding: '8px 16px',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                borderRadius: '6px 6px 0 0',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'background-color 0.15s',
+                ...(activeTab === tab.key
+                  ? { background: '#FF3621', color: '#FFFFFF' }
+                  : { background: 'transparent', color: '#6E8898' }),
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== tab.key) e.currentTarget.style.background = '#F0EDEA';
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== tab.key) e.currentTarget.style.background = 'transparent';
+              }}
             >
               {tab.label}
             </button>

@@ -20,7 +20,7 @@ interface ComplianceChecklistProps {
 export function ComplianceChecklist({ jurisdictionFilter }: ComplianceChecklistProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [expandedStates, setExpandedStates] = useState<Set<string>>(new Set(['CA', 'OR', 'MN']));
+  const [expandedStates, setExpandedStates] = useState<Set<string>>(new Set(['CO', 'OR', 'MN']));
 
   const items = useMemo(
     () => getMockChecklist({

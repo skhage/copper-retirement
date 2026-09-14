@@ -5,21 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Regulatory Assistant</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script>
     tailwind.config = {
       theme: {
         extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
           colors: {
-            background: '#ffffff',
-            foreground: '#0f172a',
-            primary: { DEFAULT: '#1e40af', foreground: '#ffffff' },
-            muted: { DEFAULT: '#f1f5f9', foreground: '#64748b' },
-            border: '#e2e8f0',
+            /* Lakelink Fiber brand tokens (BRAND_GUIDE) */
+            background: '#F9F7F4',  /* Surface */
+            foreground: '#1B3139',  /* Secondary / Dark Navy */
+            primary: { DEFAULT: '#FF3621', foreground: '#FFFFFF' },  /* Databricks Red */
+            secondary: { DEFAULT: '#1B3139', foreground: '#FFFFFF' },
+            accent: { DEFAULT: '#00A972', foreground: '#FFFFFF' },  /* Green */
+            muted: { DEFAULT: '#F0EDEA', foreground: '#6E8898' },
+            border: '#E5E2DD',
+            destructive: { DEFAULT: '#DC2626', foreground: '#FFFFFF' },
           },
         },
       },
     };
   </script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; background: #F9F7F4; color: #1B3139; margin: 0; }
+    /* Tailwind class overrides for brand compliance */
+    .min-h-screen { min-height: 100vh; }
+    .bg-background { background-color: #F9F7F4; }
+  </style>
 </head>
 <body>
   <div id="root"></div>
