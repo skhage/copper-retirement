@@ -17,6 +17,11 @@ Bugs fixed:
   - Fixed KPI key mismatch (copper_devices, critical_risk_pct aliases)
   - Added h3_h3tostring() for readable hex cell IDs
 @app-developer 2026-09-14 — P7-MAP-GOLD-INTEGRATION
+@app-developer 2026-09-15 — P7-DEMO-BEAT1-POLISH
+  - Loading states: dcc.Loading wrappers on map, device table, Genie chat
+  - Error boundaries: try/except in update_views callback with error figures
+  - Data-empty guards: empty_state_card + build_empty_figure for zero-row states
+  - Transition animations: CSS transitions on cards, uirevision on map
   - Gold tables now primary data source (wire_center_scorecard + executive_summary)
   - Map plots wire centers with retirement readiness scoring
   - New Wire Center Scorecard table with priority rank, readiness, fiber status
@@ -64,6 +69,17 @@ LL_INFO = "#60A5FA"
 LL_BORDER = "#E5E2DD"
 
 RISK_COLORS = {"critical": LL_PRIMARY, "high": "#FF8C69", "medium": "#FFD700", "low": LL_ACCENT}
+
+# ── CSS Transitions & Animation Constants ──────────────────────────────────────
+CARD_TRANSITION = "box-shadow 0.25s ease, transform 0.2s ease"
+CARD_STYLE_BASE = {
+    "backgroundColor": LL_SURFACE_ELEVATED,
+    "border": f"1px solid {LL_BORDER}",
+    "borderRadius": "8px",
+    "transition": CARD_TRANSITION,
+}
+LOADING_COLOR = LL_PRIMARY
+LOADING_TYPE = "dot"  # dash loading spinner style
 
 # ── Genie Agent Configuration ────────────────────────────────────────────────
 GENIE_SPACE_ID = "01f1b0917b9b15a3a21cfa9d20cbba50"
@@ -221,13 +237,65 @@ def kpi_card(label, value, color=LL_TEXT_PRIMARY, sub=None):
         )
     return dbc.Card(
         dbc.CardBody(children),
-        style={"backgroundColor": LL_SURFACE_ELEVATED, "border": f"1px solid {LL_BORDER}",
-               "borderRadius": "8px"},
+        style={**CARD_STYLE_BASE},
     )
+
+
+def build_empty_figure(message="No data available", sub="Adjust filters or check data connection"):
+    """Return a Scattergeo figure with a centered empty-state message."""
+    fig = go.Figure(go.Scattergeo())
+    fig.update_layout(
+        geo=dict(scope="usa", bgcolor="rgba(0,0,0,0)", landcolor=LL_SURFACE,
+                 subunitcolor=LL_BORDER, showsubunits=True, resolution=50),
+        paper_bgcolor=LL_SURFACE, plot_bgcolor=LL_SURFACE,
+        margin=dict(l=0, r=0, t=0, b=0), height=500,
+        annotations=[dict(
+            text=f"<b>{message}</b><br><span style='font-size:12px;color:{LL_TEXT_SECONDARY}'>{sub}</span>",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            showarrow=False, font=dict(size=16, color=LL_TEXT_SECONDARY),
+            align="center",
+        )],
+    )
+    return fig
+
+
+def build_error_figure(error_msg="Something went wrong"):
+    """Return a Scattergeo figure showing an error state."""
+    fig = go.Figure(go.Scattergeo())
+    fig.update_layout(
+        geo=dict(scope="usa", bgcolor="rgba(0,0,0,0)", landcolor=LL_SURFACE,
+                 subunitcolor=LL_BORDER, showsubunits=True, resolution=50),
+        paper_bgcolor=LL_SURFACE, plot_bgcolor=LL_SURFACE,
+        margin=dict(l=0, r=0, t=0, b=0), height=500,
+        annotations=[dict(
+            text=f"<b>\u26A0 Error loading map</b><br><span style='font-size:11px;color:{LL_TEXT_SECONDARY}'>{error_msg[:120]}</span>",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            showarrow=False, font=dict(size=15, color=LL_PRIMARY),
+            align="center",
+        )],
+    )
+    return fig
+
+
+def empty_state_card(message, icon="\U0001F4CB"):
+    """Inline empty-state placeholder for tables/sections."""
+    return html.Div([
+        html.Div(icon, style={"fontSize": "2rem", "marginBottom": "8px"}),
+        html.P(message, style={
+            "fontSize": "0.85rem", "color": LL_TEXT_SECONDARY, "margin": 0}),
+    ], style={
+        "textAlign": "center", "padding": "48px 24px",
+        "backgroundColor": LL_SURFACE, "borderRadius": "6px",
+    })
 
 
 def build_map(cells):
     """Build a plotly Scattergeo figure from hex cell data."""
+    if not cells:
+        return build_empty_figure(
+            "No copper locations found",
+            "Select different filters or verify data connectivity",
+        )
     fig = go.Figure()
     for tier in TIERS:
         tier_cells = [c for c in cells if c["tier"] == tier]
@@ -276,6 +344,8 @@ def build_map(cells):
         plot_bgcolor=LL_SURFACE,
         margin=dict(l=0, r=0, t=0, b=0),
         height=500,
+        uirevision="copper-map",  # preserve zoom/pan across filter changes
+        transition=dict(duration=400, easing="cubic-in-out"),
         legend=dict(
             font=dict(color=LL_TEXT_SECONDARY, size=12),
             bgcolor="rgba(0,0,0,0)",
@@ -498,13 +568,17 @@ app.layout = dbc.Container([
                       "borderRadius": "8px"}),
         ], md=3),
 
-        # Map
+        # Map (with loading overlay)
         dbc.Col([
             dbc.Card(
-                dcc.Graph(id="map-graph", figure=build_map(HEX_CELLS),
-                          config={"displayModeBar": False}),
-                style={"backgroundColor": LL_SURFACE_ELEVATED, "border": f"1px solid {LL_BORDER}",
-                       "borderRadius": "8px", "overflow": "hidden"},
+                dcc.Loading(
+                    dcc.Graph(id="map-graph", figure=build_map(HEX_CELLS),
+                              config={"displayModeBar": False},
+                              style={"transition": "opacity 0.3s ease"}),
+                    type=LOADING_TYPE, color=LOADING_COLOR,
+                    style={"minHeight": "500px"},
+                ),
+                style={**CARD_STYLE_BASE, "overflow": "hidden"},
             ),
         ], md=9),
     ], className="mb-3"),
@@ -578,18 +652,27 @@ app.layout = dbc.Container([
                                   "fontWeight": 600, "color": "#FFFFFF"}),
             ]),
         ]),
-    ], style={"backgroundColor": LL_SURFACE_ELEVATED, "border": f"1px solid {LL_BORDER}",
-              "borderRadius": "8px"}, className="mb-4"),
+    ], style={**CARD_STYLE_BASE}, className="mb-4"),
 
-    # ── Device Table ──
+    # ── Device Table (with loading + empty guard) ──
     dbc.Card([
         dbc.CardHeader(
-            html.H6("Device Detail", className="mb-0",
-                    style={"color": LL_TEXT_SECONDARY, "fontSize": "0.85rem"}),
+            dbc.Row([
+                dbc.Col(html.H6("Device Detail", className="mb-0",
+                        style={"color": LL_TEXT_SECONDARY, "fontSize": "0.85rem"})),
+                dbc.Col(dbc.Badge(
+                    f"{len(DEVICES)} devices" if DEVICES else "No devices",
+                    style={"fontSize": "0.65rem", "backgroundColor": f"{LL_INFO}22",
+                           "color": LL_INFO if DEVICES else LL_TEXT_SECONDARY,
+                           "border": f"1px solid {LL_BORDER}", "padding": "3px 8px"},
+                ), width="auto"),
+            ], justify="between", align="center"),
             style={"backgroundColor": LL_SURFACE, "borderBottom": f"1px solid {LL_BORDER}"},
         ),
         dbc.CardBody(
-            dash_table.DataTable(
+          dcc.Loading(
+            html.Div(id="device-table-container", children=[
+              dash_table.DataTable(
                 id="device-table",
                 columns=[
                     {"name": "ID", "id": "id"},
@@ -624,11 +707,13 @@ app.layout = dbc.Container([
                 ],
                 sort_action="native",
                 page_size=10,
-            ),
-            style={"padding": "0"},
+              ) if DEVICES else empty_state_card("No devices match current filters", "\U0001F50C"),
+            ]),
+            type=LOADING_TYPE, color=LOADING_COLOR,
+          ),
+          style={"padding": "0"},
         ),
-    ], style={"backgroundColor": LL_SURFACE_ELEVATED, "border": f"1px solid {LL_BORDER}",
-             "borderRadius": "8px"}, className="mb-4"),
+    ], style={**CARD_STYLE_BASE}, className="mb-4"),
 
     # ── Wire Center Scorecard (gold data only) ──
     dbc.Card([
@@ -700,8 +785,7 @@ app.layout = dbc.Container([
             ),
             style={"padding": "0"},
         ),
-    ], style={"backgroundColor": LL_SURFACE_ELEVATED, "border": f"1px solid {LL_BORDER}",
-             "borderRadius": "8px"}, className="mb-4"),
+    ], style={**CARD_STYLE_BASE}, className="mb-4"),
 
     # ── Executive Summary by State (gold data only) ──
     dbc.Card([
@@ -762,8 +846,7 @@ app.layout = dbc.Container([
             ),
             style={"padding": "0"},
         ),
-    ], style={"backgroundColor": LL_SURFACE_ELEVATED, "border": f"1px solid {LL_BORDER}",
-             "borderRadius": "8px"}, className="mb-4"),
+    ], style={**CARD_STYLE_BASE}, className="mb-4"),
 
     # ── Footer ──
     html.Div(
@@ -779,17 +862,74 @@ app.layout = dbc.Container([
 
 @app.callback(
     Output("map-graph", "figure"),
-    Output("device-table", "data"),
+    Output("device-table-container", "children"),
     Input("filter-state", "value"),
     Input("filter-tier", "value"),
     Input("filter-dtype", "value"),
 )
 def update_views(state_val, tier_val, dtype_val):
-    """Re-render map and device table when any filter changes."""
-    cells = filter_cells(state_val, tier_val)
-    fig = build_map(cells)
-    devs = filter_devices(state_val, dtype_val)
-    return fig, devs
+    """Re-render map and device table when any filter changes.
+    Includes error boundary and empty-data guards for demo robustness.
+    """
+    # ── Map with error boundary ──
+    try:
+        cells = filter_cells(state_val, tier_val)
+        fig = build_map(cells)  # build_map already handles empty cells
+    except Exception as e:
+        logger.error(f"[copper-map] Map error: {e}")
+        fig = build_error_figure(str(e))
+
+    # ── Device table with error boundary + empty guard ──
+    try:
+        devs = filter_devices(state_val, dtype_val)
+        if not devs:
+            table = empty_state_card(
+                "No devices match current filters" if (state_val or dtype_val)
+                else "No device data available",
+                "\U0001F50C",
+            )
+        else:
+            table = dash_table.DataTable(
+                id="device-table",
+                columns=[
+                    {"name": "ID", "id": "id"},
+                    {"name": "Type", "id": "type"},
+                    {"name": "Serial", "id": "serial"},
+                    {"name": "Status", "id": "status"},
+                    {"name": "Installed", "id": "installed"},
+                    {"name": "State", "id": "state"},
+                    {"name": "City", "id": "city"},
+                    {"name": "Alarms", "id": "alarms"},
+                    {"name": "Critical", "id": "crit"},
+                    {"name": "Risk Score", "id": "risk"},
+                ],
+                data=devs,
+                style_header={
+                    "backgroundColor": LL_SURFACE, "color": LL_TEXT_SECONDARY,
+                    "fontWeight": 600, "borderBottom": f"1px solid {LL_BORDER}",
+                    "fontSize": "0.8rem",
+                },
+                style_cell={
+                    "backgroundColor": LL_SURFACE_ELEVATED, "color": LL_TEXT_PRIMARY,
+                    "border": f"1px solid {LL_BORDER}", "fontSize": "0.8rem",
+                    "padding": "8px 12px",
+                },
+                style_data_conditional=[
+                    {"if": {"filter_query": "{risk} >= 75"},
+                     "color": RISK_COLORS["critical"], "fontWeight": 600},
+                    {"if": {"filter_query": "{risk} >= 50 && {risk} < 75"},
+                     "color": RISK_COLORS["high"]},
+                    {"if": {"filter_query": "{status} eq 'degraded'"},
+                     "backgroundColor": "rgba(255,54,33,0.10)"},
+                ],
+                sort_action="native",
+                page_size=10,
+            )
+    except Exception as e:
+        logger.error(f"[copper-map] Device table error: {e}")
+        table = empty_state_card(f"Error loading devices: {str(e)[:80]}", "\u26A0\uFE0F")
+
+    return fig, table
 
 
 # ── Genie chip callbacks (fill input from suggested questions) ─────────────
