@@ -17,6 +17,7 @@ import { DocumentBrowser } from './components/DocumentBrowser';
 import { RegKPIs } from './components/RegKPIs';
 import { CitationSidebar } from './components/CitationSidebar';
 import { LakeLinkHeader } from './components/LakeLinkHeader';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import type { ActiveTab, Citation } from './mock/mockData';
 
 const TABS: { key: ActiveTab; label: string }[] = [
@@ -77,18 +78,19 @@ export default function App() {
         </div>
       </LakeLinkHeader>
 
-      {/* Tab navigation */}
-      <div className="px-6 border-b">
-        <div className="flex gap-1 pt-2">
+      {/* Tab navigation — responsive: scrollable on mobile */}
+      <div className="px-4 sm:px-6 border-b overflow-x-auto">
+        <div className="flex gap-1 pt-2 min-w-max">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+              className={`px-3 sm:px-4 py-2 text-sm font-medium rounded-t transition-colors whitespace-nowrap ${
                 activeTab === tab.key
-                  ? 'bg-primary text-primary-foreground'
+                  ? 'text-white'
                   : 'text-muted-foreground hover:bg-muted'
               }`}
+              style={activeTab === tab.key ? { backgroundColor: '#FF3621' } : undefined}
             >
               {tab.label}
             </button>
@@ -101,30 +103,32 @@ export default function App() {
         <RegKPIs jurisdictionFilter={jurisdictionFilter} />
       </div>
 
-      {/* Main content area + citation sidebar */}
-      <div className="flex">
+      {/* Main content area + citation sidebar — responsive flex */}
+      <div className="flex flex-col md:flex-row">
         <div className="flex-1 px-6 py-4">
-          {activeTab === 'ask' && (
-            <RegAgentChat
-              jurisdictionFilter={jurisdictionFilter}
-              onCitationClick={handleCitationClick}
-            />
-          )}
-          {activeTab === 'jurisdiction' && (
-            <JurisdictionMap
-              jurisdictionFilter={jurisdictionFilter}
-              onStateSelect={handleJurisdictionSelect}
-            />
-          )}
-          {activeTab === 'checklist' && (
-            <ComplianceChecklist jurisdictionFilter={jurisdictionFilter} />
-          )}
-          {activeTab === 'documents' && (
-            <DocumentBrowser
-              jurisdictionFilter={jurisdictionFilter}
-              highlightDocId={navigateToDoc}
-            />
-          )}
+          <ErrorBoundary fallbackTitle="Regulatory query failed">
+            {activeTab === 'ask' && (
+              <RegAgentChat
+                jurisdictionFilter={jurisdictionFilter}
+                onCitationClick={handleCitationClick}
+              />
+            )}
+            {activeTab === 'jurisdiction' && (
+              <JurisdictionMap
+                jurisdictionFilter={jurisdictionFilter}
+                onStateSelect={handleJurisdictionSelect}
+              />
+            )}
+            {activeTab === 'checklist' && (
+              <ComplianceChecklist jurisdictionFilter={jurisdictionFilter} />
+            )}
+            {activeTab === 'documents' && (
+              <DocumentBrowser
+                jurisdictionFilter={jurisdictionFilter}
+                highlightDocId={navigateToDoc}
+              />
+            )}
+          </ErrorBoundary>
         </div>
 
         {/* Citation sidebar (overlays on right when active) */}

@@ -158,15 +158,46 @@ export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentCh
               {/* Citations */}
               {msg.citations && msg.citations.length > 0 && (
                 <div className="mt-3 pt-2 border-t border-muted-foreground/20">
+                  <p className="text-xs font-medium mb-1.5" style={{ color: '#6E8898' }}>
+                    Sources ({msg.citations.length})
+                  </p>
                   {msg.citations.map((cite) => (
                     <button
                       key={cite.id}
                       onClick={() => onCitationClick(cite)}
-                      className="flex items-start gap-2 text-xs text-left mt-1 hover:bg-background/50 rounded p-1 w-full transition-colors"
+                      className="flex items-start gap-2 text-xs text-left mt-1.5 rounded p-2 w-full transition-colors"
+                      style={{
+                        border: '1px solid transparent',
+                        backgroundColor: 'transparent',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgba(27,49,57,0.04)';
+                        e.currentTarget.style.borderColor = 'rgba(27,49,57,0.12)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.borderColor = 'transparent';
+                      }}
                     >
-                      <span className="font-bold text-primary">[{cite.id}]</span>
-                      <span className="text-muted-foreground">
-                        {cite.document_title}, {cite.paragraph_ref}
+                      <span className="font-bold shrink-0" style={{ color: '#FF3621' }}>[{cite.id}]</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate" style={{ color: '#1B3139' }}>
+                          {cite.document_title}
+                        </p>
+                        <p style={{ color: '#6E8898' }}>
+                          {cite.paragraph_ref}
+                          {cite.jurisdiction && cite.jurisdiction !== 'Federal' && ` \u00B7 ${cite.jurisdiction}`}
+                          {cite.effective_date && cite.effective_date !== 'N/A' && ` \u00B7 ${cite.effective_date}`}
+                        </p>
+                      </div>
+                      <span className="shrink-0 px-1.5 py-0.5 rounded font-medium" style={{
+                        fontSize: '10px',
+                        backgroundColor: cite.confidence === 'high' ? '#dcfce7' :
+                          cite.confidence === 'medium' ? '#fef9c3' : '#fee2e2',
+                        color: cite.confidence === 'high' ? '#15803d' :
+                          cite.confidence === 'medium' ? '#854d0e' : '#b91c1c',
+                      }}>
+                        {cite.confidence}
                       </span>
                     </button>
                   ))}
@@ -186,11 +217,21 @@ export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentCh
 
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-muted rounded-lg px-4 py-3">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
-                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+            <div className="bg-muted rounded-lg px-4 py-3 max-w-[80%]">
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#00A972' }} />
+                  <span style={{ color: '#00A972' }}>Searching 528 regulatory documents...</span>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="h-3 rounded animate-pulse w-full" style={{ backgroundColor: 'rgba(27,49,57,0.08)' }} />
+                  <div className="h-3 rounded animate-pulse w-4/5" style={{ backgroundColor: 'rgba(27,49,57,0.06)' }} />
+                  <div className="h-3 rounded animate-pulse w-3/5" style={{ backgroundColor: 'rgba(27,49,57,0.04)' }} />
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#60A5FA' }} />
+                  <span style={{ color: '#6E8898' }}>Generating answer from LLM...</span>
+                </div>
               </div>
             </div>
           </div>

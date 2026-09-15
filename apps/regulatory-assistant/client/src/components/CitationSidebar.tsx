@@ -26,36 +26,54 @@ export function CitationSidebar({ citation, onClose, onViewDocument }: CitationS
           </button>
         </div>
 
+        {/* Confidence + jurisdiction banner */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xs px-2 py-0.5 rounded font-medium" style={{
+            backgroundColor: citation.confidence === 'high' ? '#dcfce7' :
+              citation.confidence === 'medium' ? '#fef9c3' : '#fee2e2',
+            color: citation.confidence === 'high' ? '#15803d' :
+              citation.confidence === 'medium' ? '#854d0e' : '#b91c1c',
+          }}>
+            {citation.confidence} confidence
+          </span>
+          <span className="text-xs px-2 py-0.5 rounded font-medium" style={{
+            backgroundColor: 'rgba(27,49,57,0.06)',
+            color: '#1B3139',
+          }}>
+            {citation.jurisdiction || 'Federal'}
+          </span>
+        </div>
+
         {/* Citation metadata */}
         <div className="space-y-3">
           <div>
-            <p className="text-xs text-muted-foreground">Document</p>
-            <p className="text-sm font-medium">{citation.document_title}</p>
+            <p className="text-xs" style={{ color: '#6E8898' }}>Document Title</p>
+            <p className="text-sm font-semibold" style={{ color: '#1B3139' }}>
+              {citation.document_title}
+            </p>
           </div>
-          <div className="flex gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-xs text-muted-foreground">Reference</p>
-              <p className="text-sm">{citation.paragraph_ref}</p>
+              <p className="text-xs" style={{ color: '#6E8898' }}>Citation / Section</p>
+              <p className="text-sm font-medium" style={{ color: '#1B3139' }}>
+                {citation.paragraph_ref || '\u2014'}
+              </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Jurisdiction</p>
-              <p className="text-sm">{citation.jurisdiction}</p>
+              <p className="text-xs" style={{ color: '#6E8898' }}>Effective Date</p>
+              <p className="text-sm" style={{ color: '#1B3139' }}>
+                {citation.effective_date || 'N/A'}
+              </p>
             </div>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Effective Date</p>
-            <p className="text-sm">{citation.effective_date}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Confidence</p>
-            <span className={`text-xs px-2 py-0.5 rounded ${
-              citation.confidence === 'high' ? 'bg-green-100 text-green-800' :
-              citation.confidence === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-              'bg-red-100 text-red-800'
-            }`}>
-              {citation.confidence}
-            </span>
-          </div>
+          {citation.doc_id && (
+            <div>
+              <p className="text-xs" style={{ color: '#6E8898' }}>Docket / ID</p>
+              <p className="text-sm font-mono" style={{ color: '#1B3139', fontSize: '0.8rem' }}>
+                {citation.doc_id}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Excerpt */}
