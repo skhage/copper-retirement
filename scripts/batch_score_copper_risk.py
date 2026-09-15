@@ -116,7 +116,7 @@ plant = (
     )
 )
 
-# Device type encoding (alphabetical: cpe=0, ont=1, olt=2, patch_panel=3)
+# Device type encoding (training-time order — NOT alphabetical: cpe=0, ont=1, olt=2, patch_panel=3)
 device_type_map = {"cpe": 0.0, "ont": 1.0, "olt": 2.0, "patch_panel": 3.0}
 mapping_expr = F.create_map([F.lit(x) for pair in device_type_map.items() for x in pair])
 
@@ -137,56 +137,20 @@ print(f"Feature DataFrame: {features_df.count()} rows, {len(features_df.columns)
 
 # COMMAND ----------
 
-# DBTITLE 1,Score with champion model
-# Load model as Spark UDF for distributed scoring
-predict_udf = mlflow.pyfunc.spark_udf(spark, model_uri, result_type="int")
-
-# Define feature columns (must match model signature order)
-feature_cols = [
-    "alarm_count", "critical_alarm_rate", "service_affecting_rate",
-    "sla_breach_count", "sla_breach_rate", "test_fail_rate",
-    "problem_count", "recurring_problem_rate",
-    "dispute_count", "escalated_dispute_count", "sla_breach_dispute_count",
-    "months_since_last_dispute",
-    "complaint_count", "complaint_rate_per_month", "escalated_complaint_count",
-    "high_severity_complaint_count", "complaint_avg_resolution_hours",
-    "active_months", "avg_monthly_usage", "avg_monthly_revenue",
-    "device_age_days", "firmware_obsolescence_score", "days_since_last_patch",
-    "days_past_eol", "days_past_support_expiry", "is_past_eol",
-    "is_support_expired", "has_vulnerabilities", "has_upgrade_blocked",
-    "has_upgrade_ineligible", "installed_software_count", "has_software_data",
-    "plant_pair_count", "avg_loop_length_ft", "avg_splice_count",
-    "avg_cable_vintage_year", "avg_db_loss", "moisture_rate",
-    "device_type_encoded",
-]
-
-# Score
-scored_df = features_df.withColumn(
-    "predicted_class", predict_udf(*[F.col(c) for c in feature_cols])
-)
-
-# COMMAND ----------
-
 # DBTITLE 1,Build predictions output table
 # Map predicted class index back to risk tier label
 risk_tier_udf = F.udf(lambda idx: RISK_TIERS[idx] if idx is not None and 0 <= idx < len(RISK_TIERS) else None)
 
-# For class probabilities, we need the full model to get predict_proba.
-# Load as pyfunc for probability extraction on driver (small dataset)
+# For class probabilities, load the native sklearn-flavored model (stable API)
 import pandas as pd
 
-model = mlflow.pyfunc.load_model(model_uri)
-input_pdf = features_df.select(*feature_cols).toPandas()
+try:
+    native_model = mlflow.sklearn.load_model(model_uri)
+except Exception:
+    native_model = mlflow.lightgbm.load_model(model_uri)
 
-# LightGBM pyfunc returns class predictions; get probabilities from underlying model
-underlying = model._model_impl
-if hasattr(underlying, 'predict_proba'):
-    proba = underlying.predict_proba(input_pdf)
-else:
-    # Fallback: use lgb model directly
-    import lightgbm as lgb
-    lgb_model = underlying.lgb_model if hasattr(underlying, 'lgb_model') else underlying
-    proba = lgb_model.predict(input_pdf)
+input_pdf = features_df.select(*feature_cols).toPandas()
+proba = native_model.predict_proba(input_pdf)
 
 proba_df = pd.DataFrame(proba, columns=[f"prob_{t}" for t in RISK_TIERS])
 proba_df["predicted_class"] = proba_df[[f"prob_{t}" for t in RISK_TIERS]].values.argmax(axis=1)

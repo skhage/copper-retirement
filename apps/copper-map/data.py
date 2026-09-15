@@ -232,6 +232,7 @@ SELECT
   COUNT(DISTINCT state_code) AS state_count,
   ROUND(SUM(critical_risk_count) * 100.0 / NULLIF(SUM(total_copper_devices), 0), 1) AS critical_risk_pct
 FROM cdm_tmforum.copper_retirement.gold_retirement_executive_summary
+WHERE state_code IN ('CO', 'MN', 'WA', 'OR', 'ID', 'AZ')
 """
 
 QUERY_GOLD_EXECUTIVE_SUMMARY = """
@@ -258,6 +259,7 @@ SELECT
   preferred_contractors,
   program_health_status
 FROM cdm_tmforum.copper_retirement.gold_retirement_executive_summary
+WHERE state_code IN ('CO', 'MN', 'WA', 'OR', 'ID', 'AZ')
 ORDER BY total_copper_devices DESC
 """
 

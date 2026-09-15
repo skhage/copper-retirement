@@ -56,7 +56,7 @@ Key columns: state_code, device_type, risk_tier, fiber_ready, scenario, quarter,
 
 > EBITDA and revenue impact metrics for the Lakelink Fiber copper retirement program -- quantifies annual savings, avoided costs, and revenue impact.
 
-This is a governed metric view providing standardized EBITDA KPIs. Key dimensions: State, Device Type, Risk Tier, ML Risk Tier, Revenue Tier, Action Priority, Fiber Ready, Technology Domain, Circuit Lifecycle, PUC Filing Required. Key measures: Total Annual Revenue at Risk, Total Monthly Revenue at Risk, Total Billed Amount, Total Circuits, Avg Revenue per Circuit, High Value Circuits, Critical Risk Revenue, Avg ML Composite Risk Score. (22 cols = 10 dims + 12 measures, 14,777 rows)
+This is a governed metric view providing standardized EBITDA KPIs. Key dimensions: State, Device Type, Risk Tier, ML Risk Tier, Revenue Tier, Action Priority, Fiber Ready, Technology Domain, Circuit Lifecycle, PUC Filing Required. Key measures: Total Annual Revenue at Risk, Total Monthly Revenue at Risk, Total Billed Amount, Total Circuits, Avg Revenue per Circuit, High Value Circuits, High Value Revenue, Immediate Action Revenue, Critical Risk Revenue, Avg ML Composite Risk Score, Fiber Ready Revenue, PUC Filing Revenue. (22 cols = 10 dims + 12 measures, 14,777 rows)
 
 ### `gold_retirement_executive_summary` (Materialized View)
 

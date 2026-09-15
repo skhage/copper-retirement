@@ -92,12 +92,12 @@
 | Check | Status | Detail |
 | --- | --- | --- |
 | Fairness report logged | PASS | `fairness_report_v5.json` as MLflow artifact |
-| Total slices evaluated | PASS | 21 slices across device_type, service_type, geography, customer_segment, alarm_recency |
+| Total slices evaluated | PASS | 20 slices across 4 dimensions: device_type (4), region (5), service_type (2), customer_segment (9) |
 | Red flags | PASS | 0 red flags |
-| Yellow flags | PASS | 0 yellow flags |
-| All GREEN | PASS | 21/21 slices GREEN |
-| Small-sample warnings | REVIEW | Several service_type slices (broadband=29, data_roaming=28, cloud=37) flagged as "GREEN (small sample)" — metrics may be unstable |
-| Slice performance range | PASS | AUC range: 0.949 (data_roaming) to 0.999 (iot) — no slice below 0.94 |
+| Yellow flags | WARN | 1 yellow flag: customer_segment/residential (n=32) — YELLOW_RECALL + YELLOW_SMALL_N |
+| All GREEN | WARN | 19/20 GREEN, 1/20 YELLOW (customer_segment/residential, n=32) |
+| Small-sample warnings | REVIEW | customer_segment/residential (n=32) is the only slice below n=50 — flagged YELLOW_SMALL_N. Metrics may be unstable; monitor as real data grows |
+| Slice performance range | PASS | AUC range: 0.9961 (customer_segment/residential) to 1.0 (multiple slices) — all slices above 0.99 |
 
 ### Confusion Matrix Summary (Holdout, n=535)
 
@@ -111,7 +111,7 @@
 Key observation: misclassifications are almost entirely between adjacent tiers (medium↔high accounts for 18 of 56 total errors). No off-by-two or worse errors. This is operationally acceptable — adjacent-tier confusion has minimal retirement-planning impact.
 
 ### Action Items — Fairness
-- **[ACTION-10]** Monitor small-sample slices (n<50) as real data replaces synthetics. If slice sample sizes remain small, consider collapsing into broader groups
+- **[ACTION-10]** Monitor customer_segment/residential (n=32, YELLOW_RECALL + YELLOW_SMALL_N): recall=0.933 vs global ~0.996. As real data replaces synthetics, evaluate whether residential sample size grows sufficiently for stable metrics; if not, consider collapsing into a broader segment
 
 ---
 
@@ -168,7 +168,7 @@ The model card currently lacks quantitative retraining thresholds. Recommended c
 | Experiment tags | PASS | `project=copper-retirement`, `developer=copper-ml`, `telco_project=copper-retirement` |
 | Run artifacts | PASS | confusion_matrix.json/.png, fairness_report_v5.json, feature_importance.json/.png, model_card.json |
 | CV metrics logged | PASS | 5-fold CV AUC: 0.979 ± 0.005 |
-| Slice runs | PASS | 21 slice child runs logged (device_type, service_type, geography, customer_segment, alarm_recency) |
+| Slice runs | PASS | 20 slice child runs logged across 4 dimensions (device_type, region, service_type, customer_segment) |
 | Optuna params | PASS | Best trial: lr=0.243, max_depth=3, n_estimators=489, num_leaves=80 |
 
 ---
@@ -191,12 +191,12 @@ The model card currently lacks quantitative retraining thresholds. Recommended c
 | Inference logging | D | auto_capture NOT enabled — only 3 manual test rows exist |
 | Model registry | A | Clean versioning, aliases set, tags correct |
 | Model card | C+ | Solid ML content, missing production ops sections (drift, SLA, ethics) |
-| Fairness | A | 21/21 slices GREEN, no red/yellow flags |
+| Fairness | A- | 19/20 GREEN, 1 YELLOW (residential, n=32) — no red flags; YELLOW is small-sample + recall |
 | Scoring pipeline | C | Tables exist but no automated refresh or disagreement alerting |
 | Retraining plan | D | No quantitative triggers defined (now proposed above) |
 | Experiment tracking | A | Comprehensive artifacts, slice runs, CV metrics |
 
-**Overall: NOT YET PRODUCTION-READY.** The model itself is strong (AUC 0.986, fairness validated), but production operations infrastructure has gaps. Critical items: enable inference table auto-capture [ACTION-3], implement batch scoring refresh [ACTION-11], and codify retraining triggers [ACTION-7].
+**Overall: NOT YET PRODUCTION-READY.** The model itself is strong (AUC 0.986, fairness 19/20 GREEN with 1 YELLOW on small residential slice), but production operations infrastructure has gaps. Critical items: enable inference table auto-capture [ACTION-3], implement batch scoring refresh [ACTION-11], and codify retraining triggers [ACTION-7].
 
 ---
 
