@@ -40,34 +40,34 @@ ML model training targets, predictions, champion/challenger scoring, fairness re
 
 > ML training/scoring target table -- risk feature engineering per physical device.
 
-Key columns: physical_device_id, device_type, device_age_years, alarm_count_90d, mean_time_between_failures, outage_count_12m, complaint_rate, revenue_at_risk, risk_tier (target label)
+Key columns: physical_device_id, device_type, device_status, alarm_count, critical_alarm_rate, service_affecting_rate, sla_breach_count, recurring_problem_rate, composite_risk_score, risk_tier (target label). Also includes percentile-ranked features: alarm_count_prank, critical_alarm_prank, svc_affecting_prank, sla_breach_prank, test_fail_prank, problem_count_prank, recurring_prob_prank. (20 cols, 2,672 rows)
 
 ### `copper_risk_scores` (Managed)
 
 > Champion-vs-challenger model comparison for copper device risk scoring.
 
-Key columns: physical_device_id, champion_risk_tier, champion_probability, challenger_risk_tier, challenger_probability, model_version, scored_at
+Key columns: physical_device_id, device_type, device_status, risk_tier, champion_prediction, champion_confidence, challenger_prediction, challenger_confidence, models_agree. (9 cols, 2,672 rows)
 
 ### `gold_device_risk_predictions` (Managed)
 
 > Gold layer risk predictions from the V5 ML model. Per-device risk tier, class probabilities, and SHAP feature importance.
 
-Key columns: physical_device_id, risk_tier, risk_probability, shap_top_features, model_version, prediction_timestamp, state_code
+Key columns: physical_device_id, device_type, device_status, risk_tier_actual, risk_tier_predicted, prob_low, prob_medium, prob_high, prob_critical, composite_risk_score, model_version, feature_set, scored_date. (13 cols, 2,672 rows)
 
 ### `v5_fairness_report` (Managed)
 
 > V5 model fairness/bias report: per-sub-demographic precision/recall/FPR/AUC with statistical parity checks.
 
-Key columns: dimension, sub_group, sample_count, precision, recall, fpr, auc, statistical_parity_ratio, equalized_odds_ratio
+Key columns: dimension, slice_value, n, precision, recall, fpr, f1, auc_roc, accuracy, stat_parity_rate, positive_rate, flag, model_version, mlflow_run_id. (16 cols, 20 rows)
 
 ### `feature_device_contract_flag` (Managed)
 
 > ML feature: contract constraint status per copper device. Flags active contracts that may restrict retirement.
 
-Key columns: physical_device_id, has_active_contract, contract_end_date, months_to_expiry, penalty_amount
+Key columns: physical_device_id, device_type, has_active_contract, contract_expiry_days_remaining, most_recent_contract_expiry, has_contract_history, total_contracts, active_contract_count, migration_constraint_status. (14 cols, 2,672 rows)
 
 ### `feature_device_firmware_age` (Managed)
 
 > ML feature: firmware vintage and obsolescence risk per copper device.
 
-Key columns: physical_device_id, firmware_version, firmware_age_days, is_end_of_life, last_update_date
+Key columns: physical_device_id, device_type, firmware_version, software_version, device_age_days, device_age_years, is_past_eol, is_support_expired, newest_last_patch_date, firmware_obsolescence_score, primary_upgrade_status, has_vulnerabilities. (27 cols, 2,672 rows)
