@@ -27,7 +27,7 @@ Bugs fixed:
 import os
 import logging
 import dash
-from dash import html, dcc, dash_table, Input, Output
+from dash import html, dcc, dash_table, Input, Output, State, no_update
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 
@@ -64,6 +64,15 @@ LL_INFO = "#60A5FA"
 LL_BORDER = "#E5E2DD"
 
 RISK_COLORS = {"critical": LL_PRIMARY, "high": "#FF8C69", "medium": "#FFD700", "low": LL_ACCENT}
+
+# ── Genie Agent Configuration ────────────────────────────────────────────────
+GENIE_SPACE_ID = "01f1b0917b9b15a3a21cfa9d20cbba50"
+GENIE_SUGGESTED = [
+    "Show me high-risk devices in Oregon",
+    "What is our EBITDA impact?",
+    "Which states need immediate attention?",
+    "How many customers are affected in Colorado?",
+]
 
 HEX_CELLS = [
     # Colorado — mountain west aging copper clusters
@@ -319,6 +328,71 @@ def filter_devices(state_val, type_val):
     return devs
 
 
+# ── Genie API Helper ──────────────────────────────────────────────────────────
+
+def query_genie(question, conversation_id=None):
+    """Query the Genie Conversation API for copper retirement analytics."""
+    import time as _t
+    try:
+        from databricks.sdk import WorkspaceClient
+        gc = WorkspaceClient()
+        if conversation_id:
+            resp = gc.genie.create_message(
+                space_id=GENIE_SPACE_ID,
+                conversation_id=conversation_id,
+                content=question,
+            )
+            conv_id = conversation_id
+            msg_id = resp.message_id
+        else:
+            resp = gc.genie.start_conversation(
+                space_id=GENIE_SPACE_ID,
+                content=question,
+            )
+            conv_id = resp.conversation_id
+            msg_id = resp.message_id
+
+        # Poll for completion (max 90s)
+        answer = sql = None
+        for _ in range(45):
+            _t.sleep(2)
+            msg = gc.genie.get_message(GENIE_SPACE_ID, conv_id, msg_id)
+            s = str(getattr(msg, 'status', ''))
+            if 'COMPLETED' in s:
+                if msg.attachments:
+                    for att in msg.attachments:
+                        if hasattr(att, 'text') and att.text:
+                            answer = att.text.content if hasattr(att.text, 'content') else str(att.text)
+                        if hasattr(att, 'query') and att.query:
+                            sql = att.query.query if hasattr(att.query, 'query') else None
+                if not answer and hasattr(msg, 'content'):
+                    answer = msg.content
+                break
+            if 'FAILED' in s or 'CANCELLED' in s:
+                return {"error": f"Query {s.lower()}", "conv_id": conv_id}
+
+        # Try to get tabular results
+        table_md = ""
+        if sql:
+            try:
+                qr = gc.genie.get_message_query_result(GENIE_SPACE_ID, conv_id, msg_id)
+                sr = qr.statement_response
+                if sr and sr.result and sr.result.data_array:
+                    cols = [c.name for c in sr.result.schema.columns] if sr.result.schema else []
+                    rows = sr.result.data_array[:8]
+                    if cols and rows:
+                        table_md = "\n\n" + " | ".join(cols)
+                        for r in rows:
+                            table_md += "\n" + " | ".join(str(v or "") for v in r)
+            except Exception:
+                pass
+
+        return {"answer": (answer or "Analysis complete.") + table_md, "sql": sql, "conv_id": conv_id}
+    except Exception as e:
+        logger.error(f"[genie] Error: {e}")
+        return {"error": str(e), "conv_id": None}
+
+
 # ── Layout ─────────────────────────────────────────────────────────────────────
 
 app = dash.Dash(
@@ -328,6 +402,9 @@ app = dash.Dash(
 )
 
 app.layout = dbc.Container([
+    # ── Genie conversation state ──
+    dcc.Store(id="genie-store", data={"conv_id": None, "history": []}),
+
     # ── Header (shared lakelink_header) ──
     lakelink_header(
         subtitle="Copper Prioritization Map",
@@ -431,6 +508,78 @@ app.layout = dbc.Container([
             ),
         ], md=9),
     ], className="mb-3"),
+
+    # ── Genie Q&A (Copper Analytics Agent) ─────────────────────────────────
+    dbc.Card([
+        dbc.CardHeader(
+            dbc.Row([
+                dbc.Col([
+                    html.Div([
+                        html.Span("\u25CF", style={"color": LL_ACCENT, "marginRight": "8px",
+                                                    "fontSize": "0.7rem"}),
+                        html.Span("Copper Analytics Agent", style={
+                            "fontWeight": 600, "color": LL_TEXT_PRIMARY, "fontSize": "0.85rem"}),
+                    ], style={"display": "flex", "alignItems": "center"}),
+                    html.P("Ask about copper inventory, risk, revenue impact, and retirement scenarios",
+                           className="mb-0 mt-1",
+                           style={"fontSize": "0.75rem", "color": LL_TEXT_SECONDARY}),
+                ]),
+                dbc.Col(
+                    dbc.Badge("Genie-powered", style={
+                        "fontSize": "0.65rem", "backgroundColor": f"{LL_ACCENT}22",
+                        "color": LL_ACCENT, "border": f"1px solid {LL_BORDER}",
+                        "padding": "3px 8px"}),
+                    width="auto", className="d-flex align-items-center",
+                ),
+            ], justify="between", align="center"),
+            style={"backgroundColor": LL_SURFACE, "borderBottom": f"1px solid {LL_BORDER}"},
+        ),
+        dbc.CardBody([
+            # Messages area
+            dcc.Loading(
+                html.Div(id="genie-messages", children=[
+                    html.Div(
+                        html.Div([
+                            html.Span("\U0001F50D ", style={"fontSize": "0.75rem"}),
+                            html.Span(
+                                "I can help you analyze copper retirement impact. "
+                                "Ask about device risk, customer counts, revenue at risk, "
+                                "or retirement readiness for any state or wire center."
+                            ),
+                        ], style={
+                            "display": "inline-block",
+                            "backgroundColor": f"{LL_SECONDARY}0F",
+                            "padding": "10px 14px", "borderRadius": "14px 14px 14px 2px",
+                            "fontSize": "0.85rem", "maxWidth": "85%", "color": LL_TEXT_PRIMARY,
+                        }),
+                        style={"textAlign": "left", "marginBottom": "8px"},
+                    ),
+                ], style={
+                    "maxHeight": "360px", "overflowY": "auto", "marginBottom": "12px",
+                    "padding": "12px", "backgroundColor": LL_SURFACE,
+                    "borderRadius": "6px", "minHeight": "80px",
+                }),
+                type="dot", color=LL_PRIMARY,
+            ),
+            # Suggested questions
+            html.Div([
+                dbc.Button(q, size="sm", outline=True, color="secondary",
+                           className="me-1 mb-1",
+                           style={"fontSize": "0.7rem", "borderRadius": "16px"},
+                           id=f"genie-chip-{i}")
+                for i, q in enumerate(GENIE_SUGGESTED)
+            ], id="genie-chips", className="mb-2"),
+            # Input row
+            dbc.InputGroup([
+                dbc.Input(id="genie-input", placeholder="Ask about copper retirement...",
+                          type="text", style={"fontSize": "0.85rem"}, debounce=True),
+                dbc.Button("Ask", id="genie-submit", n_clicks=0,
+                           style={"backgroundColor": LL_PRIMARY, "border": "none",
+                                  "fontWeight": 600, "color": "#FFFFFF"}),
+            ]),
+        ]),
+    ], style={"backgroundColor": LL_SURFACE_ELEVATED, "border": f"1px solid {LL_BORDER}",
+              "borderRadius": "8px"}, className="mb-4"),
 
     # ── Device Table ──
     dbc.Card([
@@ -641,6 +790,90 @@ def update_views(state_val, tier_val, dtype_val):
     fig = build_map(cells)
     devs = filter_devices(state_val, dtype_val)
     return fig, devs
+
+
+# ── Genie chip callbacks (fill input from suggested questions) ─────────────
+
+@app.callback(
+    Output("genie-input", "value", allow_duplicate=True),
+    [Input(f"genie-chip-{i}", "n_clicks") for i in range(len(GENIE_SUGGESTED))],
+    prevent_initial_call=True,
+)
+def fill_from_chip(*clicks):
+    """Populate input from suggested question chip."""
+    ctx = dash.callback_context
+    if not ctx.triggered or ctx.triggered[0]["value"] is None:
+        return no_update
+    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    idx = int(trigger_id.split("-")[-1])
+    return GENIE_SUGGESTED[idx]
+
+
+# ── Genie submit callback ───────────────────────────────────────────────────
+
+@app.callback(
+    Output("genie-messages", "children"),
+    Output("genie-store", "data"),
+    Output("genie-input", "value", allow_duplicate=True),
+    Input("genie-submit", "n_clicks"),
+    Input("genie-input", "n_submit"),
+    State("genie-input", "value"),
+    State("genie-store", "data"),
+    prevent_initial_call=True,
+)
+def handle_genie_submit(n_clicks, n_submit, question, store):
+    """Send user question to Genie agent and display response."""
+    if not question or not question.strip():
+        return no_update, no_update, no_update
+
+    conv_id = store.get("conv_id") if store else None
+    history = store.get("history", []) if store else []
+
+    # Add user message
+    history.append({"role": "user", "text": question.strip()})
+
+    # Query Genie
+    result = query_genie(question.strip(), conv_id)
+
+    if "error" in result:
+        history.append({"role": "agent", "text": f"\u26A0\uFE0F {result['error']}"})
+    else:
+        answer = result.get("answer", "Analysis complete.")
+        if result.get("sql"):
+            answer += f"\n\n\U0001F4CB SQL: {result['sql'][:200]}"
+        history.append({"role": "agent", "text": answer})
+
+    new_store = {"conv_id": result.get("conv_id", conv_id), "history": history}
+
+    # Render all messages
+    children = []
+    for msg in history:
+        if msg["role"] == "user":
+            children.append(html.Div(
+                html.Div(msg["text"], style={
+                    "display": "inline-block", "backgroundColor": LL_PRIMARY,
+                    "color": "#FFFFFF", "padding": "8px 14px",
+                    "borderRadius": "14px 14px 2px 14px", "fontSize": "0.85rem",
+                    "maxWidth": "85%",
+                }),
+                style={"textAlign": "right", "marginBottom": "8px"},
+            ))
+        else:
+            children.append(html.Div(
+                html.Div([
+                    html.Span("\U0001F50D ", style={"fontSize": "0.75rem"}),
+                    html.Span(msg["text"], style={"whiteSpace": "pre-wrap"}),
+                ], style={
+                    "display": "inline-block",
+                    "backgroundColor": f"{LL_SECONDARY}0F",
+                    "padding": "10px 14px", "borderRadius": "14px 14px 14px 2px",
+                    "fontSize": "0.85rem", "maxWidth": "85%", "color": LL_TEXT_PRIMARY,
+                    "lineHeight": "1.5",
+                }),
+                style={"textAlign": "left", "marginBottom": "8px"},
+            ))
+
+    return children, new_store, ""
 
 
 # ── Entry Point ────────────────────────────────────────────────────────────────
