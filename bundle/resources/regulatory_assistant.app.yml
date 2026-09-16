@@ -1,0 +1,14 @@
+# Copper Retirement — Beat 4: Regulatory Assistant App
+# Regulatory RAG agent (FCC/state corpus)
+# App environment variables are defined in each app's own app.yaml.
+
+resources:
+  apps:
+    regulatory_assistant:
+      name: 'regulatory-assistant-${bundle.target}'
+      description: >-
+        Beat 4: Regulatory RAG assistant grounded in FCC orders
+        and state PUC docket text. Returns notice types, lead times,
+        and compliance checklists by jurisdiction.
+        Lakelink Fiber brand.
+      source_code_path: ../../apps/regulatory-assistant

@@ -1,4 +1,6 @@
-# Copper Retirement — Databricks Apps (Beats 1 + 4)
+# DEPRECATED: split into copper_map.app.yml and regulatory_assistant.app.yml
+# See copper_map.app.yml and regulatory_assistant.app.yml for the app definitions.
+# This file is intentionally empty. — Databricks Apps (Beats 1 + 4)
 #
 # Beat 1: copper-map — H3 hex prioritization map (deck.gl/pydeck, wave filter)
 # Beat 4: regulatory-assistant — Regulatory RAG agent (FCC/state corpus)
@@ -6,21 +8,3 @@
 # App environment variables are defined in each app’s own app.yaml,
 # NOT in this resource file (per DAB convention).
 
-resources:
-  apps:
-    copper_map:
-      name: 'copper-map-${bundle.target}'
-      description: >-
-        Beat 1: Interactive H3 hex map showing copper plant locations,
-        risk tiers, and retirement wave prioritization.
-        Lakelink Fiber brand.
-      source_code_path: ../../apps/copper-map
-
-    regulatory_assistant:
-      name: 'regulatory-assistant-${bundle.target}'
-      description: >-
-        Beat 4: Regulatory RAG assistant grounded in FCC orders
-        and state PUC docket text. Returns notice types, lead times,
-        and compliance checklists by jurisdiction.
-        Lakelink Fiber brand.
-      source_code_path: ../../apps/regulatory-assistant

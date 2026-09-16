@@ -107,7 +107,7 @@ export async function askRegulatory(
 
   // Both failed
   return {
-    answer: `No matching regulatory documents found for that query. Try specific terms like "Section 214", "copper retirement", "notice", or a state name (CO, WA, OR, AZ, MN, ID).\n\nJurisdiction context: ${jurisdiction === 'all' || !jurisdiction ? 'All states' : jurisdiction}.`,
+    answer: `No matching regulatory documents found for that query.\n\nTry:\n\u2022 Specific regulatory terms: "Section 214", "discontinuance", "notice requirements"\n\u2022 A state name: CO, WA, OR, AZ, MN, ID\n\u2022 A topic: "911 coordination", "copper retirement", "PUC filing"\n\nJurisdiction context: ${jurisdiction === 'all' || !jurisdiction ? 'All states' : jurisdiction}.`,
     sources: [],
     num_sources: 0,
     model: 'none',

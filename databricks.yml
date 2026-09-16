@@ -11,7 +11,7 @@ variables:
   warehouse_id:
     description: SQL warehouse for dashboard and query execution.
     lookup:
-      warehouse: 'Shared SQL Warehouse'
+      warehouse: 'Serverless Starter Warehouse'
 
 targets:
   dev:

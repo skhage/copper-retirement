@@ -1,0 +1,13 @@
+# Copper Retirement — Beat 1: Copper Map App
+# H3 hex prioritization map (deck.gl/pydeck, wave filter)
+# App environment variables are defined in each app's own app.yaml.
+
+resources:
+  apps:
+    copper_map:
+      name: 'copper-map-${bundle.target}'
+      description: >-
+        Beat 1: Interactive H3 hex map showing copper plant locations,
+        risk tiers, and retirement wave prioritization.
+        Lakelink Fiber brand.
+      source_code_path: ../../apps/copper-map

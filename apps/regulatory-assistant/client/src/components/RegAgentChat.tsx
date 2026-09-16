@@ -25,6 +25,62 @@ interface RegAgentChatProps {
   onCitationClick: (citation: Citation) => void;
 }
 
+/**
+ * Parse LLM answer text and convert [Source N] references into clickable
+ * superscript citation links that trigger the CitationSidebar.
+ */
+function renderContent(
+  content: string,
+  citations: Citation[] | undefined,
+  onCitationClick: (citation: Citation) => void
+) {
+  if (!citations || citations.length === 0) {
+    return <span className="whitespace-pre-wrap">{content}</span>;
+  }
+
+  // Split by [Source N] patterns (preserved as capture groups)
+  const parts = content.split(/(\[Source \d+\])/g);
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        const match = part.match(/^\[Source (\d+)\]$/);
+        if (match) {
+          const sourceNum = parseInt(match[1], 10);
+          const citation = citations.find((c) => c.id === sourceNum);
+          if (citation) {
+            return (
+              <button
+                key={i}
+                onClick={(e) => { e.stopPropagation(); onCitationClick(citation); }}
+                className="inline-flex items-center align-super cursor-pointer"
+                style={{
+                  color: '#FF3621',
+                  fontWeight: 700,
+                  fontSize: '0.72em',
+                  lineHeight: 1,
+                  padding: '0 1px',
+                  textDecoration: 'underline',
+                  textDecorationStyle: 'dotted',
+                  textUnderlineOffset: '2px',
+                  background: 'none',
+                  border: 'none',
+                }}
+                title={`${citation.document_title} \u2014 ${citation.paragraph_ref || 'View source'}`}
+              >
+                [{sourceNum}]
+              </button>
+            );
+          }
+          // Source ref with no matching citation
+          return <span key={i} className="text-muted-foreground text-xs align-super">{part}</span>;
+        }
+        return <span key={i} className="whitespace-pre-wrap">{part}</span>;
+      })}
+    </>
+  );
+}
+
 export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -139,7 +195,12 @@ export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentCh
                   : 'bg-muted'
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              <div className="text-sm leading-relaxed">
+                {msg.role === 'assistant'
+                  ? renderContent(msg.content, msg.citations, onCitationClick)
+                  : <span className="whitespace-pre-wrap">{msg.content}</span>
+                }
+              </div>
 
               {/* Source indicator */}
               {msg.role === 'assistant' && msg.source === 'live' && (
@@ -204,11 +265,31 @@ export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentCh
                 </div>
               )}
 
-              {/* Confidence indicator */}
+              {/* Confidence / empty-results indicator */}
               {msg.role === 'assistant' && msg.confidence === 'low' && (
-                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                  No matching documents found. Consider verifying with legal.
-                  <button className="ml-2 underline font-medium">Escalate</button>
+                <div className="mt-2 p-2 rounded text-xs" style={{
+                  backgroundColor: '#FEF3C7',
+                  border: '1px solid #F59E0B',
+                  color: '#92400E',
+                }}>
+                  <div className="flex items-center gap-1.5">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <span>Low confidence — no strong document matches. Consider verifying with the legal/regulatory team.</span>
+                  </div>
+                </div>
+              )}
+              {/* Zero sources on a live answer */}
+              {msg.role === 'assistant' && msg.citations && msg.citations.length === 0 && msg.confidence !== 'low' && msg.source === 'live' && (
+                <div className="mt-2 p-2 rounded text-xs" style={{
+                  backgroundColor: 'rgba(27,49,57,0.04)',
+                  border: '1px solid rgba(27,49,57,0.12)',
+                  color: '#6E8898',
+                }}>
+                  No source documents were cited for this answer. Results may be general knowledge rather than corpus-grounded.
                 </div>
               )}
             </div>
