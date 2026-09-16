@@ -28,7 +28,7 @@ Classifies physical copper network devices into four risk tiers — **low**, **m
 - **Not intended for:** Automated retirement execution without human review. Risk scores are decision-support inputs, not autonomous triggers.
 
 ### Target Variable
-Composite risk score binned into four tiers based on weighted percentile ranks of alarm frequency, critical alarm rate, SLA breach count, and test failure rate. Distribution: low ~20%, medium ~40%, high ~30%, critical ~10%.
+Composite risk score binned into four tiers based on weighted percentile ranks of alarm frequency, critical alarm rate, SLA breach count, and test failure rate. Target distribution: uniform (25% per tier, 668 devices each). Prediction distribution shifts to ~20% low, ~40% medium, ~30% high, ~10% critical due to model decision boundaries.
 
 ---
 
@@ -43,7 +43,7 @@ Composite risk score binned into four tiers based on weighted percentile ranks o
 | `cdm_tmforum.tmf_resource.resource_performance` | Performance degradation signals | 10K |
 | `cdm_tmforum.tmf_resource.resource_test` | Test pass/fail rates | 10K |
 | `cdm_tmforum.copper_retirement.feature_device_firmware_age` | Firmware lifecycle (11 features, new in V5) | 2,672 |
-| `cdm_tmforum.copper_retirement.copper_loop_plant` | Physical plant aggregates (6 features, new in V5) | 2,672 |
+| `cdm_tmforum.copper_retirement.copper_loop_plant` | Physical plant aggregates (6 features, new in V5) | 50,000 raw (2,011 distinct devices; aggregated to device-grain for training) |
 | `cdm_tmforum.tmf_customer.customer_problem` | Complaint rate, resolution hours | 100K |
 | `cdm_tmforum.tmf_customer.billing_dispute` | Dispute count, escalation rate | 100K |
 
