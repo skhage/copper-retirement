@@ -14,7 +14,7 @@ The Physical Plant domain tracks Lakelink Fiber's copper network infrastructure 
 | `copper_retirement.silver_copper_plant_enriched` | Silver | One row per copper device | 2,672 | Copper devices enriched with alarm rates, performance metrics, and risk features from TMF source tables. |
 | `copper_retirement.silver_resource_capacity` | Silver | One row per resource capacity record | 19,717 | Network resource capacity at CO/exchange sites — fiber infrastructure readiness and migration capacity. |
 | `copper_retirement.gold_wire_center_scorecard` | Gold | One row per wire_center_id | 103 | Per-wire-center retirement readiness scorecard: composite 0–100 score, risk severity, alarm rates, fiber readiness, regulatory requirements. |
-| `copper_retirement.wire_center_boundary` | Reference | One row per wire center | 1,699 | Wire center geographic boundaries with GeoJSON polygons, copper plant statistics, fiber readiness indicators. |
+| `copper_retirement.wire_center_boundary` | Reference | One row per wire center | 1,802 | Wire center geographic boundaries with GeoJSON polygons, copper plant statistics, fiber readiness indicators. 103 CLLI-aligned rows for LEGACY states + 1,699 legacy sequential rows. |
 
 ### TMF Source Tables
 
@@ -63,9 +63,9 @@ silver_resource_capacity
 ## Data Quality Notes
 
 - **H3 coverage:** 100% of devices have H3 hex indexes populated (res8 and res9). 1,699 distinct H3 cells across 2,672 devices.
-- **Geographic coverage:** All devices are in LEGACY_STATES (CO, MN, WA, OR, ID, AZ). 100% valid US coordinates.
+- **Geographic coverage:** Devices span all 50 US states (sourced from `tmf_enterprise.physical_device` without state filtering). 100% valid US coordinates. Wire center assignments and scorecards are scoped to 6 LEGACY_STATES (CO, MN, WA, OR, ID, AZ) only.
 - **Synthetic data:** `copper_loop_plant` (50K rows) is synthetic, generated with MDM-compliant FK values.
-- **Wire centers:** 103 wire centers with scorecards derived from 1,699 boundary polygons. Not all boundaries have enough copper devices to generate a scorecard.
+- **Wire centers:** 103 wire centers (6 LEGACY states) with scorecards. Boundary table contains 103 CLLI-aligned rows plus 1,699 legacy sequential rows. Scorecard, jurisdiction, and boundary all join on CLLI-style `wire_center_id`.
 - **Refresh:** Bronze/silver/gold tables are refreshed via DLP pipeline (8 materialized views).
 
 ## Related Domains
