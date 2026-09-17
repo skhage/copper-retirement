@@ -9,6 +9,10 @@
 import { searchCorpus, documentToCitation, composeAnswer } from './corpus';
 import type { Citation } from '../mock/mockData';
 
+/** Timeout for RAG endpoint calls (ms). */
+const RAG_TIMEOUT_MS = 60_000; // 60s — allows for VS retrieval + LLM generation
+const CORPUS_TIMEOUT_MS = 15_000; // 15s — keyword search is faster
+
 export interface RAGSource {
   title: string;
   docket_number: string | null;
@@ -56,11 +60,12 @@ export async function askRegulatory(
   jurisdiction?: string
 ): Promise<RAGResponse> {
   try {
-    // Try RAG endpoint first
+    // Try RAG endpoint first (with timeout to avoid hanging demo)
     const resp = await fetch('/api/agent/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question, jurisdiction }),
+      signal: AbortSignal.timeout(RAG_TIMEOUT_MS),
     });
 
     if (resp.ok) {

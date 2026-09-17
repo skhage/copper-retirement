@@ -9,7 +9,6 @@ CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.gold_circuit_r
   CONSTRAINT positive_revenue EXPECT (monthly_unit_price >= 0)
 )
 COMMENT 'Gold layer: per-circuit revenue at risk from copper retirement — joins ERP billing to copper plant'
-CLUSTER BY (device_type)
 AS
 SELECT
   -- Circuit identifiers

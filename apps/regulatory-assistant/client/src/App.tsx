@@ -58,6 +58,7 @@ export default function App() {
       <LakeLinkHeader
         subtitle="Regulatory Assistant"
         tagline="Copper Retirement Compliance"
+        dataSource="LIVE"
       >
         {/* Jurisdiction context (global filter) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.875rem' }}>

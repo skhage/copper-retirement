@@ -266,6 +266,26 @@ ORDER BY total_copper_devices DESC
 
 # ── SQL Connection ─────────────────────────────────────────────────────────────
 
+import time as _time
+
+_MAX_RETRIES = 2
+_RETRY_BACKOFF = [1.0, 3.0]  # seconds between retries
+_CONNECT_TIMEOUT = 30  # seconds
+_QUERY_TIMEOUT = 60  # seconds
+
+
+def _sanitize_error(exc: Exception) -> str:
+    """Strip internal details from errors for demo-safe display."""
+    msg = str(exc)
+    # Remove hostnames, warehouse IDs, stack traces
+    for redact in [WAREHOUSE_ID, "https://", "http://"]:
+        msg = msg.replace(redact, "***")
+    # Truncate to avoid wall of text
+    if len(msg) > 200:
+        msg = msg[:200] + "..."
+    return msg
+
+
 def _get_connection():
     """Get a Databricks SQL connection using app OAuth credentials."""
     from databricks.sdk import WorkspaceClient
@@ -276,20 +296,51 @@ def _get_connection():
         server_hostname=w.config.host.replace("https://", ""),
         http_path=f"/sql/1.0/warehouses/{WAREHOUSE_ID}",
         credentials_provider=lambda: w.config.authenticate,
+        _socket_timeout=_CONNECT_TIMEOUT,
     )
 
 
 def _run_query(query: str) -> list[dict[str, Any]]:
-    """Execute a SQL query and return results as list of dicts."""
-    conn = _get_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(query)
-            columns = [desc[0] for desc in cursor.description]
-            rows = cursor.fetchall()
-            return [dict(zip(columns, row)) for row in rows]
-    finally:
-        conn.close()
+    """Execute a SQL query with retry logic and return results as list of dicts.
+
+    Retries up to _MAX_RETRIES times with exponential backoff on transient
+    errors (connection failures, timeouts). Non-retryable errors (SQL syntax,
+    missing tables) are raised immediately.
+    """
+    last_exc = None
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            conn = _get_connection()
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute(query)
+                    columns = [desc[0] for desc in cursor.description]
+                    rows = cursor.fetchall()
+                    return [dict(zip(columns, row)) for row in rows]
+            finally:
+                conn.close()
+        except Exception as e:
+            last_exc = e
+            err_str = str(e).lower()
+            # Don't retry on SQL logic errors (syntax, missing table, permissions)
+            non_retryable = ("syntax", "table_or_view_not_found", "permission",
+                             "analysis_exception", "cannot resolve")
+            if any(kw in err_str for kw in non_retryable):
+                logger.error(f"[data] Non-retryable SQL error: {_sanitize_error(e)}")
+                raise
+            if attempt < _MAX_RETRIES:
+                wait = _RETRY_BACKOFF[attempt]
+                logger.warning(
+                    f"[data] Query attempt {attempt + 1} failed ({_sanitize_error(e)}). "
+                    f"Retrying in {wait}s..."
+                )
+                _time.sleep(wait)
+            else:
+                logger.error(
+                    f"[data] Query failed after {_MAX_RETRIES + 1} attempts: "
+                    f"{_sanitize_error(e)}"
+                )
+    raise last_exc  # type: ignore[misc]
 
 
 # ── Risk tier assignment ───────────────────────────────────────────────────────

@@ -1,10 +1,10 @@
 -- Gold: Copper retirement executive summary
 -- Top-level KPIs for executive dashboard and reporting
 -- One row per state with aggregated retirement program metrics
+-- SCOPED to 6 Lakelink legacy copper states: CO, MN, WA, OR, ID, AZ
 
 CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.gold_retirement_executive_summary
 COMMENT 'Gold layer: per-state executive summary of copper retirement program'
-CLUSTER BY (state_code)
 AS
 WITH device_summary AS (
   -- Use ML model predictions for risk tiers (4-tier: low/medium/high/critical)
@@ -20,6 +20,7 @@ WITH device_summary AS (
   FROM cdm_tmforum.copper_retirement.silver_copper_plant_enriched scp
   LEFT JOIN cdm_tmforum.copper_retirement.gold_device_risk_predictions grp
     ON scp.physical_device_id = grp.physical_device_id
+  WHERE scp.state_code IN ('CO', 'MN', 'WA', 'OR', 'ID', 'AZ')
   GROUP BY scp.state_code
 ),
 service_summary AS (
@@ -30,6 +31,7 @@ service_summary AS (
     COUNT(DISTINCT CASE WHEN service_type = 'voice' THEN customer_facing_service_id END) AS voice_count,
     COUNT(DISTINCT CASE WHEN service_type = 'broadband' THEN customer_facing_service_id END) AS broadband_count
   FROM cdm_tmforum.copper_retirement.silver_device_service_impact
+  WHERE state_code IN ('CO', 'MN', 'WA', 'OR', 'ID', 'AZ')
   GROUP BY state_code
 ),
 incident_summary AS (
@@ -40,6 +42,7 @@ incident_summary AS (
     SUM(repair_cost_amount) AS total_repair_cost,
     AVG(resolution_time_hours) AS avg_resolution_hours
   FROM cdm_tmforum.copper_retirement.bronze_dig_safe_incidents
+  WHERE state IN ('CO', 'MN', 'WA', 'OR', 'ID', 'AZ')
   GROUP BY state
 ),
 contractor_summary AS (
@@ -51,6 +54,7 @@ contractor_summary AS (
     SUM(CASE WHEN dispatch_status = 'preferred' THEN 1 ELSE 0 END) AS preferred_contractors,
     SUM(CASE WHEN dispatch_status = 'ineligible' THEN 1 ELSE 0 END) AS ineligible_contractors
   FROM cdm_tmforum.copper_retirement.gold_contractor_scorecard
+  WHERE primary_state IN ('CO', 'MN', 'WA', 'OR', 'ID', 'AZ')
   GROUP BY primary_state
 )
 SELECT

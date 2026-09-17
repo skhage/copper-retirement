@@ -3,7 +3,6 @@
 
 CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.bronze_dig_safe_incidents
 COMMENT 'Bronze layer: dig-safe incident registry with contractor enrichment'
-CLUSTER BY (state, severity)
 AS
 SELECT
   dsi.incident_id,

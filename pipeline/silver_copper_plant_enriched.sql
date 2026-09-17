@@ -7,7 +7,6 @@ CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.silver_copper_
   CONSTRAINT valid_state EXPECT (state_code IS NOT NULL)
 )
 COMMENT 'Silver layer: copper devices enriched with alarm, performance, and risk features'
-CLUSTER BY (state_code, device_type)
 AS
 SELECT
   bcd.physical_device_id,

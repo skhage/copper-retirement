@@ -7,7 +7,6 @@ CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.silver_device_
   CONSTRAINT valid_service EXPECT (customer_facing_service_id IS NOT NULL)
 )
 COMMENT 'Silver layer: copper device to customer service impact mapping'
-CLUSTER BY (state_code, device_type)
 AS
 SELECT
   -- Device context

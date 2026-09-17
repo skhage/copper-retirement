@@ -37,11 +37,31 @@ SELECT COUNT(*) FROM cdm_tmforum.copper_retirement.gold_circuit_revenue_at_risk;
 ```python
 import mlflow.deployments
 client = mlflow.deployments.get_deploy_client("databricks")
+# V5 model requires all 39 input features
+warm_up_record = {
+    "alarm_count": 25.0, "critical_alarm_rate": 0.15, "service_affecting_rate": 0.08,
+    "sla_breach_count": 5.0, "sla_breach_rate": 0.2, "test_fail_rate": 0.35,
+    "problem_count": 8.0, "recurring_problem_rate": 0.25,
+    "dispute_count": 3.0, "escalated_dispute_count": 1.0,
+    "sla_breach_dispute_count": 2.0, "months_since_last_dispute": 2.0,
+    "complaint_count": 12.0, "complaint_rate_per_month": 1.0,
+    "escalated_complaint_count": 3.0, "high_severity_complaint_count": 4.0,
+    "complaint_avg_resolution_hours": 48.0,
+    "active_months": 60.0, "avg_monthly_usage": 500000.0, "avg_monthly_revenue": 85.0,
+    "device_age_days": 2500.0, "firmware_obsolescence_score": 0.8,
+    "days_since_last_patch": 800.0, "days_past_eol": 400.0,
+    "days_past_support_expiry": 200.0, "is_past_eol": 1.0, "is_support_expired": 1.0,
+    "has_vulnerabilities": 1.0, "has_upgrade_blocked": 0.0, "has_upgrade_ineligible": 1.0,
+    "installed_software_count": 3.0, "has_software_data": 1.0,
+    "plant_pair_count": 4.0, "avg_loop_length_ft": 12000.0, "avg_splice_count": 8.0,
+    "avg_cable_vintage_year": 1985.0, "avg_db_loss": 28.0, "moisture_rate": 0.3,
+    "device_type_encoded": 0.0
+}
 result = client.predict(
     endpoint="copper-retirement-risk",
-    inputs={"dataframe_records": [{"device_age_years": 15, "alarm_count_90d": 12, "mttr_hours": 4.5}]}
+    inputs={"dataframe_records": [warm_up_record]}
 )
-print(result)  # Should return risk score
+print(result)  # Should return risk tier + class probabilities
 ```
 
 ### 1.3 Vector Search
@@ -57,7 +77,7 @@ print(result)  # Should return risk score
 
 | Check | Expected | How to verify |
 | --- | --- | --- |
-| Pipeline `copper-retirement-dlp` | `IDLE` (last run succeeded) | Workspace UI → Pipelines → ID `3d0576c0-5881-4c79-bd54-cdf2e57ad207` |
+| Pipeline `copper-retirement-dlp` | `IDLE` (last run succeeded) | Workspace UI → Pipelines → ID `b52532a2-6398-44ed-b239-9e95cafb745c` |
 | 8 Materialized Views populated | All have rows > 0 | See §3 Data Freshness Queries |
 
 **Materialized Views (expected counts):**
@@ -71,7 +91,7 @@ print(result)  # Should return risk score
 | `silver_device_service_impact` | > 0 |
 | `gold_wire_center_scorecard` | 103 |
 | `gold_contractor_scorecard` | 10,000 |
-| `gold_retirement_executive_summary` | 50 |
+| `gold_retirement_executive_summary` | 6 |
 
 ### 1.5 Databricks Apps
 
@@ -112,9 +132,29 @@ FROM cdm_tmforum.copper_retirement.gold_circuit_revenue_at_risk;
 ```python
 import mlflow.deployments
 client = mlflow.deployments.get_deploy_client("databricks")
+# V5 model requires all 39 input features
+warm_up_record = {
+    "alarm_count": 25.0, "critical_alarm_rate": 0.15, "service_affecting_rate": 0.08,
+    "sla_breach_count": 5.0, "sla_breach_rate": 0.2, "test_fail_rate": 0.35,
+    "problem_count": 8.0, "recurring_problem_rate": 0.25,
+    "dispute_count": 3.0, "escalated_dispute_count": 1.0,
+    "sla_breach_dispute_count": 2.0, "months_since_last_dispute": 2.0,
+    "complaint_count": 12.0, "complaint_rate_per_month": 1.0,
+    "escalated_complaint_count": 3.0, "high_severity_complaint_count": 4.0,
+    "complaint_avg_resolution_hours": 48.0,
+    "active_months": 60.0, "avg_monthly_usage": 500000.0, "avg_monthly_revenue": 85.0,
+    "device_age_days": 2500.0, "firmware_obsolescence_score": 0.8,
+    "days_since_last_patch": 800.0, "days_past_eol": 400.0,
+    "days_past_support_expiry": 200.0, "is_past_eol": 1.0, "is_support_expired": 1.0,
+    "has_vulnerabilities": 1.0, "has_upgrade_blocked": 0.0, "has_upgrade_ineligible": 1.0,
+    "installed_software_count": 3.0, "has_software_data": 1.0,
+    "plant_pair_count": 4.0, "avg_loop_length_ft": 12000.0, "avg_splice_count": 8.0,
+    "avg_cable_vintage_year": 1985.0, "avg_db_loss": 28.0, "moisture_rate": 0.3,
+    "device_type_encoded": 0.0
+}
 result = client.predict(
     endpoint="copper-retirement-risk",
-    inputs={"dataframe_records": [{"device_age_years": 15, "alarm_count_90d": 12, "mttr_hours": 4.5}]}
+    inputs={"dataframe_records": [warm_up_record]}
 )
 assert "predictions" in result or isinstance(result, dict), f"Unexpected response: {result}"
 print("Serving endpoint WARM")
@@ -166,7 +206,7 @@ UNION ALL SELECT
 | --- | --- |
 | gold_wire_center_scorecard | 103 |
 | gold_circuit_revenue_at_risk | 14,777 |
-| gold_retirement_executive_summary | 50 |
+| gold_retirement_executive_summary | 6 |
 | gold_contractor_scorecard | 10,000 |
 | gold_device_risk_predictions | 2,672 |
 
@@ -186,8 +226,8 @@ UNION ALL SELECT
 ```sql
 -- Check the serving endpoint inference log
 SELECT COUNT(*) AS total_inferences,
-       MAX(timestamp) AS latest_inference
-FROM cdm_tmforum.copper_retirement.risk_model_inference_payload;
+       MAX(request_time) AS latest_inference
+FROM cdm_tmforum.copper_retirement.risk_inference_unpacked;
 ```
 
 ### 3.4 Lakebase App Tables (Beat 1 map data)
@@ -265,7 +305,7 @@ from databricks.sdk import WorkspaceClient
 w = WorkspaceClient()
 results = w.vector_search_indexes.query_index(
     index_name="cdm_tmforum.copper_retirement.regulatory_doc_vs_index",
-    columns=["chunk_text", "source_document"],
+    columns=["embedding_text", "title", "docket_number"],
     query_text="FCC copper retirement notice requirements",
     num_results=3
 )
@@ -278,7 +318,7 @@ print(results)
 **Symptom:** Gold tables have 0 rows or unexpected counts.  
 **Fix:**
 1. Trigger a pipeline refresh:
-   - Workspace UI → Pipelines → `copper-retirement-dlp` (ID: `3d0576c0-5881-4c79-bd54-cdf2e57ad207`) → Start
+   - Workspace UI → Pipelines → `copper-retirement-dlp` (ID: `b52532a2-6398-44ed-b239-9e95cafb745c`) → Start
    - Pipeline runs take ~5-10 minutes
 2. Verify MVs repopulate with §3.1 query
 3. **Do NOT drop managed tables** — the DLP table conflict was already resolved by CEO.
@@ -327,8 +367,7 @@ cur = conn.cursor()
 | Model | `cdm_tmforum.ml_models.copper_retirement_risk` (V5) |
 | VS Endpoint | `demo_telco_vs_endpoint` |
 | VS Index | `cdm_tmforum.copper_retirement.regulatory_doc_vs_index` (528 docs) |
-| DLP Pipeline | `3d0576c0-5881-4c79-bd54-cdf2e57ad207` (copper-retirement-dlp) |
-| DLP Pipeline (alt) | `b52532a2-6398-44ed-b239-9e95cafb745c` (copper-retirement-pipeline) |
+| DLP Pipeline | `b52532a2-6398-44ed-b239-9e95cafb745c` (copper-retirement-pipeline) |
 | Copper Map App | `copper-map` → https://copper-map-7474656585748611.aws.databricksapps.com |
 | Regulatory Assistant App | `regulatory-assistant` → https://regulatory-assistant-7474656585748611.aws.databricksapps.com |
 | Task Board App | `copper-task-board` → https://copper-task-board-7474656585748611.aws.databricksapps.com |
@@ -370,5 +409,5 @@ cur = conn.cursor()
 
 ---
 
-*Last verified: 2026-09-16 by @devops automated run*  
+*Last verified: 2026-09-17 by @devops automated run*  
 *Next review: Before each demo day*

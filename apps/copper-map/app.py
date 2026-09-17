@@ -975,7 +975,15 @@ def handle_genie_submit(n_clicks, n_submit, question, store):
     result = query_genie(question.strip(), conv_id)
 
     if "error" in result:
-        history.append({"role": "agent", "text": f"\u26A0\uFE0F {result['error']}"})
+        # Sanitize error for demo — strip raw exceptions, hostnames, tokens
+        raw_err = str(result['error'])
+        if any(kw in raw_err.lower() for kw in ('traceback', 'exception', 'token', 'https://', 'connection')):
+            safe_err = "The analytics agent is temporarily unavailable. Please try again in a moment."
+        elif len(raw_err) > 120:
+            safe_err = raw_err[:120] + "..."
+        else:
+            safe_err = raw_err
+        history.append({"role": "agent", "text": f"\u26A0\uFE0F {safe_err}"})
     else:
         answer = result.get("answer", "Analysis complete.")
         if result.get("sql"):

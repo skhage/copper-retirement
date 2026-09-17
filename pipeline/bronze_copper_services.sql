@@ -4,7 +4,6 @@
 
 CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.bronze_copper_services
 COMMENT 'Bronze layer: copper-candidate customer-facing services'
-CLUSTER BY (service_type)
 AS
 SELECT
   cfs.customer_facing_service_id,

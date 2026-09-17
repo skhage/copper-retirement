@@ -5,6 +5,9 @@
  * Falls back gracefully if server endpoints are unavailable.
  */
 
+/** Timeout for corpus API calls (ms). */
+const CORPUS_TIMEOUT_MS = 15_000; // 15s
+
 export interface CorpusDocument {
   document_id: string;
   title: string;
@@ -44,6 +47,7 @@ export async function searchCorpus(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query, jurisdiction }),
+    signal: AbortSignal.timeout(CORPUS_TIMEOUT_MS),
   });
   if (!resp.ok) throw new Error(`Search failed: ${resp.statusText}`);
   const data = await resp.json();
@@ -65,7 +69,9 @@ export async function listDocuments(params: {
   if (params.search) qs.set('search', params.search);
   if (params.limit) qs.set('limit', String(params.limit));
 
-  const resp = await fetch(`/api/corpus/documents?${qs}`);
+  const resp = await fetch(`/api/corpus/documents?${qs}`, {
+    signal: AbortSignal.timeout(CORPUS_TIMEOUT_MS),
+  });
   if (!resp.ok) throw new Error(`Document list failed: ${resp.statusText}`);
   const data = await resp.json();
   return data.documents || [];
@@ -80,7 +86,9 @@ export async function fetchKPIs(
   const qs = jurisdiction && jurisdiction !== 'all'
     ? `?jurisdiction=${encodeURIComponent(jurisdiction)}`
     : '';
-  const resp = await fetch(`/api/corpus/kpis${qs}`);
+  const resp = await fetch(`/api/corpus/kpis${qs}`, {
+    signal: AbortSignal.timeout(CORPUS_TIMEOUT_MS),
+  });
   if (!resp.ok) throw new Error(`KPI fetch failed: ${resp.statusText}`);
   const data = await resp.json();
   return data.kpis || null;

@@ -18,6 +18,39 @@ app.use(express.json());
 // Databricks SQL Statement Execution API helper
 // ---------------------------------------------------------------------------
 const CORPUS_TABLE = 'cdm_tmforum.copper_retirement.fcc_regulatory_document';
+const FETCH_TIMEOUT_MS = 30_000; // 30s timeout for external API calls
+const MAX_RETRIES = 1;           // single retry on transient failures
+const RETRY_DELAY_MS = 2_000;    // 2s between retries
+
+/**
+ * Create an AbortSignal that times out after `ms` milliseconds.
+ */
+function timeoutSignal(ms = FETCH_TIMEOUT_MS) {
+  return AbortSignal.timeout(ms);
+}
+
+/**
+ * Sanitize error messages before sending to client.
+ * Strips internal hostnames, tokens, stack traces.
+ */
+function sanitizeError(msg) {
+  if (!msg) return 'An unexpected error occurred.';
+  let safe = String(msg);
+  // Redact hostnames, bearer tokens, internal paths
+  safe = safe.replace(/https?:\/\/[^\s)]+/g, '[redacted-url]');
+  safe = safe.replace(/Bearer [A-Za-z0-9._-]+/g, '[redacted-token]');
+  safe = safe.replace(/\/Workspace\/[^\s)]+/g, '[internal-path]');
+  // Truncate
+  if (safe.length > 200) safe = safe.slice(0, 200) + '...';
+  return safe;
+}
+
+/**
+ * Sleep helper for retry backoff.
+ */
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function getAuthHeaders() {
   const token = process.env.DATABRICKS_TOKEN;
@@ -112,10 +145,10 @@ Format your response as:
  */
 async function queryVectorSearch(query, filters) {
   const host = process.env.DATABRICKS_HOST;
-  if (!host) throw new Error('DATABRICKS_HOST not set');
+  if (!host) throw new Error('Vector Search unavailable — host not configured.');
 
   const authHeaders = await getAuthHeaders();
-  if (!authHeaders) throw new Error('No auth credentials available');
+  if (!authHeaders) throw new Error('Vector Search unavailable — auth not configured.');
 
   const cleanHost = host.replace(/^https?:\/\//, '').replace(/\/$/, '');
   const url = `https://${cleanHost}/api/2.0/vector-search/indexes/${VS_INDEX_NAME}/query`;
@@ -132,24 +165,38 @@ async function queryVectorSearch(query, filters) {
   };
   if (filters) body.filters_json = JSON.stringify(filters);
 
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { ...authHeaders, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  // Retry loop for transient failures
+  let lastErr;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: timeoutSignal(),
+      });
 
-  if (!resp.ok) {
-    const errText = await resp.text();
-    throw new Error(`Vector Search query failed (${resp.status}): ${errText}`);
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => '');
+        throw new Error(`Vector Search returned ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      const colNames = (data.manifest?.columns || []).map((c) => c.name);
+      const rows = data.result?.data_array || [];
+
+      return rows
+        .map((row) => Object.fromEntries(colNames.map((col, i) => [col, row[i]])))
+        .filter((chunk) => (chunk.score || 0) >= SCORE_THRESHOLD);
+    } catch (err) {
+      lastErr = err;
+      if (attempt < MAX_RETRIES) {
+        console.warn(`[VS] Attempt ${attempt + 1} failed (${err.message}), retrying...`);
+        await sleep(RETRY_DELAY_MS);
+      }
+    }
   }
-
-  const data = await resp.json();
-  const colNames = (data.manifest?.columns || []).map((c) => c.name);
-  const rows = data.result?.data_array || [];
-
-  return rows
-    .map((row) => Object.fromEntries(colNames.map((col, i) => [col, row[i]])))
-    .filter((chunk) => (chunk.score || 0) >= SCORE_THRESHOLD);
+  throw lastErr;
 }
 
 /**
@@ -180,10 +227,10 @@ function formatContext(chunks) {
  */
 async function generateAnswer(query, context) {
   const host = process.env.DATABRICKS_HOST;
-  if (!host) throw new Error('DATABRICKS_HOST not set');
+  if (!host) throw new Error('LLM unavailable — host not configured.');
 
   const authHeaders = await getAuthHeaders();
-  if (!authHeaders) throw new Error('No auth credentials available');
+  if (!authHeaders) throw new Error('LLM unavailable — auth not configured.');
 
   const cleanHost = host.replace(/^https?:\/\//, '').replace(/\/$/, '');
   const url = `https://${cleanHost}/serving-endpoints/${LLM_ENDPOINT}/invocations`;
@@ -196,26 +243,40 @@ ${context}
 
 Question: ${query}`;
 
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { ...authHeaders, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messages: [
-        { role: 'system', content: RAG_SYSTEM_PROMPT },
-        { role: 'user', content: userMessage },
-      ],
-      max_tokens: 2048,
-      temperature: 0.1,
-    }),
-  });
+  // Retry loop for transient LLM endpoint failures
+  let lastErr;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: RAG_SYSTEM_PROMPT },
+            { role: 'user', content: userMessage },
+          ],
+          max_tokens: 2048,
+          temperature: 0.1,
+        }),
+        signal: timeoutSignal(45_000), // 45s for LLM generation
+      });
 
-  if (!resp.ok) {
-    const errText = await resp.text();
-    throw new Error(`FMAPI generation failed (${resp.status}): ${errText}`);
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => '');
+        throw new Error(`LLM generation returned ${resp.status}`);
+      }
+
+      const data = await resp.json();
+      return data.choices?.[0]?.message?.content || 'No response generated.';
+    } catch (err) {
+      lastErr = err;
+      if (attempt < MAX_RETRIES) {
+        console.warn(`[FMAPI] Attempt ${attempt + 1} failed (${err.message}), retrying...`);
+        await sleep(RETRY_DELAY_MS);
+      }
+    }
   }
-
-  const data = await resp.json();
-  return data.choices?.[0]?.message?.content || 'No response generated.';
+  throw lastErr;
 }
 
 /**
@@ -269,9 +330,9 @@ app.post('/api/agent/chat', async (req, res) => {
     });
   } catch (err) {
     console.error('[agent/chat] Error:', err.message);
-    // Return error but don't crash — client can fall back to corpus search
+    // Return sanitized error — never expose raw internals to the client
     res.status(500).json({
-      error: err.message,
+      error: sanitizeError(err.message),
       answer: null,
       sources: [],
       source_type: 'error',
@@ -350,7 +411,7 @@ app.post('/api/corpus/search', async (req, res) => {
     res.json({ documents: results });
   } catch (err) {
     console.error('[corpus/search] Error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: sanitizeError(err.message) });
   }
 });
 
@@ -402,7 +463,7 @@ app.get('/api/corpus/documents', async (req, res) => {
     res.json({ documents: results });
   } catch (err) {
     console.error('[corpus/documents] Error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: sanitizeError(err.message) });
   }
 });
 
@@ -443,7 +504,7 @@ app.get('/api/corpus/kpis', async (req, res) => {
     res.json({ kpis: results[0] });
   } catch (err) {
     console.error('[corpus/kpis] Error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: sanitizeError(err.message) });
   }
 });
 

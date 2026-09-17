@@ -55,6 +55,14 @@ export function CitationSidebar({ citation, onClose, onViewDocument }: CitationS
               {citation.document_title}
             </p>
           </div>
+          {citation.doc_id && (
+            <div className="rounded px-3 py-2" style={{ backgroundColor: 'rgba(27,49,57,0.04)', border: '1px solid rgba(27,49,57,0.1)' }}>
+              <p className="text-xs" style={{ color: '#6E8898' }}>Docket / Reference</p>
+              <p className="text-sm font-mono font-semibold" style={{ color: '#FF3621', fontSize: '0.8rem' }}>
+                {citation.doc_id}
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <p className="text-xs" style={{ color: '#6E8898' }}>Citation / Section</p>
@@ -69,14 +77,6 @@ export function CitationSidebar({ citation, onClose, onViewDocument }: CitationS
               </p>
             </div>
           </div>
-          {citation.doc_id && (
-            <div>
-              <p className="text-xs" style={{ color: '#6E8898' }}>Docket / ID</p>
-              <p className="text-sm font-mono" style={{ color: '#1B3139', fontSize: '0.8rem' }}>
-                {citation.doc_id}
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Excerpt */}

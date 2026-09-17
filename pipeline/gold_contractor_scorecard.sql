@@ -4,7 +4,6 @@
 
 CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.gold_contractor_scorecard
 COMMENT 'Gold layer: contractor scorecard with actual incident and work order metrics'
-CLUSTER BY (primary_state, overall_rating)
 AS
 WITH actual_incidents AS (
   SELECT

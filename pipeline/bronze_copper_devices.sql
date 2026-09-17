@@ -4,7 +4,6 @@
 
 CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.bronze_copper_devices
 COMMENT 'Bronze layer: copper-relevant physical devices filtered from TMF physical_device'
-CLUSTER BY (device_type)
 AS
 SELECT
   pd.physical_device_id,
