@@ -167,7 +167,7 @@ export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentCh
   }, [sendMessage]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-220px)]">
+    <div className="flex flex-col flex-1 min-h-0" style={{ minHeight: '400px' }}>
       {/* Chat messages */}
       <div className="flex-1 overflow-y-auto space-y-4 mb-4">
         {messages.length === 0 && (
@@ -253,10 +253,10 @@ export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentCh
                       </div>
                       <span className="shrink-0 px-1.5 py-0.5 rounded font-medium" style={{
                         fontSize: '10px',
-                        backgroundColor: cite.confidence === 'high' ? '#dcfce7' :
-                          cite.confidence === 'medium' ? '#fef9c3' : '#fee2e2',
-                        color: cite.confidence === 'high' ? '#15803d' :
-                          cite.confidence === 'medium' ? '#854d0e' : '#b91c1c',
+                        backgroundColor: cite.confidence === 'high' ? 'rgba(0,169,114,0.15)' :
+                          cite.confidence === 'medium' ? 'rgba(217,119,6,0.15)' : 'rgba(255,54,33,0.15)',
+                        color: cite.confidence === 'high' ? '#00A972' :
+                          cite.confidence === 'medium' ? '#D97706' : '#FF3621',
                       }}>
                         {cite.confidence}
                       </span>
@@ -268,9 +268,9 @@ export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentCh
               {/* Confidence / empty-results indicator */}
               {msg.role === 'assistant' && msg.confidence === 'low' && (
                 <div className="mt-2 p-2 rounded text-xs" style={{
-                  backgroundColor: '#FEF3C7',
-                  border: '1px solid #F59E0B',
-                  color: '#92400E',
+                  backgroundColor: 'rgba(255,54,33,0.08)',
+                  border: '1px solid rgba(255,54,33,0.3)',
+                  color: '#FF3621',
                 }}>
                   <div className="flex items-center gap-1.5">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -310,7 +310,7 @@ export function RegAgentChat({ jurisdictionFilter, onCitationClick }: RegAgentCh
                   <div className="h-3 rounded animate-pulse w-3/5" style={{ backgroundColor: 'rgba(27,49,57,0.04)' }} />
                 </div>
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#60A5FA' }} />
+                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#6E8898' }} />
                   <span style={{ color: '#6E8898' }}>Generating answer from LLM...</span>
                 </div>
               </div>

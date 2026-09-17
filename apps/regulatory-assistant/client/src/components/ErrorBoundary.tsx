@@ -5,6 +5,7 @@
  * Lakelink Fiber brand: #FF3621 primary, #1B3139 secondary, #F9F7F4 surface.
  */
 import { Component, type ReactNode, type ErrorInfo } from 'react';
+import { AlertTriangle } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -60,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
               fontSize: '1.5rem',
             }}
           >
-            \u26A0\uFE0F
+            <AlertTriangle size={24} strokeWidth={1.5} color="#FF3621" />
           </div>
           <h3
             style={{

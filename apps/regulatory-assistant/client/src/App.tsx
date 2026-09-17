@@ -78,14 +78,18 @@ export default function App() {
         </div>
       </LakeLinkHeader>
 
-      {/* Tab navigation — responsive: scrollable on mobile */}
+      {/* Tab navigation — responsive: scrollable on mobile (WCAG 2.1 AA) */}
       <div className="px-4 sm:px-6 border-b overflow-x-auto">
-        <div className="flex gap-1 pt-2 min-w-max">
+        <div className="flex gap-1 pt-2 min-w-max" role="tablist" aria-label="Regulatory assistant sections">
           {TABS.map((tab) => (
             <button
               key={tab.key}
+              id={`tab-${tab.key}`}
+              role="tab"
+              aria-selected={activeTab === tab.key}
+              aria-controls={`tabpanel-${tab.key}`}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-3 sm:px-4 py-2 text-sm font-medium rounded-t transition-colors whitespace-nowrap ${
+              className={`px-3 sm:px-4 py-2 text-sm font-medium rounded-t transition-colors whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF3621] ${
                 activeTab === tab.key
                   ? 'text-white'
                   : 'text-muted-foreground hover:bg-muted'
@@ -105,7 +109,12 @@ export default function App() {
 
       {/* Main content area + citation sidebar — responsive flex */}
       <div className="flex flex-col md:flex-row">
-        <div className="flex-1 px-6 py-4">
+        <div
+          className="flex-1 px-6 py-4"
+          role="tabpanel"
+          id={`tabpanel-${activeTab}`}
+          aria-labelledby={`tab-${activeTab}`}
+        >
           <ErrorBoundary fallbackTitle="Regulatory query failed">
             {activeTab === 'ask' && (
               <RegAgentChat

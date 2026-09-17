@@ -32,13 +32,46 @@ interface KPICard {
   sub?: string;
 }
 
+function KPISkeleton() {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            background: '#FFFFFF',
+            border: `1px solid ${LL_BORDER}`,
+            borderRadius: 8,
+            padding: 12,
+          }}
+        >
+          <div
+            className="animate-pulse rounded"
+            style={{ height: 12, width: '60%', backgroundColor: 'rgba(27,49,57,0.08)', marginBottom: 8 }}
+          />
+          <div
+            className="animate-pulse rounded"
+            style={{ height: 28, width: '50%', backgroundColor: 'rgba(27,49,57,0.10)', marginBottom: 6 }}
+          />
+          <div
+            className="animate-pulse rounded"
+            style={{ height: 10, width: '70%', backgroundColor: 'rgba(27,49,57,0.06)' }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function RegKPIs({ jurisdictionFilter }: RegKPIsProps) {
   const [cards, setCards] = useState<KPICard[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
+      setLoading(true);
       try {
         const liveKpis = await fetchKPIs(jurisdictionFilter);
         if (cancelled) return;
@@ -59,14 +92,17 @@ export function RegKPIs({ jurisdictionFilter }: RegKPIsProps) {
             { label: 'Doc Types', value: docTypes, color: LL_TEXT_PRIMARY, sub: 'Categories' },
             { label: 'Total Words', value: totalWords > 1000 ? `${Math.round(totalWords / 1000)}K` : totalWords, color: LL_TEXT_PRIMARY, sub: 'Corpus size' },
           ]);
+          setLoading(false);
           return;
         }
       } catch {
         // Fall through to mock
       }
+      setLoading(false);
 
       if (cancelled) return;
       // Mock fallback
+      setLoading(false);
       const mockKpis = getMockKPIs();
       setCards([
         { label: 'Jurisdictions', value: mockKpis.jurisdictions_covered, color: LL_TEXT_PRIMARY, sub: 'States covered' },
@@ -82,8 +118,12 @@ export function RegKPIs({ jurisdictionFilter }: RegKPIsProps) {
     return () => { cancelled = true; };
   }, [jurisdictionFilter]);
 
+  if (loading && cards.length === 0) {
+    return <KPISkeleton />;
+  }
+
   return (
-    <div className="grid grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
       {cards.map((card) => (
         <div
           key={card.label}

@@ -52,6 +52,7 @@ export function JurisdictionMap({ jurisdictionFilter, onStateSelect }: Jurisdict
   const [selectedState, setSelectedState] = useState<JurisdictionRow | null>(null);
   const [tooltipContent, setTooltipContent] = useState('');
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   const jurisdictions = useMemo(
     () => getMockJurisdictions(jurisdictionFilter !== 'all' ? jurisdictionFilter : undefined),
@@ -90,6 +91,8 @@ export function JurisdictionMap({ jurisdictionFilter, onStateSelect }: Jurisdict
       <div
         className="relative bg-muted rounded-lg overflow-hidden"
         style={{ height: 440 }}
+        role="img"
+        aria-label="US jurisdiction compliance map — color-coded by compliance status. Use the table below for keyboard-accessible details."
         onMouseLeave={() => { setTooltipContent(''); setTooltipPos(null); }}
       >
         {/* Tooltip */}
@@ -106,10 +109,30 @@ export function JurisdictionMap({ jurisdictionFilter, onStateSelect }: Jurisdict
           </div>
         )}
 
+        {/* Loading indicator — shown while TopoJSON fetches */}
+        {!mapLoaded && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-[5]">
+            <div
+              className="animate-spin rounded-full"
+              style={{
+                width: 28,
+                height: 28,
+                border: '3px solid rgba(27,49,57,0.12)',
+                borderTopColor: '#00A972',
+              }}
+            />
+            <span className="mt-3 text-xs" style={{ color: '#6E8898' }}>Loading map...</span>
+          </div>
+        )}
+
         <ComposableMap projection="geoAlbersUsa" width={800} height={440}>
           <Geographies geography={GEO_URL}>
-            {({ geographies }) =>
-              geographies.map((geo) => {
+            {({ geographies }) => {
+              if (geographies.length > 0 && !mapLoaded) {
+                // Schedule state update after render
+                setTimeout(() => setMapLoaded(true), 0);
+              }
+              return geographies.map((geo) => {
                 const geoName: string = geo.properties.name;
                 const abbr = STATE_NAME_TO_ABBR[geoName];
                 const jRow = abbr ? jurisdictionByAbbr.get(abbr) : undefined;
@@ -149,8 +172,8 @@ export function JurisdictionMap({ jurisdictionFilter, onStateSelect }: Jurisdict
                     }}
                   />
                 );
-              })
-            }
+              });
+            }}
           </Geographies>
         </ComposableMap>
 

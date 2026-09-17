@@ -135,9 +135,9 @@ export function DocumentBrowser({ jurisdictionFilter, highlightDocId }: Document
   }, [highlightDocId, docs]);
 
   return (
-    <div className="flex gap-4 h-[calc(100vh-280px)]">
+    <div className="flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-280px)]">
       {/* Document list */}
-      <div className="w-1/2 space-y-3">
+      <div className="w-full lg:w-1/2 space-y-3">
         {/* Search + filters */}
         <div className="flex gap-2">
           <input
@@ -167,7 +167,7 @@ export function DocumentBrowser({ jurisdictionFilter, highlightDocId }: Document
           {isLive ? (
             <><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#00A972', display: 'inline-block' }} /> Live corpus ({docs.length} documents)</>
           ) : (
-            <><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#eab308', display: 'inline-block' }} /> Mock data</>
+            <><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#D97706', display: 'inline-block' }} /> Mock data</>
           )}
           {loading && <span>Loading...</span>}
         </div>
@@ -204,7 +204,7 @@ export function DocumentBrowser({ jurisdictionFilter, highlightDocId }: Document
       </div>
 
       {/* Document detail panel */}
-      <div className="w-1/2 border rounded-lg overflow-y-auto">
+      <div className="w-full lg:w-1/2 border rounded-lg overflow-y-auto min-h-[300px] lg:min-h-0">
         {selectedDoc ? (
           <div className="p-4">
             <h3 className="text-lg font-semibold mb-2">{selectedDoc.title}</h3>

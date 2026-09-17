@@ -237,12 +237,12 @@ export const SUGGESTED_QUESTIONS = [
 // --- Compliance status colors ---
 
 export const COMPLIANCE_COLORS: Record<string, string> = {
-  clear: '#22c55e',     // green
-  pending: '#eab308',   // yellow
-  blocked: '#ef4444',   // red
-  overdue: '#dc2626',   // dark red
-  flagged: '#f97316',   // orange
-  complete: '#22c55e',  // green
+  clear: '#00A972',     // brand accent green
+  pending: '#D97706',   // brand-derived warm amber
+  blocked: '#FF3621',   // brand primary red
+  overdue: '#CC2B1A',   // darker primary (distinguishable from blocked)
+  flagged: '#FF8C69',   // brand data viz palette pos 5
+  complete: '#00A972',  // brand accent green
 };
 
 export const REQUIREMENT_TYPE_LABELS: Record<string, string> = {

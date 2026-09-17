@@ -16,7 +16,7 @@ export function SuggestedQuestions({ onSelect }: SuggestedQuestionsProps) {
         <button
           key={q}
           onClick={() => onSelect(q)}
-          className="px-3 py-1.5 text-xs border rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
+          className="px-3 py-1.5 text-xs border rounded-full hover:bg-primary hover:text-primary-foreground transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF3621]"
         >
           {q}
         </button>

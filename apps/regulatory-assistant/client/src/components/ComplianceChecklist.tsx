@@ -6,6 +6,15 @@
  */
 import { useState, useMemo } from 'react';
 import {
+  CheckCircle2,
+  Circle,
+  AlertTriangle,
+  XCircle,
+  Flag,
+  ChevronRight,
+  ChevronDown,
+} from 'lucide-react';
+import {
   USE_MOCK_DATA,
   getMockChecklist,
   COMPLIANCE_COLORS,
@@ -20,7 +29,7 @@ interface ComplianceChecklistProps {
 export function ComplianceChecklist({ jurisdictionFilter }: ComplianceChecklistProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [expandedStates, setExpandedStates] = useState<Set<string>>(new Set(['CA', 'OR', 'MN']));
+  const [expandedStates, setExpandedStates] = useState<Set<string>>(new Set(['CO', 'OR', 'MN']));
 
   const items = useMemo(
     () => getMockChecklist({
@@ -51,14 +60,15 @@ export function ComplianceChecklist({ jurisdictionFilter }: ComplianceChecklistP
     });
   };
 
-  const statusIcon = (status: string) => {
+  const statusIcon = (status: string, color: string) => {
+    const props = { size: 16, strokeWidth: 1.5, color };
     switch (status) {
-      case 'complete': return '✓';
-      case 'pending': return '○';
-      case 'overdue': return '⚠';
-      case 'blocked': return '✖';
-      case 'flagged': return '⚑';
-      default: return '○';
+      case 'complete': return <CheckCircle2 {...props} />;
+      case 'pending': return <Circle {...props} />;
+      case 'overdue': return <AlertTriangle {...props} />;
+      case 'blocked': return <XCircle {...props} />;
+      case 'flagged': return <Flag {...props} />;
+      default: return <Circle {...props} />;
     }
   };
 
@@ -100,11 +110,15 @@ export function ComplianceChecklist({ jurisdictionFilter }: ComplianceChecklistP
 
       {/* Overdue banner */}
       {items.some((i) => i.status === 'overdue') && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center justify-between">
-          <span className="text-sm text-red-800">
-            ⚠ {items.filter((i) => i.status === 'overdue').length} overdue item(s) require immediate attention
+        <div className="rounded-lg p-3 flex items-center justify-between" style={{
+          backgroundColor: 'rgba(255,54,33,0.06)',
+          border: '1px solid rgba(255,54,33,0.2)',
+        }}>
+          <span className="text-sm" style={{ color: '#1B3139' }}>
+            <AlertTriangle size={16} strokeWidth={1.5} color="#FF3621" style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 6 }} />
+            {items.filter((i) => i.status === 'overdue').length} overdue item(s) require immediate attention
           </span>
-          <button className="text-xs bg-red-600 text-white px-3 py-1 rounded">
+          <button className="text-xs text-white px-3 py-1 rounded" style={{ backgroundColor: '#FF3621' }}>
             Escalate to Legal
           </button>
         </div>
@@ -120,7 +134,9 @@ export function ComplianceChecklist({ jurisdictionFilter }: ComplianceChecklistP
               className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-2">
-                <span className="text-sm">{expandedStates.has(state) ? '▼' : '▶'}</span>
+                {expandedStates.has(state)
+                  ? <ChevronDown size={16} strokeWidth={1.5} color="#1B3139" />
+                  : <ChevronRight size={16} strokeWidth={1.5} color="#1B3139" />}
                 <span className="font-semibold">{state}</span>
                 <span className="text-xs text-muted-foreground">
                   ({Object.values(wirecenters).flat().length} items)
@@ -160,7 +176,7 @@ export function ComplianceChecklist({ jurisdictionFilter }: ComplianceChecklistP
                           className="text-base"
                           style={{ color: COMPLIANCE_COLORS[item.status] }}
                         >
-                          {statusIcon(item.status)}
+                          {statusIcon(item.status, COMPLIANCE_COLORS[item.status])}
                         </span>
                         <div className="flex-1">
                           <p className="font-medium">{item.requirement}</p>

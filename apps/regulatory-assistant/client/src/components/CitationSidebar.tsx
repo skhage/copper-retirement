@@ -3,6 +3,7 @@
  * Right-side panel that opens when a citation link is clicked.
  * Shows document excerpt with highlighted passage, metadata, and link to full document.
  */
+import { ChevronRight } from 'lucide-react';
 import type { Citation } from '../mock/mockData';
 
 interface CitationSidebarProps {
@@ -20,7 +21,9 @@ export function CitationSidebar({ citation, onClose, onViewDocument }: CitationS
           <h3 className="font-semibold text-sm">Source Citation</h3>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground text-lg"
+            aria-label="Close citation sidebar"
+            title="Close"
+            className="text-muted-foreground hover:text-foreground text-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF3621]"
           >
             ×
           </button>
@@ -29,10 +32,10 @@ export function CitationSidebar({ citation, onClose, onViewDocument }: CitationS
         {/* Confidence + jurisdiction banner */}
         <div className="flex items-center gap-2 mb-4">
           <span className="text-xs px-2 py-0.5 rounded font-medium" style={{
-            backgroundColor: citation.confidence === 'high' ? '#dcfce7' :
-              citation.confidence === 'medium' ? '#fef9c3' : '#fee2e2',
-            color: citation.confidence === 'high' ? '#15803d' :
-              citation.confidence === 'medium' ? '#854d0e' : '#b91c1c',
+            backgroundColor: citation.confidence === 'high' ? 'rgba(0,169,114,0.15)' :
+              citation.confidence === 'medium' ? 'rgba(217,119,6,0.15)' : 'rgba(255,54,33,0.15)',
+            color: citation.confidence === 'high' ? '#00A972' :
+              citation.confidence === 'medium' ? '#D97706' : '#FF3621',
           }}>
             {citation.confidence} confidence
           </span>
@@ -79,7 +82,7 @@ export function CitationSidebar({ citation, onClose, onViewDocument }: CitationS
         {/* Excerpt */}
         <div className="mt-4">
           <p className="text-xs text-muted-foreground mb-1">Source Excerpt</p>
-          <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm leading-relaxed">
+          <div className="rounded p-3 text-sm leading-relaxed" style={{ backgroundColor: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)' }}>
             {citation.excerpt}
           </div>
         </div>
@@ -88,14 +91,14 @@ export function CitationSidebar({ citation, onClose, onViewDocument }: CitationS
         <div className="mt-4 space-y-2">
           <button
             onClick={() => onViewDocument(citation.doc_id)}
-            className="w-full text-left px-3 py-2 text-sm border rounded hover:bg-muted transition-colors"
+            className="w-full text-left px-3 py-2 text-sm border rounded hover:bg-muted transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF3621]"
           >
-            ▸ View full document
+            <ChevronRight size={14} strokeWidth={1.5} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 4 }} /> View full document
           </button>
           <button
-            className="w-full text-left px-3 py-2 text-sm border rounded hover:bg-muted transition-colors text-muted-foreground"
+            className="w-full text-left px-3 py-2 text-sm border rounded hover:bg-muted transition-colors text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF3621]"
           >
-            ▸ Copy citation
+            <ChevronRight size={14} strokeWidth={1.5} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 4 }} /> Copy citation
           </button>
         </div>
       </div>

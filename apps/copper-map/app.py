@@ -65,10 +65,9 @@ LL_SURFACE_DARK = "#1B3139"
 LL_TEXT_PRIMARY = "#1B3139"
 LL_TEXT_SECONDARY = "#6E8898"
 LL_TEXT_INVERSE = "#FFFFFF"
-LL_INFO = "#60A5FA"
 LL_BORDER = "#E5E2DD"
 
-RISK_COLORS = {"critical": LL_PRIMARY, "high": "#FF8C69", "medium": "#FFD700", "low": LL_ACCENT}
+RISK_COLORS = {"critical": LL_PRIMARY, "high": "#FF8C69", "medium": "#6E8898", "low": LL_ACCENT}
 
 # ── CSS Transitions & Animation Constants ──────────────────────────────────────
 CARD_TRANSITION = "box-shadow 0.25s ease, transform 0.2s ease"
@@ -194,7 +193,7 @@ def lakelink_header(subtitle, tagline=None, data_source="MOCK", show_synthetic=T
     """Shared Lakelink Fiber nav header (BRAND_GUIDE §6 Nav Header).
     Equivalent to LakeLinkHeader.tsx for Dash apps.
     """
-    badge_color = LL_INFO if data_source == "LIVE" else RISK_COLORS["medium"]
+    badge_color = LL_ACCENT if data_source == "LIVE" else RISK_COLORS["medium"]
     badge_text = f"{data_source} DATA"
     if show_synthetic:
         badge_text += " \u00B7 SYNTHETIC"
@@ -219,7 +218,7 @@ def lakelink_header(subtitle, tagline=None, data_source="MOCK", show_synthetic=T
             ),
         ], width="auto", className="d-flex align-items-center"),
     ], justify="between", style={"background": LL_SURFACE, "borderBottom": f"1px solid {LL_BORDER}",
-                                  "padding": "16px 24px 12px"})
+                                  "padding": "16px 24px 16px"})
 
 
 def kpi_card(label, value, color=LL_TEXT_PRIMARY, sub=None):
@@ -662,8 +661,8 @@ app.layout = dbc.Container([
                         style={"color": LL_TEXT_SECONDARY, "fontSize": "0.85rem"})),
                 dbc.Col(dbc.Badge(
                     f"{len(DEVICES)} devices" if DEVICES else "No devices",
-                    style={"fontSize": "0.65rem", "backgroundColor": f"{LL_INFO}22",
-                           "color": LL_INFO if DEVICES else LL_TEXT_SECONDARY,
+                    style={"fontSize": "0.65rem", "backgroundColor": f"{LL_ACCENT}22",
+                           "color": LL_ACCENT if DEVICES else LL_TEXT_SECONDARY,
                            "border": f"1px solid {LL_BORDER}", "padding": "3px 8px"},
                 ), width="auto"),
             ], justify="between", align="center"),
@@ -795,8 +794,8 @@ app.layout = dbc.Container([
                         style={"color": LL_TEXT_SECONDARY, "fontSize": "0.85rem"})),
                 dbc.Col(dbc.Badge(
                     "Program Health" if _gold_ok else "Requires gold tables",
-                    style={"fontSize": "0.65rem", "backgroundColor": f"{LL_INFO}22",
-                           "color": LL_INFO if _gold_ok else LL_TEXT_SECONDARY,
+                    style={"fontSize": "0.65rem", "backgroundColor": f"{LL_ACCENT}22",
+                           "color": LL_ACCENT if _gold_ok else LL_TEXT_SECONDARY,
                            "border": f"1px solid {LL_BORDER}", "padding": "3px 8px"},
                 ), width="auto"),
             ], justify="between", align="center"),
