@@ -31,9 +31,6 @@ features:
 
 # Environment variables (set during deploy)
 env:
-  - name: DATABRICKS_HOST
-    description: Workspace URL
   - name: DATABRICKS_WAREHOUSE_ID
     description: SQL warehouse ID for analytics queries
-  - name: REG_AGENT_ENDPOINT
-    description: P6-REG agent Model Serving endpoint URL (optional — falls back to mock)
+    value: 7b65956f30d66feb
