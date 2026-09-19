@@ -71,13 +71,15 @@ export function WhatIfChat() {
             <div
               className={`max-w-[90%] rounded-lg px-3 py-2 text-sm ${
                 msg.role === 'user'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-[#FF3621] text-white'
                   : 'bg-gray-100 text-foreground'
               }`}
             >
-              <p className="whitespace-pre-wrap" dangerouslySetInnerHTML={{
-                __html: msg.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-              }} />
+              <p className="whitespace-pre-wrap" >
+                {msg.content.split(/\*\*(.*?)\*\*/g).map((part, i) =>
+                  i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+                )}
+              </p>
               {msg.impact_summary && (
                 <div className="mt-2 pt-2 border-t border-gray-200 grid grid-cols-2 gap-1 text-xs">
                   <div>Customers: <strong>{msg.impact_summary.total_customers_affected.toLocaleString()}</strong></div>
@@ -106,7 +108,7 @@ export function WhatIfChat() {
             <button
               key={q}
               onClick={() => sendMessage(q)}
-              className="text-xs px-2 py-1 border rounded-full hover:bg-blue-50 hover:border-blue-300 transition-colors text-muted-foreground"
+              className="text-xs px-2 py-1 border rounded-full hover:bg-[#F9F7F4] hover:border-[#E5E2DD] transition-colors text-muted-foreground"
             >
               {q}
             </button>
@@ -125,13 +127,13 @@ export function WhatIfChat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask: What if we retire copper in..."
-            className="flex-1 text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF3621]"
             disabled={isTyping}
           />
           <button
             type="submit"
             disabled={isTyping || !input.trim()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 bg-[#FF3621] text-white rounded-lg text-sm font-medium hover:bg-[#e02e1b] disabled:opacity-50 transition-colors"
           >
             Ask
           </button>

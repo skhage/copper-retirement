@@ -55,7 +55,7 @@ export default function App() {
       </div>
 
       {/* Tab bar */}
-      <div className="px-6 mb-3 flex gap-1 border-b">
+      <div className="px-6 mb-3 flex gap-1 border-b" role="tablist">
         {[
           { id: 'map' as const, label: 'Impact Map' },
           { id: 'table' as const, label: 'Wire Center Table' },
@@ -63,10 +63,12 @@ export default function App() {
         ].map((tab) => (
           <button
             key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               activeTab === tab.id
-                ? 'border-blue-600 text-blue-600'
+                ? 'border-[#FF3621] text-[#FF3621]'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -79,6 +81,7 @@ export default function App() {
       <div className="px-6 mb-3 flex gap-3 items-center">
         <select
           value={filters.state}
+          aria-label="Filter by state"
           onChange={(e) => setFilters((f) => ({ ...f, state: e.target.value }))}
           className="text-sm border rounded px-2 py-1"
         >
@@ -87,6 +90,7 @@ export default function App() {
         </select>
         <select
           value={filters.priorityTier}
+          aria-label="Filter by priority"
           onChange={(e) => setFilters((f) => ({ ...f, priorityTier: e.target.value }))}
           className="text-sm border rounded px-2 py-1"
         >
@@ -176,12 +180,12 @@ export default function App() {
                       <td className="p-2 text-right">{wc.customers_affected}</td>
                       <td className="p-2 text-right">${(wc.revenue_at_risk_mrr / 1000).toFixed(1)}K</td>
                       <td className="p-2 text-right">
-                        <span className={wc.network_disruption_score >= 50 ? 'text-red-600 font-medium' : ''}>
+                        <span className={wc.network_disruption_score >= 50 ? 'text-[#FF3621] font-medium' : ''}>
                           {wc.network_disruption_score}/100
                         </span>
                       </td>
                       <td className="p-2 text-right">
-                        <span className={wc.fiber_ready_pct >= 80 ? 'text-green-600 font-medium' : ''}>
+                        <span className={wc.fiber_ready_pct >= 80 ? 'text-[#00A972] font-medium' : ''}>
                           {wc.fiber_ready_pct}%
                         </span>
                       </td>

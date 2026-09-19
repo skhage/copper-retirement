@@ -68,7 +68,7 @@ export function SummaryKPIs() {
 
   if (!kpis) {
     return (
-      <div className="grid grid-cols-5 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
         {Array.from({ length: 5 }).map((_, i) => (
           <Card key={i}>
             <CardContent className="p-3">
@@ -84,7 +84,7 @@ export function SummaryKPIs() {
   const cards = buildCards(kpis);
 
   return (
-    <div className="grid grid-cols-5 gap-3 mb-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
       {cards.map((c) => (
         <Card key={c.label} style={{ border: '1px solid #E5E2DD', borderRadius: 8 }}>
           <CardContent className="p-3">

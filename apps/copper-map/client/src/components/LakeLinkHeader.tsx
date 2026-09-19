@@ -18,8 +18,8 @@ const LL_SECONDARY = '#1B3139';
 const LL_SURFACE = '#F9F7F4';
 const LL_TEXT_SECONDARY = '#6E8898';
 const LL_BORDER = '#E5E2DD';
-const LL_INFO = '#60A5FA';
-const LL_MEDIUM = '#FFD700';
+const BADGE_LIVE_BG = 'rgba(0,169,114,0.2)';
+const BADGE_MOCK_BG = 'rgba(110,136,152,0.2)';
 
 export interface LakeLinkHeaderProps {
   /** App subtitle shown below wordmark, e.g. "Copper Retirement Impact Map" */
@@ -39,7 +39,7 @@ export function LakeLinkHeader({
   showSynthetic = true,
 }: LakeLinkHeaderProps) {
   const source = dataSource ?? (USE_MOCK_DATA ? 'MOCK' : 'LIVE');
-  const badgeColor = source === 'LIVE' ? LL_INFO : LL_MEDIUM;
+  const badgeColor = source === 'LIVE' ? BADGE_LIVE_BG : BADGE_MOCK_BG;
 
   return (
     <header
@@ -97,7 +97,7 @@ export function LakeLinkHeader({
             fontSize: '0.6875rem',
             padding: '4px 10px',
             borderRadius: 4,
-            backgroundColor: `${badgeColor}33`,
+            backgroundColor: badgeColor,
             color: LL_SECONDARY,
             fontWeight: 500,
           }}

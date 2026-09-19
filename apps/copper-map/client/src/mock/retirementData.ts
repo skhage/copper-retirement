@@ -75,7 +75,7 @@ export const PRIORITY_COLORS: Record<string, string> = {
   'retire-now': '#FF3621',
   'plan-next': '#FF8C69',
   'evaluate': '#FFD700',
-  'defer': '#60A5FA',
+  'defer': '#6E8898',
 };
 
 export const PRIORITY_TIERS = ['retire-now', 'plan-next', 'evaluate', 'defer'] as const;
