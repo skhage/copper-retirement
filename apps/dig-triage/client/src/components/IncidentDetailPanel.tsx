@@ -3,24 +3,48 @@
  * Selected incident detail panel showing full incident information:
  * severity, cable type, contractor info, resolution time,
  * affected services, reroute status.
+ *
+ * V2 (2026-09-20): Enriched with UC function data — shows triage priority,
+ * nearest device, wire center, impacted services, nearby incidents,
+ * and reroute suggestions from live UC functions.
  */
 import type { Incident } from '../mock/mockData';
 import { SEVERITY_COLORS, STATUS_COLORS } from '../mock/mockData';
-import { X } from 'lucide-react';
+import type { IncidentDetail, NearbyIncident, RerouteSuggestion } from '../lib/triageApi';
+import { X, Radio, MapPin, AlertTriangle, ArrowRightLeft } from 'lucide-react';
 import {
   formatCurrency,
   formatHours,
   formatTimestamp,
   severityLabel,
   incidentAge,
+  toNumber,
 } from '../lib/formatters';
 
 interface IncidentDetailPanelProps {
   incident: Incident;
+  enrichedData?: IncidentDetail | null;
+  nearbyIncidents?: NearbyIncident[];
+  rerouteSuggestion?: RerouteSuggestion | null;
+  isLoadingEnriched?: boolean;
   onClose: () => void;
 }
 
-export function IncidentDetailPanel({ incident, onClose }: IncidentDetailPanelProps) {
+const PRIORITY_COLORS: Record<string, string> = {
+  P1: '#EB1600',
+  P2: '#FF8C00',
+  P3: '#FFD700',
+  P4: '#40d1f5',
+};
+
+export function IncidentDetailPanel({
+  incident,
+  enrichedData,
+  nearbyIncidents = [],
+  rerouteSuggestion,
+  isLoadingEnriched = false,
+  onClose,
+}: IncidentDetailPanelProps) {
   return (
     <div className="bg-card rounded-lg border shadow-sm">
       <div className="flex items-center justify-between p-3 border-b">
@@ -44,6 +68,21 @@ export function IncidentDetailPanel({ incident, onClose }: IncidentDetailPanelPr
           >
             {incident.status.replace('_', ' ').toUpperCase()}
           </span>
+          {/* Triage priority from UC function */}
+          {enrichedData?.triage_priority && (
+            <span
+              className="text-xs font-bold px-2 py-0.5 rounded"
+              style={{
+                backgroundColor: (PRIORITY_COLORS[enrichedData.triage_priority] || '#6E8898') + '20',
+                color: PRIORITY_COLORS[enrichedData.triage_priority] || '#6E8898',
+              }}
+            >
+              {enrichedData.triage_priority}
+            </span>
+          )}
+          {isLoadingEnriched && (
+            <span className="text-xs text-muted-foreground animate-pulse">Loading UC data...</span>
+          )}
         </div>
         <button
           onClick={onClose}
@@ -75,9 +114,17 @@ export function IncidentDetailPanel({ incident, onClose }: IncidentDetailPanelPr
             <p className="text-xs text-muted-foreground">Root Cause</p>
             <p className="text-sm">{incident.root_cause.replace('_', ' ')}</p>
           </div>
+          {enrichedData?.recommended_action && (
+            <div>
+              <p className="text-xs text-muted-foreground">Recommended Action</p>
+              <p className="text-sm font-medium text-[#FF3621]">
+                {enrichedData.recommended_action.replace(/_/g, ' ')}
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Column 2: Location */}
+        {/* Column 2: Location + Wire Center */}
         <div className="space-y-2">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase">Location</h4>
           <div>
@@ -90,9 +137,36 @@ export function IncidentDetailPanel({ incident, onClose }: IncidentDetailPanelPr
               {incident.latitude.toFixed(4)}, {incident.longitude.toFixed(4)}
             </p>
           </div>
+          {/* UC enriched: Wire Center */}
+          {enrichedData?.wire_center_name && (
+            <div>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Radio size={12} strokeWidth={1.5} /> Wire Center
+              </p>
+              <p className="text-sm font-medium">{enrichedData.wire_center_name}</p>
+              <p className="text-xs text-muted-foreground">{enrichedData.wire_center_id}</p>
+            </div>
+          )}
+          {/* UC enriched: Nearest Device */}
+          {enrichedData?.nearest_device_type && (
+            <div>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <MapPin size={12} strokeWidth={1.5} /> Nearest Device
+              </p>
+              <p className="text-sm">
+                {enrichedData.nearest_device_type}{' '}
+                <span className="text-xs text-muted-foreground">
+                  ({parseFloat(enrichedData.nearest_device_distance_km || '0').toFixed(1)} km)
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {toNumber(enrichedData.nearby_copper_device_count)} nearby copper devices
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Column 3: Impact */}
+        {/* Column 3: Impact (enriched with UC data) */}
         <div className="space-y-2">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase">Impact</h4>
           <div>
@@ -115,6 +189,22 @@ export function IncidentDetailPanel({ incident, onClose }: IncidentDetailPanelPr
             <p className="text-xs text-muted-foreground">Repair Cost</p>
             <p className="text-sm font-bold">{formatCurrency(incident.repair_cost)}</p>
           </div>
+          {/* UC enriched: Customer/service impact */}
+          {enrichedData && (
+            <>
+              <div>
+                <p className="text-xs text-muted-foreground">Impacted Customers</p>
+                <p className="text-sm font-bold">{toNumber(enrichedData.impacted_customer_count)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Impacted Services</p>
+                <p className="text-sm font-bold">{toNumber(enrichedData.impacted_service_count)}</p>
+                {enrichedData.impacted_service_types && (
+                  <p className="text-xs text-muted-foreground">{enrichedData.impacted_service_types}</p>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Column 4: Contractor + Resolution */}
@@ -142,6 +232,60 @@ export function IncidentDetailPanel({ incident, onClose }: IncidentDetailPanelPr
           </div>
         </div>
       </div>
+
+      {/* Reroute Suggestion (from UC reroute_suggest function) */}
+      {rerouteSuggestion && (
+        <div className="mx-4 mb-4 p-3 rounded-lg border bg-[#F9F7F4]">
+          <div className="flex items-center gap-2 mb-2">
+            <ArrowRightLeft size={16} strokeWidth={1.5} className="text-[#FF3621]" />
+            <h4 className="text-xs font-semibold uppercase">Reroute Suggestion</h4>
+            {rerouteSuggestion.wire_center_fiber_ready === 'true' && (
+              <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">Fiber Ready</span>
+            )}
+          </div>
+          <div className="flex gap-6">
+            <div>
+              <p className="text-xs text-muted-foreground">Option</p>
+              <p className="text-sm font-semibold">{rerouteSuggestion.reroute_option?.replace(/_/g, ' ')}</p>
+            </div>
+            <div className="flex-1">
+              <p className="text-xs text-muted-foreground">Rationale</p>
+              <p className="text-sm">{rerouteSuggestion.reroute_rationale}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Nearby Incidents (from UC proximity_search function) */}
+      {nearbyIncidents.length > 0 && (
+        <div className="mx-4 mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle size={16} strokeWidth={1.5} className="text-[#FF8C00]" />
+            <h4 className="text-xs font-semibold uppercase text-muted-foreground">
+              Nearby Incidents ({nearbyIncidents.length} within 50 km)
+            </h4>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {nearbyIncidents.slice(0, 6).map((ni) => (
+              <div key={ni.incident_id} className="text-xs border rounded p-2 bg-muted/50">
+                <span className="font-medium">INC-{ni.incident_id}</span>
+                <span
+                  className="ml-1 px-1 py-0.5 rounded text-[10px] font-bold"
+                  style={{
+                    backgroundColor: (SEVERITY_COLORS[ni.severity as keyof typeof SEVERITY_COLORS] || '#888') + '20',
+                    color: SEVERITY_COLORS[ni.severity as keyof typeof SEVERITY_COLORS] || '#888',
+                  }}
+                >
+                  {ni.severity}
+                </span>
+                <p className="text-muted-foreground mt-0.5">
+                  {parseFloat(ni.distance_from_search_km).toFixed(1)} km — {ni.root_cause?.replace(/_/g, ' ')}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

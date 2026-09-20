@@ -3,8 +3,9 @@
  * Tabular view of migration plan: wire center, wave, dates, status,
  * customers, cost, constraint. Sortable and filterable.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { mockWireCenters, USE_MOCK_DATA } from '../mock/mockData';
+import { fetchLiveWaves } from '../lib/planApi';
 import { ConstraintFlags } from './ConstraintFlags';
 import { formatCurrency, formatCount, formatPercent } from '../lib/formatters';
 import type { WireCenterPlan } from '../mock/mockData';
@@ -20,7 +21,9 @@ type SortKey = 'wave' | 'wire_center_name' | 'state' | 'customers_affected' |
   'migration_cost_usd' | 'scheduled_start' | 'priority_score' | 'completion_pct';
 
 export function MigrationTable({ filters, onFilterChange, onWireCenterSelect }: Props) {
-  const data = USE_MOCK_DATA ? mockWireCenters : mockWireCenters;
+  const [liveData, setLiveData] = useState<WireCenterPlan[] | null>(null);
+  useEffect(() => { fetchLiveWaves().then(setLiveData); }, []);
+  const data = liveData || mockWireCenters;
   const [sortKey, setSortKey] = useState<SortKey>('wave');
   const [sortAsc, setSortAsc] = useState(true);
 

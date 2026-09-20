@@ -9,6 +9,8 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { USE_MOCK_DATA, getMockAgentResponse, SEVERITY_COLORS } from '../mock/mockData';
+import { sendChatMessage } from '../lib/triageApi';
+import type { ChatResponse } from '../lib/triageApi';
 import type { Incident, AgentResponse, AgentAction, ActionDecision } from '../mock/mockData';
 import { formatHours, severityLabel } from '../lib/formatters';
 
@@ -61,9 +63,7 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
     // Simulate agent thinking delay
     await new Promise((resolve) => setTimeout(resolve, 1200));
 
-    const response = USE_MOCK_DATA
-      ? getMockAgentResponse(incident.incident_id)
-      : await fetchAgentResponse(incident); // TODO: implement
+    const response = await fetchAgentResponse(incident);
 
     const agentMsg: ChatMessage = {
       role: 'agent',
@@ -76,9 +76,30 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
   }
 
   async function fetchAgentResponse(incident: Incident): Promise<AgentResponse> {
-    // TODO: POST to /api/triage/chat with incident context
-    // Implement SSE streaming for real-time agent responses
-    return getMockAgentResponse(incident.incident_id);
+    try {
+      const chatResp: ChatResponse = await sendChatMessage(
+        incident.incident_id,
+        `Analyze: ${incident.cable_damage_type} on ${incident.cable_type}. ` +
+          `Root cause: ${incident.root_cause}. Pairs: ${incident.affected_pair_count}.`
+      );
+      return {
+        message: chatResp.response,
+        actions: chatResp.actions.map((a) => ({
+          action_id: a.action_id,
+          type: a.type,
+          description: a.description,
+          priority: a.priority as AgentAction['priority'],
+          affected_customers: a.affected_customers,
+          estimated_time_hours: a.estimated_time_hours,
+          status: a.status as ActionDecision,
+        })),
+        confidence: chatResp.confidence,
+        sources: chatResp.sources,
+      };
+    } catch (err) {
+      console.warn('[triage-chat] Live API failed, falling back to mock:', err);
+      return getMockAgentResponse(incident.incident_id);
+    }
   }
 
   function handleActionDecision(action: AgentAction, decision: ActionDecision) {

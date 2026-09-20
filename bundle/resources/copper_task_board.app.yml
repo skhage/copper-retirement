@@ -1,0 +1,14 @@
+# Copper Retirement — Project Task Board App
+# Multi-agent coordination dashboard backed by Lakebase copper-task-board.
+# Flask/Dash app (Python) with Lakebase Postgres connection.
+# App environment variables are defined in the app's own app.yaml.
+
+resources:
+  apps:
+    copper_task_board:
+      name: 'copper-task-board-${bundle.target}'
+      description: >-
+        Project task board for multi-agent coordination.
+        Reads/writes agent tasks, status updates, and CEO directives
+        from Lakebase copper-task-board Postgres project.
+      source_code_path: ../../apps/copper-task-board

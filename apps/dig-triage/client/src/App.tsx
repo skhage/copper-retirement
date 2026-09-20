@@ -14,7 +14,7 @@
  *
  * All data is SYNTHETIC until P0-DATAGEN-DIGSAFE-EXECUTE + P6-TRIAGE land.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { TriageKPIs } from './components/TriageKPIs';
 import { IncidentMap } from './components/IncidentMap';
 import { TriageAgentChat } from './components/TriageAgentChat';
@@ -23,6 +23,8 @@ import { IncidentDetailPanel } from './components/IncidentDetailPanel';
 import { IncidentTable } from './components/IncidentTable';
 import { ActionLog } from './components/ActionLog';
 import type { Incident, Severity, IncidentStatus } from './mock/mockData';
+import { fetchIncidentDetail, fetchNearbyIncidents, fetchRerouteSuggestion } from './lib/triageApi';
+import type { IncidentDetail, NearbyIncident, RerouteSuggestion } from './lib/triageApi';
 
 export interface TriageFilters {
   severity: string;
@@ -40,6 +42,34 @@ export default function App() {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [activeTab, setActiveTab] = useState<'map' | 'table' | 'log'>('map');
+  const [enrichedData, setEnrichedData] = useState<IncidentDetail | null>(null);
+  const [nearbyIncidents, setNearbyIncidents] = useState<NearbyIncident[]>([]);
+  const [rerouteSuggestion, setRerouteSuggestion] = useState<RerouteSuggestion | null>(null);
+  const [isLoadingEnriched, setIsLoadingEnriched] = useState(false);
+
+  // Fetch enriched UC data when an incident is selected
+  useEffect(() => {
+    if (!selectedIncident) {
+      setEnrichedData(null);
+      setNearbyIncidents([]);
+      setRerouteSuggestion(null);
+      return;
+    }
+    const numericId = parseInt(selectedIncident.incident_id.replace('INC-', ''), 10);
+    if (isNaN(numericId)) return;
+
+    setIsLoadingEnriched(true);
+    Promise.allSettled([
+      fetchIncidentDetail(numericId),
+      fetchNearbyIncidents(selectedIncident.latitude, selectedIncident.longitude, 50),
+      fetchRerouteSuggestion(numericId),
+    ]).then(([detailRes, nearbyRes, rerouteRes]) => {
+      setEnrichedData(detailRes.status === 'fulfilled' ? detailRes.value : null);
+      setNearbyIncidents(nearbyRes.status === 'fulfilled' ? nearbyRes.value : []);
+      setRerouteSuggestion(rerouteRes.status === 'fulfilled' ? rerouteRes.value : null);
+      setIsLoadingEnriched(false);
+    });
+  }, [selectedIncident?.incident_id]);
 
   const handleIncidentSelect = useCallback((incident: Incident | null) => {
     setSelectedIncident(incident);
@@ -115,6 +145,10 @@ export default function App() {
               <div className="mt-3">
                 <IncidentDetailPanel
                   incident={selectedIncident}
+                  enrichedData={enrichedData}
+                  nearbyIncidents={nearbyIncidents}
+                  rerouteSuggestion={rerouteSuggestion}
+                  isLoadingEnriched={isLoadingEnriched}
                   onClose={() => setSelectedIncident(null)}
                 />
               </div>

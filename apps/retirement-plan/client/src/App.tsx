@@ -21,6 +21,8 @@ import { WaveSelector } from './components/WaveSelector';
 import { CostBenefitPanel } from './components/CostBenefitPanel';
 import { MigrationTable } from './components/MigrationTable';
 import { ScenarioCompare } from './components/ScenarioCompare';
+import { BudgetChart } from './components/BudgetChart';
+import { RegulatoryChecklist } from './components/RegulatoryChecklist';
 import type { WireCenterPlan } from './mock/mockData';
 
 export interface PlanFilters {
@@ -39,7 +41,7 @@ export default function App() {
     constraint: 'all',
   });
   const [selectedWireCenter, setSelectedWireCenter] = useState<WireCenterPlan | null>(null);
-  const [activeTab, setActiveTab] = useState<'gantt' | 'table' | 'scenarios'>('gantt');
+  const [activeTab, setActiveTab] = useState<'gantt' | 'table' | 'budget' | 'regulatory' | 'scenarios'>('gantt');
 
   const handleWireCenterSelect = useCallback((wc: WireCenterPlan | null) => {
     setSelectedWireCenter(wc);
@@ -73,7 +75,7 @@ export default function App() {
 
       {/* Tab navigation */}
       <div className="flex gap-1 mb-3 border-b">
-        {(['gantt', 'table', 'scenarios'] as const).map((tab) => (
+        {(['gantt', 'table', 'budget', 'regulatory', 'scenarios'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -87,6 +89,10 @@ export default function App() {
               ? 'Gantt Timeline'
               : tab === 'table'
               ? 'Migration Table'
+              : tab === 'budget'
+              ? 'Budget'
+              : tab === 'regulatory'
+              ? 'Regulatory Checklist'
               : 'Scenario Compare'}
           </button>
         ))}
@@ -108,6 +114,10 @@ export default function App() {
           onWireCenterSelect={handleWireCenterSelect}
         />
       )}
+
+      {activeTab === 'budget' && <BudgetChart />}
+
+      {activeTab === 'regulatory' && <RegulatoryChecklist filters={filters} />}
 
       {activeTab === 'scenarios' && <ScenarioCompare />}
 

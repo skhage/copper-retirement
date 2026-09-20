@@ -9,8 +9,9 @@
  *
  * TODO: Add drag-to-reschedule once Lakebase write-back (P5-SCHEMA) lands.
  */
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { mockWireCenters, USE_MOCK_DATA } from '../mock/mockData';
+import { fetchLiveWaves } from '../lib/planApi';
 import { ConstraintFlags } from './ConstraintFlags';
 import type { WireCenterPlan } from '../mock/mockData';
 import type { PlanFilters } from '../App';
@@ -62,7 +63,17 @@ function toPercent(dateStr: string): number {
 }
 
 export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter }: Props) {
-  const data = USE_MOCK_DATA ? mockWireCenters : mockWireCenters;
+  const [liveData, setLiveData] = useState<WireCenterPlan[] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchLiveWaves().then((data) => {
+      setLiveData(data);
+      setIsLoading(false);
+    });
+  }, []);
+
+  const data = liveData || mockWireCenters;
 
   const filtered = useMemo(() => {
     return data.filter((wc) => {
@@ -76,7 +87,20 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
 
   return (
     <div className="rounded-lg border bg-card p-4 shadow-sm">
-      <h2 className="text-sm font-semibold mb-3">Retirement Wave Timeline (2026–2029)</h2>
+      <div className="flex items-center gap-2 mb-3">
+        <h2 className="text-sm font-semibold">Retirement Wave Timeline (2026–2029)</h2>
+        {isLoading && <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>}
+        {!isLoading && liveData && (
+          <span className="text-[10px] bg-[#00A972]/10 text-[#00A972] px-2 py-0.5 rounded font-medium">
+            LIVE — {liveData.length} wire centers from optimizer
+          </span>
+        )}
+        {!isLoading && !liveData && (
+          <span className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">
+            MOCK DATA
+          </span>
+        )}
+      </div>
 
       {/* Quarter header */}
       <div className="flex mb-1 border-b pb-1">

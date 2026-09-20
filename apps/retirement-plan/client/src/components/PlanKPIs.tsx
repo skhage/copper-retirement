@@ -1,54 +1,102 @@
 /**
  * PlanKPIs.tsx
  * Top bar with 6 KPI cards for the Retirement Plan Tracker.
- * Shows: total wire centers, % planned, % in-flight, % completed,
- * budget allocated/remaining, customers migrated/remaining.
+ * V2 (2026-09-20): Fetches live KPIs from gold_wave_schedule.
+ * Falls back to mock computeKPIs() if live data unavailable.
  */
+import { useState, useEffect } from 'react';
 import { computeKPIs, USE_MOCK_DATA } from '../mock/mockData';
+import { fetchLiveKPIs } from '../lib/planApi';
+import type { LiveKPIs } from '../lib/planApi';
 import { formatCount, formatCurrency, formatPercent } from '../lib/formatters';
 
 export function PlanKPIs() {
-  // TODO: Replace with live SQL query (config/queries/plan_kpis.sql) when USE_MOCK_DATA=false
-  const kpis = USE_MOCK_DATA ? computeKPIs() : computeKPIs();
+  const [liveKPIs, setLiveKPIs] = useState<LiveKPIs | null>(null);
 
-  const cards = [
-    {
-      label: 'Wire Centers',
-      value: formatCount(kpis.total_wire_centers),
-      sub: `${formatPercent(kpis.pct_completed)} complete`,
-      color: 'text-[#1B3139]',
-    },
-    {
-      label: 'Planned',
-      value: formatPercent(kpis.pct_planned),
-      sub: 'awaiting start',
-      color: 'text-[#6E8898]',
-    },
-    {
-      label: 'In Flight',
-      value: formatPercent(kpis.pct_in_flight),
-      sub: 'active migration',
-      color: 'text-primary',
-    },
-    {
-      label: 'Completed',
-      value: formatPercent(kpis.pct_completed),
-      sub: 'fully retired',
-      color: 'text-accent',
-    },
-    {
-      label: 'Budget Remaining',
-      value: formatCurrency(kpis.total_budget_remaining),
-      sub: `of ${formatCurrency(kpis.total_budget_allocated)} allocated`,
-      color: 'text-[#FF8C69]',
-    },
-    {
-      label: 'Customers Remaining',
-      value: formatCount(kpis.customers_remaining),
-      sub: `${formatCount(kpis.customers_migrated)} migrated`,
-      color: 'text-primary',
-    },
-  ];
+  useEffect(() => {
+    fetchLiveKPIs().then(setLiveKPIs);
+  }, []);
+
+  const mockKPIs = computeKPIs();
+
+  // Build card data from live or mock KPIs
+  const cards = liveKPIs
+    ? [
+        {
+          label: 'Wire Centers',
+          value: formatCount(liveKPIs.total_wire_centers),
+          sub: `${liveKPIs.total_waves} waves · ${liveKPIs.total_states} states`,
+          color: 'text-[#1B3139]',
+        },
+        {
+          label: 'Copper Devices',
+          value: formatCount(liveKPIs.total_devices),
+          sub: `${formatCount(liveKPIs.total_critical_devices)} critical risk`,
+          color: 'text-[#FF3621]',
+        },
+        {
+          label: 'Avg Readiness',
+          value: `${liveKPIs.avg_readiness}%`,
+          sub: `${liveKPIs.fiber_ready_count} fiber-ready`,
+          color: 'text-[#00A972]',
+        },
+        {
+          label: 'Crew-Days',
+          value: formatCount(liveKPIs.total_crew_days),
+          sub: `${liveKPIs.first_wave} → ${liveKPIs.last_wave}`,
+          color: 'text-[#6E8898]',
+        },
+        {
+          label: 'Revenue at Risk',
+          value: formatCurrency(Number(liveKPIs.total_revenue_at_risk)),
+          sub: 'annual across all waves',
+          color: 'text-[#FF8C69]',
+        },
+        {
+          label: 'Customers Affected',
+          value: formatCount(liveKPIs.total_customers),
+          sub: `${liveKPIs.puc_required_count} PUC filings required`,
+          color: 'text-primary',
+        },
+      ]
+    : [
+        {
+          label: 'Wire Centers',
+          value: formatCount(mockKPIs.total_wire_centers),
+          sub: `${formatPercent(mockKPIs.pct_completed)} complete`,
+          color: 'text-[#1B3139]',
+        },
+        {
+          label: 'Planned',
+          value: formatPercent(mockKPIs.pct_planned),
+          sub: 'awaiting start',
+          color: 'text-[#6E8898]',
+        },
+        {
+          label: 'In Flight',
+          value: formatPercent(mockKPIs.pct_in_flight),
+          sub: 'active migration',
+          color: 'text-primary',
+        },
+        {
+          label: 'Completed',
+          value: formatPercent(mockKPIs.pct_completed),
+          sub: 'fully retired',
+          color: 'text-accent',
+        },
+        {
+          label: 'Budget Remaining',
+          value: formatCurrency(mockKPIs.total_budget_remaining),
+          sub: `of ${formatCurrency(mockKPIs.total_budget_allocated)} allocated`,
+          color: 'text-[#FF8C69]',
+        },
+        {
+          label: 'Customers Remaining',
+          value: formatCount(mockKPIs.customers_remaining),
+          sub: `${formatCount(mockKPIs.customers_migrated)} migrated`,
+          color: 'text-primary',
+        },
+      ];
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">

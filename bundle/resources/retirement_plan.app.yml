@@ -1,0 +1,15 @@
+# Copper Retirement — Beat 2: Retirement Plan Tracker (P7-PLAN)
+# Gantt timeline with wire-center wave scheduling and Lakebase write-back.
+# AppKit (React/TypeScript) app with analytics + Lakebase features.
+# App environment variables are defined in the app's own app.yaml.
+
+resources:
+  apps:
+    retirement_plan:
+      name: 'retirement-plan-${bundle.target}'
+      description: >-
+        Beat 2: Capital-efficient retirement plan tracker with Gantt timeline,
+        wave scheduling, cost-benefit analysis, and constraint visualization.
+        Reads gold optimizer output, writes plan edits to Lakebase.
+        Lakelink Fiber brand.
+      source_code_path: ../../apps/retirement-plan

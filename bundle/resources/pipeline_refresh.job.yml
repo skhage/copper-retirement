@@ -18,7 +18,7 @@ resources:
         timezone_id: 'America/New_York'
 
       tags:
-        project: copper-retirement
+        telco_project: copper-retirement
         beat: '1'
 
       permissions:

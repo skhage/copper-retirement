@@ -1,0 +1,78 @@
+# Copper Retirement — V2 Model Serving Endpoints
+# Agent serving endpoints for Stage 2+ multi-agent architecture.
+#
+# EXISTING (CEO-created, not DAB-managed):
+#   copper-retirement-risk — V5 risk model, READY, inference logging on.
+#
+# V2 AGENT ENDPOINTS (deploy when UC model registration completes):
+#   These require the corresponding P6 agent notebooks to register
+#   their models in UC before `bundle deploy` will succeed.
+#   Until then, keep the entries below. DAB will create/update them
+#   on deploy once the entity_name models exist.
+#
+# Per CEO TAG RENAME directive: use telco_project (not project).
+
+resources:
+  model_serving_endpoints:
+    # ---------- V2: Dig Triage Agent (P6_dig_triage_agent) ----------
+    copper_triage_agent:
+      name: 'copper-triage-agent-${bundle.target}'
+      config:
+        served_entities:
+          - entity_name: ${var.catalog_name}.agents.dig_triage_agent
+            entity_version: 1
+            scale_to_zero_enabled: true
+            workload_size: Small
+        auto_capture_config:
+          catalog_name: ${var.catalog_name}
+          schema_name: agents
+          enabled: true
+      tags:
+        - key: telco_project
+          value: copper-retirement
+        - key: beat
+          value: '3'
+        - key: agent_role
+          value: triage
+
+    # ---------- V2: Contractor Sourcing Agent (P6_contractor_sourcing_agent) ----------
+    copper_contractor_agent:
+      name: 'copper-contractor-agent-${bundle.target}'
+      config:
+        served_entities:
+          - entity_name: ${var.catalog_name}.agents.contractor_sourcing_agent
+            entity_version: 1
+            scale_to_zero_enabled: true
+            workload_size: Small
+        auto_capture_config:
+          catalog_name: ${var.catalog_name}
+          schema_name: agents
+          enabled: true
+      tags:
+        - key: telco_project
+          value: copper-retirement
+        - key: beat
+          value: '3'
+        - key: agent_role
+          value: contractor
+
+    # ---------- V2: Supervisor Agent (P6_supervisor_agent) ----------
+    copper_supervisor_agent:
+      name: 'copper-supervisor-agent-${bundle.target}'
+      config:
+        served_entities:
+          - entity_name: ${var.catalog_name}.agents.supervisor_agent
+            entity_version: 1
+            scale_to_zero_enabled: true
+            workload_size: Small
+        auto_capture_config:
+          catalog_name: ${var.catalog_name}
+          schema_name: agents
+          enabled: true
+      tags:
+        - key: telco_project
+          value: copper-retirement
+        - key: beat
+          value: all
+        - key: agent_role
+          value: supervisor
