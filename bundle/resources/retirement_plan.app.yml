@@ -1,6 +1,8 @@
-# Copper Retirement — Beat 2: Retirement Plan Tracker (P7-PLAN)
-# Gantt timeline with wire-center wave scheduling and Lakebase write-back.
-# AppKit (React/TypeScript) app with analytics + Lakebase features.
+# Copper Retirement — Unified Partner Accelerator App
+# Tabbed AppKit (React/TypeScript) app consolidating all partner-facing beats:
+#   Map/Risk | Plan | Dig Triage | Regulatory | Commodity
+# Per DEC-ACCEL-UNIFIED-APP: commodity-dashboard, copper-map, dig-triage,
+# and regulatory-assistant are merged here as tabs. Source app .yml files retired.
 # App environment variables are defined in the app's own app.yaml.
 
 resources:
@@ -8,8 +10,15 @@ resources:
     retirement_plan:
       name: 'retirement-plan-${bundle.target}'
       description: >-
-        Beat 2: Capital-efficient retirement plan tracker with Gantt timeline,
-        wave scheduling, cost-benefit analysis, and constraint visualization.
-        Reads gold optimizer output, writes plan edits to Lakebase.
-        Lakelink Fiber brand.
+        Unified Copper Retirement Accelerator — partner-facing tabbed app.
+        Tabs: Map/Risk (H3 hex map, risk tiers), Plan (Gantt timeline,
+        wave scheduling), Dig Triage (incident console), Regulatory
+        (RAG assistant), Commodity (LME prices, EBITDA).
+        Lakelink Fiber brand. WCAG AA.
       source_code_path: ../../apps/retirement-plan
+      resources:
+        - name: sql-warehouse
+          description: SQL warehouse for analytics queries (--var warehouse_id)
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE

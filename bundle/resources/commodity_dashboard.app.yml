@@ -1,15 +1,4 @@
-# Copper Retirement — Beat 5: Commodity Dashboard
-# LME copper price tracking, scrap recovery forecasting, EBITDA impact.
-# AppKit (React/TypeScript) read-only analytics app.
-# App environment variables are defined in the app's own app.yaml.
-
-resources:
-  apps:
-    commodity_dashboard:
-      name: 'commodity-dashboard-${bundle.target}'
-      description: >-
-        Beat 5: Commodity price dashboard showing LME copper prices,
-        scrap recovery volumes, sell/hold signals, and EBITDA impact.
-        Read-only analytics from gold commodity tables.
-        Lakelink Fiber brand.
-      source_code_path: ../../apps/commodity-dashboard
+# RETIRED (2026-10-24, ACC-DAB-ONE-COMMAND)
+# commodity-dashboard merged into retirement-plan as Commodity tab.
+# Per DEC-ACCEL-UNIFIED-APP and asset_ledger baseline.
+# Resource block removed — bundle deploy will no longer manage this app.

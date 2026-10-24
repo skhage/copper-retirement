@@ -1,15 +1,4 @@
-# Copper Retirement — Beat 3: Dig-Safe Triage Console
-# Real-time incident triage with P6-TRIAGE agent chat integration.
-# AppKit (React/TypeScript) app with Lakebase write-back.
-# App environment variables are defined in the app's own app.yaml.
-
-resources:
-  apps:
-    dig_triage:
-      name: 'dig-triage-${bundle.target}'
-      description: >-
-        Beat 3: Dig-safe triage console with incident map overlay,
-        real-time P6-TRIAGE agent chat, and human-in-loop approve/reject.
-        Reads incidents from gold tables, writes triage actions to Lakebase.
-        Lakelink Fiber brand.
-      source_code_path: ../../apps/dig-triage
+# RETIRED (2026-10-24, ACC-DAB-ONE-COMMAND)
+# dig-triage merged into retirement-plan as Dig Triage tab.
+# Per DEC-ACCEL-UNIFIED-APP and asset_ledger baseline.
+# Resource block removed — bundle deploy will no longer manage this app.

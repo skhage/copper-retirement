@@ -1,3 +1,7 @@
+# RETIRED 2026-10-24 (@devops, ACC-QA-DEF-DAB-SERVING) — NOT included by databricks.yml.
+# All 5 entity_name models (${catalog}.agents.*) do not exist; schema agents absent;
+# triage/contractor agents merged into P6_supervisor_agent. Pending file deletion.
+#
 # Copper Retirement — V2 Model Serving Endpoints
 # Agent serving endpoints for Stage 2+ multi-agent architecture.
 #
@@ -76,3 +80,45 @@ resources:
           value: all
         - key: agent_role
           value: supervisor
+
+    # ---------- V2: Sequencing Optimizer (P4-SEQ, Beat 2) ----------
+    copper_sequencing_optimizer:
+      name: 'copper-sequencing-optimizer-${bundle.target}'
+      config:
+        served_entities:
+          - entity_name: ${var.catalog_name}.agents.sequencing_optimizer
+            entity_version: 1
+            scale_to_zero_enabled: true
+            workload_size: Small
+        auto_capture_config:
+          catalog_name: ${var.catalog_name}
+          schema_name: agents
+          enabled: true
+      tags:
+        - key: telco_project
+          value: copper-retirement
+        - key: beat
+          value: '2'
+        - key: agent_role
+          value: optimizer
+
+    # ---------- V2: Commodity Price Forecaster (P4-COMMODITY, Beat 5) ----------
+    copper_commodity_forecaster:
+      name: 'copper-commodity-forecaster-${bundle.target}'
+      config:
+        served_entities:
+          - entity_name: ${var.catalog_name}.agents.commodity_forecaster
+            entity_version: 1
+            scale_to_zero_enabled: true
+            workload_size: Small
+        auto_capture_config:
+          catalog_name: ${var.catalog_name}
+          schema_name: agents
+          enabled: true
+      tags:
+        - key: telco_project
+          value: copper-retirement
+        - key: beat
+          value: '5'
+        - key: agent_role
+          value: commodity_forecaster

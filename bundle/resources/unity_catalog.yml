@@ -1,3 +1,7 @@
+# RETIRED 2026-10-24 (@devops, ACC-QA-DEF-DAB-SERVING) — NOT included by databricks.yml.
+# bronze/silver/gold/ops already exist (create conflict); ml/agents unused.
+# Replaced by partner-target-only accelerator_schema in databricks.yml. Pending file deletion.
+#
 resources:
   # NOTE: cdm_tmforum catalog is pre-existing (16 schemas, 520 tables — TMF SID data model).
   # DAB manages only the schemas below; the catalog itself is not created by this bundle.

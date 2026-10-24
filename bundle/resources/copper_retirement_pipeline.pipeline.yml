@@ -11,17 +11,28 @@ resources:
       name: 'copper-retirement-pipeline-${bundle.target}'
 
       catalog: ${var.catalog_name}
-      target: copper_retirement
+      target: ${var.schema_name}
 
       libraries:
         - glob:
             include: ../../pipeline/**
 
+      # Infra names exposed to pipeline code via spark.conf.get("copper.<key>")
+      configuration:
+        copper.catalog: ${var.catalog_name}
+        copper.schema: ${var.schema_name}
+        copper.vs_endpoint: ${var.vs_endpoint}
+        copper.vs_index: ${var.vs_index}
+        copper.serving_endpoint: ${var.serving_endpoint}
+        copper.lakebase_project: ${var.lakebase_project}
+
       serverless: true
-      development: true
       photon: true
       channel: current
       continuous: false
+
+      tags:
+        telco_project: copper-retirement
 
       permissions:
         - level: CAN_VIEW

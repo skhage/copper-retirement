@@ -1,42 +1,81 @@
+# Copper Retirement Solution Accelerator — Declarative Automation Bundle
+#
+# ONE-COMMAND DEPLOY (any workspace; host comes from your CLI profile / env auth):
+#   databricks bundle deploy -t <dev|staging|prod|partner> --var warehouse_id=<WAREHOUSE_ID>
+# Optional overrides: --var catalog_name=... --var schema_name=... --var vs_endpoint=...
+#   --var vs_index=... --var serving_endpoint=... --var lakebase_project=... --var lakebase_branch=...
+# Or export BUNDLE_VAR_<name>=<value> instead of --var flags.
+#
+# Targets:
+#   dev / staging / prod -> REUSE existing infra (catalog + schema already exist).
+#   partner              -> fresh workspace: also creates the ${var.schema_name} schema.
+# Prerequisites (not created by this bundle): the catalog, a SQL warehouse,
+# a Lakebase project, a Vector Search endpoint, and the risk serving endpoint
+# (created by beat1_risk_model_walkthrough retrain template). See PARTNER-PLAYBOOK.md.
+#
+# Managed resources: 1 pipeline, 1 refresh job, 2 apps (unified accelerator + copper-task-board).
+
 bundle:
   name: copper_retirement
 
+# Explicit include list: only ACTIVE resources. Retired/inert files in bundle/resources
+# (apps.app.yml, commodity_dashboard/copper_map/dig_triage/regulatory_assistant .app.yml,
+# serving_endpoints.yml, unity_catalog.yml, lakebase_sync.job.yml) are NOT deployed and
+# are pending deletion (ACC-DEVOPS-DELETE-RETIRED-BUNDLE-FILES).
 include:
-  - bundle/resources/*.yml
+  - bundle/resources/copper_retirement_pipeline.pipeline.yml
+  - bundle/resources/pipeline_refresh.job.yml
+  - bundle/resources/retirement_plan.app.yml
+  - bundle/resources/copper_task_board.app.yml
 
 variables:
   catalog_name:
-    description: Unity Catalog catalog for the copper-retirement project (pre-existing TMF SID catalog).
+    description: Unity Catalog catalog (must already exist; TMF SID data model expected).
     default: cdm_tmforum
+  schema_name:
+    description: UC schema for accelerator pipeline, gold and regulatory tables.
+    default: copper_retirement
   warehouse_id:
-    description: SQL warehouse for dashboard and query execution.
-    lookup:
-      warehouse: 'Serverless Starter Warehouse'
+    description: REQUIRED. SQL warehouse ID used by the apps. Find it with `databricks warehouses list`.
+  vs_endpoint:
+    description: Vector Search endpoint hosting the regulatory RAG index.
+    default: demo_telco_vs_endpoint
+  vs_index:
+    description: Vector Search index (short name, in catalog_name.schema_name) for regulatory chunks.
+    default: regulatory_doc_chunks_vs_index
+  serving_endpoint:
+    description: Model serving endpoint for the copper retirement risk model.
+    default: copper-retirement-risk
+  lakebase_project:
+    description: Lakebase Postgres project for task board and app write-back data.
+    default: copper-task-board
+  lakebase_branch:
+    description: Lakebase branch used by apps.
+    default: production
 
 targets:
   dev:
     mode: development
     default: true
-    workspace:
-      host: https://fevm-cmegdemos.cloud.databricks.com
-    variables:
-      catalog_name: cdm_tmforum
 
   staging:
     mode: development
-    workspace:
-      host: https://fevm-cmegdemos.cloud.databricks.com
-    variables:
-      catalog_name: cdm_tmforum
 
   prod:
     mode: production
     workspace:
-      host: https://fevm-cmegdemos.cloud.databricks.com
-      root_path: /Workspace/Users/stephen.hage@databricks.com/.bundle/${bundle.name}/${bundle.target}
-    variables:
-      catalog_name: cdm_tmforum
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+
+  partner:
+    # Fresh partner workspace: same resources as prod plus schema creation.
+    mode: production
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
     resources:
-      pipelines:
-        copper_retirement_pipeline:
-          development: false
+      schemas:
+        accelerator_schema:
+          catalog_name: ${var.catalog_name}
+          name: ${var.schema_name}
+          comment: >-
+            Copper Retirement Solution Accelerator: pipeline, gold, regulatory source
+            and partner value tables. Network/customer data is SYNTHETIC.
