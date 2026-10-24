@@ -4,11 +4,11 @@
 -- Sources: ironclad_clm_source.contract_record (25) → salesforce_source.account → mdm_source.customer_crosswalk
 --          → tmf_service.customer_facing_service → tmf_resource.device_service_allocation → physical_device
 
-CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.silver_contract_constraints (
+CREATE OR REFRESH MATERIALIZED VIEW silver_contract_constraints (
   CONSTRAINT valid_contract EXPECT (contract_number IS NOT NULL),
   CONSTRAINT valid_customer EXPECT (customer_id IS NOT NULL)
 )
-COMMENT 'Silver layer: contract constraints on copper retirement — maps active MSAs to copper services and devices'
+COMMENT 'DERIVED FROM SYNTHETIC DATA — Silver layer: contract constraints on copper retirement — maps active MSAs to copper services and devices'
 -- CLUSTER BY removed: constraint_status and customer_id are aliased columns
 AS
 WITH contract_customer AS (
@@ -23,10 +23,10 @@ WITH contract_customer AS (
     a.Id AS salesforce_account_id,
     a.Name AS account_name,
     cw.MASTER_CUSTOMER_ID AS customer_id
-  FROM cdm_tmforum.ironclad_clm_source.contract_record cr
-  INNER JOIN cdm_tmforum.salesforce_source.account a
+  FROM ironclad_clm_source.contract_record cr
+  INNER JOIN salesforce_source.account a
     ON cr.account_id = a.Id
-  INNER JOIN cdm_tmforum.mdm_source.customer_crosswalk cw
+  INNER JOIN mdm_source.customer_crosswalk cw
     ON cr.account_id = cw.SOURCE_PARTY_ID
     AND cw.SOURCE_SYSTEM = 'SALESFORCE'
 ),
@@ -39,7 +39,7 @@ copper_services AS (
     cfs.status AS service_status,
     cfs.geographic_address_id,
     cfs.h3_res8
-  FROM cdm_tmforum.tmf_service.customer_facing_service cfs
+  FROM tmf_service.customer_facing_service cfs
   WHERE cfs.service_type IN ('voice', 'fixed_line', 'broadband')
 ),
 copper_devices AS (
@@ -49,8 +49,8 @@ copper_devices AS (
     pd.physical_device_id,
     pd.device_type,
     pd.status AS device_status
-  FROM cdm_tmforum.tmf_resource.device_service_allocation dsa
-  INNER JOIN cdm_tmforum.tmf_enterprise.physical_device pd
+  FROM tmf_resource.device_service_allocation dsa
+  INNER JOIN tmf_enterprise.physical_device pd
     ON dsa.physical_device_id = pd.physical_device_id
   WHERE pd.device_type IN ('cpe', 'ont', 'olt', 'patch_panel')
 )

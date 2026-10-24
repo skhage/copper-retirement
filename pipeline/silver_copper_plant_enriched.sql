@@ -2,11 +2,11 @@
 -- Joins copper devices with alarms, service problems, and risk scores
 -- Source: bronze_copper_devices + alarms + resource_performance + risk_target
 
-CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.silver_copper_plant_enriched (
+CREATE OR REFRESH MATERIALIZED VIEW silver_copper_plant_enriched (
   CONSTRAINT valid_device_id EXPECT (physical_device_id IS NOT NULL),
   CONSTRAINT valid_state EXPECT (state_code IS NOT NULL)
 )
-COMMENT 'Silver layer: copper devices enriched with alarm, performance, and risk features'
+COMMENT 'DERIVED FROM SYNTHETIC DATA — Silver layer: copper devices enriched with alarm, performance, and risk features'
 AS
 SELECT
   bcd.physical_device_id,
@@ -61,8 +61,8 @@ SELECT
 
   current_timestamp() AS _pipeline_processed_at
 
-FROM cdm_tmforum.copper_retirement.bronze_copper_devices bcd
-LEFT JOIN cdm_tmforum.copper_retirement.copper_risk_target crt
+FROM bronze_copper_devices bcd
+LEFT JOIN copper_risk_target crt
   ON bcd.physical_device_id = crt.physical_device_id
 LEFT JOIN (
   SELECT DISTINCT
@@ -80,5 +80,5 @@ LEFT JOIN (
     puc_notice_days,
     residential_direct_notice_days,
     section_214_required
-  FROM cdm_tmforum.copper_retirement.copper_plant_wire_center_jurisdiction
+  FROM copper_plant_wire_center_jurisdiction
 ) cwj ON bcd.physical_device_id = cwj.physical_device_id;

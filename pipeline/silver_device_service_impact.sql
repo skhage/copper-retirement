@@ -2,11 +2,11 @@
 -- Links copper devices to customer services via device_service_allocation
 -- Critical for retirement impact analysis: which customers lose service when a device retires
 
-CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.silver_device_service_impact (
+CREATE OR REFRESH MATERIALIZED VIEW silver_device_service_impact (
   CONSTRAINT valid_device EXPECT (physical_device_id IS NOT NULL),
   CONSTRAINT valid_service EXPECT (customer_facing_service_id IS NOT NULL)
 )
-COMMENT 'Silver layer: copper device to customer service impact mapping'
+COMMENT 'DERIVED FROM SYNTHETIC DATA — Silver layer: copper device to customer service impact mapping'
 AS
 SELECT
   -- Device context
@@ -43,8 +43,8 @@ SELECT
 
   current_timestamp() AS _pipeline_processed_at
 
-FROM cdm_tmforum.copper_retirement.silver_copper_plant_enriched scpe
-INNER JOIN cdm_tmforum.tmf_resource.device_service_allocation dsa
+FROM silver_copper_plant_enriched scpe
+INNER JOIN tmf_resource.device_service_allocation dsa
   ON scpe.physical_device_id = dsa.physical_device_id
-INNER JOIN cdm_tmforum.copper_retirement.bronze_copper_services bcs
+INNER JOIN bronze_copper_services bcs
   ON dsa.service_id = bcs.customer_facing_service_id;

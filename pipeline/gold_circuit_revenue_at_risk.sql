@@ -3,12 +3,12 @@
 -- Sources: oracle_erp_source.ra_billed_circuit_rates (56K) → tmf_resource.logical_resource → physical_device (copper)
 -- Enriched with geographic, risk tier, wire center, and regulatory context
 
-CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.gold_circuit_revenue_at_risk (
+CREATE OR REFRESH MATERIALIZED VIEW gold_circuit_revenue_at_risk (
   CONSTRAINT valid_circuit EXPECT (circuit_id IS NOT NULL),
   CONSTRAINT valid_device EXPECT (physical_device_id IS NOT NULL),
   CONSTRAINT positive_revenue EXPECT (monthly_unit_price >= 0)
 )
-COMMENT 'Gold layer: per-circuit revenue at risk from copper retirement — joins ERP billing to copper plant'
+COMMENT 'DERIVED FROM SYNTHETIC DATA — Gold layer: per-circuit revenue at risk from copper retirement — joins ERP billing to copper plant'
 AS
 SELECT
   -- Circuit identifiers
@@ -85,13 +85,13 @@ SELECT
 
   current_timestamp() AS _pipeline_aggregated_at
 
-FROM cdm_tmforum.oracle_erp_source.ra_billed_circuit_rates r
-INNER JOIN cdm_tmforum.tmf_resource.logical_resource lr
+FROM oracle_erp_source.ra_billed_circuit_rates r
+INNER JOIN tmf_resource.logical_resource lr
   ON r.SERVICE_CIRCUIT_ID = lr.logical_resource_id
-INNER JOIN cdm_tmforum.tmf_enterprise.physical_device pd
+INNER JOIN tmf_enterprise.physical_device pd
   ON lr.physical_device_id = pd.physical_device_id
-LEFT JOIN cdm_tmforum.tmf_shared.geographic_address ga
+LEFT JOIN tmf_shared.geographic_address ga
   ON pd.geographic_address_id = ga.geographic_address_id
-LEFT JOIN cdm_tmforum.copper_retirement.silver_copper_plant_enriched scp
+LEFT JOIN silver_copper_plant_enriched scp
   ON pd.physical_device_id = scp.physical_device_id
 WHERE pd.device_type IN ('cpe', 'ont', 'olt', 'patch_panel');

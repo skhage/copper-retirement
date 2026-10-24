@@ -2,8 +2,8 @@
 -- Aggregates copper plant metrics per wire center for retirement planning
 -- Primary dashboard data source for the copper retirement planning app
 
-CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.gold_wire_center_scorecard
-COMMENT 'Gold layer: per-wire-center retirement readiness scorecard'
+CREATE OR REFRESH MATERIALIZED VIEW gold_wire_center_scorecard
+COMMENT 'DERIVED FROM SYNTHETIC DATA — Gold layer: per-wire-center retirement readiness scorecard'
 AS
 WITH device_metrics AS (
   SELECT
@@ -32,7 +32,7 @@ WITH device_metrics AS (
     MAX(addr_latitude) AS bbox_max_lat,
     MIN(addr_longitude) AS bbox_min_lon,
     MAX(addr_longitude) AS bbox_max_lon
-  FROM cdm_tmforum.copper_retirement.silver_copper_plant_enriched
+  FROM silver_copper_plant_enriched
   WHERE wire_center_id IS NOT NULL
   GROUP BY
     wire_center_id, wire_center_name, clli_code, state_code,
@@ -48,7 +48,7 @@ service_impact AS (
     COUNT(DISTINCT CASE WHEN service_type = 'voice' THEN customer_facing_service_id END) AS voice_services,
     COUNT(DISTINCT CASE WHEN service_type = 'broadband' THEN customer_facing_service_id END) AS broadband_services,
     COUNT(DISTINCT CASE WHEN service_type = 'fixed_line' THEN customer_facing_service_id END) AS fixed_line_services
-  FROM cdm_tmforum.copper_retirement.silver_device_service_impact
+  FROM silver_device_service_impact
   GROUP BY wire_center_id
 ),
 incident_metrics AS (
@@ -58,8 +58,8 @@ incident_metrics AS (
     SUM(CASE WHEN dsi.is_regulatory_violation THEN 1 ELSE 0 END) AS violation_count,
     SUM(dsi.repair_cost_amount) AS total_repair_cost,
     AVG(dsi.resolution_time_hours) AS avg_resolution_hours
-  FROM cdm_tmforum.copper_retirement.bronze_dig_safe_incidents dsi
-  LEFT JOIN cdm_tmforum.tmf_shared.geographic_address ga
+  FROM bronze_dig_safe_incidents dsi
+  LEFT JOIN tmf_shared.geographic_address ga
     ON dsi.geographic_address_id = ga.geographic_address_id
   GROUP BY ga.h3_res8
 )

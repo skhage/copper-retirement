@@ -5,17 +5,17 @@
 -- Sources: oracle_erp_source.revenue_recognition_schedule (120K) → ra_customer_trx_all (10K)
 --          → tmf_customer.bill → customer → customer_facing_service → device_service_allocation → physical_device
 
-CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.silver_revenue_recognition_constraints (
+CREATE OR REFRESH MATERIALIZED VIEW silver_revenue_recognition_constraints (
   CONSTRAINT valid_transaction EXPECT (customer_trx_id IS NOT NULL),
   CONSTRAINT valid_customer EXPECT (customer_id IS NOT NULL),
   CONSTRAINT positive_deferred EXPECT (total_deferred_amount >= 0)
 )
-COMMENT 'Silver layer: ASC 606 revenue recognition constraints on copper retirement — flags circuits with deferred revenue that block safe decommissioning'
+COMMENT 'DERIVED FROM SYNTHETIC DATA — Silver layer: ASC 606 revenue recognition constraints on copper retirement — flags circuits with deferred revenue that block safe decommissioning'
 AS
 WITH recognized_totals AS (
   -- Pre-aggregate recognized amounts per transaction (avoids correlated subquery)
   SELECT CUSTOMER_TRX_ID, SUM(RECOGNIZED_AMOUNT) AS total_recognized_amount
-  FROM cdm_tmforum.oracle_erp_source.revenue_recognition_schedule
+  FROM oracle_erp_source.revenue_recognition_schedule
   WHERE STATUS = 'RECOGNIZED'
   GROUP BY CUSTOMER_TRX_ID
 ),
@@ -28,7 +28,7 @@ deferred_summary AS (
     MIN(rrs.RECOGNITION_DATE) AS first_deferred_date,
     MAX(rrs.RECOGNITION_DATE) AS last_deferred_date,
     COALESCE(rt.total_recognized_amount, 0) AS total_recognized_amount
-  FROM cdm_tmforum.oracle_erp_source.revenue_recognition_schedule rrs
+  FROM oracle_erp_source.revenue_recognition_schedule rrs
   LEFT JOIN recognized_totals rt ON rrs.CUSTOMER_TRX_ID = rt.CUSTOMER_TRX_ID
   WHERE rrs.STATUS = 'DEFERRED'
   GROUP BY rrs.CUSTOMER_TRX_ID, rt.total_recognized_amount
@@ -44,8 +44,8 @@ transaction_customer AS (
     trx.TMF_BILL_ID,
     b.customer_id,
     b.billing_account_id
-  FROM cdm_tmforum.oracle_erp_source.ra_customer_trx_all trx
-  INNER JOIN cdm_tmforum.tmf_customer.bill b
+  FROM oracle_erp_source.ra_customer_trx_all trx
+  INNER JOIN tmf_customer.bill b
     ON trx.TMF_BILL_ID = b.bill_id
 ),
 copper_services AS (
@@ -57,7 +57,7 @@ copper_services AS (
     cfs.status AS service_status,
     cfs.geographic_address_id,
     cfs.h3_res8
-  FROM cdm_tmforum.tmf_service.customer_facing_service cfs
+  FROM tmf_service.customer_facing_service cfs
   WHERE cfs.service_type IN ('voice', 'fixed_line', 'broadband')
 ),
 copper_devices AS (
@@ -68,8 +68,8 @@ copper_devices AS (
     pd.device_type,
     pd.status AS device_status,
     pd.installation_date
-  FROM cdm_tmforum.tmf_resource.device_service_allocation dsa
-  INNER JOIN cdm_tmforum.tmf_enterprise.physical_device pd
+  FROM tmf_resource.device_service_allocation dsa
+  INNER JOIN tmf_enterprise.physical_device pd
     ON dsa.physical_device_id = pd.physical_device_id
   WHERE pd.device_type IN ('cpe', 'ont', 'olt', 'patch_panel')
 )

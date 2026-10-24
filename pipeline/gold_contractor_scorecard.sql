@@ -2,8 +2,8 @@
 -- Enriches contractor_performance with actual incident data and work order metrics
 -- Feeds the contractor dispatch/triage agent and planning dashboard
 
-CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.gold_contractor_scorecard
-COMMENT 'Gold layer: contractor scorecard with actual incident and work order metrics'
+CREATE OR REFRESH MATERIALIZED VIEW gold_contractor_scorecard
+COMMENT 'DERIVED FROM SYNTHETIC DATA — Gold layer: contractor scorecard with actual incident and work order metrics'
 AS
 WITH actual_incidents AS (
   SELECT
@@ -14,7 +14,7 @@ WITH actual_incidents AS (
     SUM(repair_cost_amount) AS total_incident_cost,
     AVG(resolution_time_hours) AS avg_actual_resolution_hours,
     MAX(incident_date) AS last_incident_date
-  FROM cdm_tmforum.copper_retirement.bronze_dig_safe_incidents
+  FROM bronze_dig_safe_incidents
   GROUP BY bp_agreement_id
 ),
 work_metrics AS (
@@ -24,7 +24,7 @@ work_metrics AS (
     SUM(CASE WHEN w.status = 'completed' THEN 1 ELSE 0 END) AS completed_orders,
     SUM(CASE WHEN w.sla_met_flag THEN 1 ELSE 0 END) AS sla_met_orders,
     COUNT(DISTINCT w.type) AS work_type_diversity
-  FROM cdm_tmforum.tmf_enterprise.work w
+  FROM tmf_enterprise.work w
   GROUP BY w.party_id
 )
 SELECT
@@ -82,6 +82,6 @@ SELECT
 
   current_timestamp() AS _pipeline_aggregated_at
 
-FROM cdm_tmforum.copper_retirement.contractor_performance cp
+FROM contractor_performance cp
 LEFT JOIN actual_incidents ai ON cp.bp_agreement_id = ai.bp_agreement_id
 LEFT JOIN work_metrics wm ON cp.party_id = wm.party_id;

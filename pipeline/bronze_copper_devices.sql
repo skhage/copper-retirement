@@ -1,9 +1,10 @@
 -- Bronze: Copper devices from physical_device
+-- Parameterized (ACC-DE-PARAMETERIZE): names resolve against the pipeline catalog/target (bundle vars catalog_name/schema_name).
 -- Filters to copper-relevant device types (CPE, ONT, OLT, patch_panel)
--- Source: cdm_tmforum.tmf_enterprise.physical_device (10K rows → ~2,672 copper)
+-- Source: tmf_enterprise.physical_device (10K rows → ~2,672 copper)
 
-CREATE OR REFRESH MATERIALIZED VIEW cdm_tmforum.copper_retirement.bronze_copper_devices
-COMMENT 'Bronze layer: copper-relevant physical devices filtered from TMF physical_device'
+CREATE OR REFRESH MATERIALIZED VIEW bronze_copper_devices
+COMMENT 'DERIVED FROM SYNTHETIC DATA — Bronze layer: copper-relevant physical devices filtered from TMF physical_device'
 AS
 SELECT
   pd.physical_device_id,
@@ -22,7 +23,7 @@ SELECT
   ga.h3_res8 AS addr_h3_res8,
   ga.h3_res9 AS addr_h3_res9,
   current_timestamp() AS _pipeline_ingested_at
-FROM cdm_tmforum.tmf_enterprise.physical_device pd
-LEFT JOIN cdm_tmforum.tmf_shared.geographic_address ga
+FROM tmf_enterprise.physical_device pd
+LEFT JOIN tmf_shared.geographic_address ga
   ON pd.geographic_address_id = ga.geographic_address_id
 WHERE pd.device_type IN ('cpe', 'ont', 'olt', 'patch_panel');
