@@ -1,4 +1,11 @@
 # Databricks notebook source
+# DBTITLE 1,RETIRED - merged into batch_score_copper_risk
+# MAGIC %md
+# MAGIC # RETIRED (2026-10-24) — do not run
+# MAGIC Content merged into `scripts/batch_score_copper_risk` Section 2 (`run_inference_demo=true`), parameterized. Pending deletion (ACC-NB-DEMO-CONSOLIDATE / asset_ledger).
+
+# COMMAND ----------
+
 # DBTITLE 1,Manual Inference Log Demo
 # MAGIC %md
 # MAGIC # project: copper-retirement | developer: copper-ml

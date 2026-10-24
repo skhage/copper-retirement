@@ -263,8 +263,8 @@ Trigger detected
 | --- | --- | --- |
 | Lakehouse Monitor on inference table | ACTIVE (configured) | Awaiting inference auto-capture enablement |
 | Batch scoring notebook | READY | `copper-retirement/scripts/batch_score_copper_risk` |
-| Drift monitoring notebook | READY | `copper-retirement/scripts/monitor_drift_activation` |
-| Manual inference logging | READY | `copper-retirement/scripts/manual_inference_log_demo` |
+| Drift monitoring notebook | READY | `copper-retirement/monitoring/v2_model_monitoring_runbook` (Sections 9-12; merged 2026-10-24) |
+| Manual inference logging | READY | `copper-retirement/scripts/batch_score_copper_risk` (Section 2, `run_inference_demo=true`; merged 2026-10-24) |
 | Monitoring baseline | DOCUMENTED | `copper-retirement/resources/monitoring_baseline.md` |
 | Model card | DOCUMENTED | `copper-retirement/resources/ML_MODEL_CARD.md` |
 | Failover plan | DOCUMENTED | Logged as MLflow artifact on V5 run |

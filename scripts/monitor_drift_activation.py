@@ -1,4 +1,11 @@
 # Databricks notebook source
+# DBTITLE 1,RETIRED - merged into v2_model_monitoring_runbook
+# MAGIC %md
+# MAGIC # RETIRED (2026-10-24) — do not run
+# MAGIC Content merged into `monitoring/v2_model_monitoring_runbook` Sections 9–12, parameterized. Pending deletion (ACC-NB-DEMO-CONSOLIDATE / asset_ledger).
+
+# COMMAND ----------
+
 # DBTITLE 1,Header
 # MAGIC %md
 # MAGIC # Copper Risk Model — Monitoring & Drift Activation

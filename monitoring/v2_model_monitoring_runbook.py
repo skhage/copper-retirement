@@ -7,9 +7,11 @@
 # MAGIC **Endpoints Covered:**
 # MAGIC | Endpoint | Model | Version | Status |
 # MAGIC | --- | --- | --- | --- |
-# MAGIC | `copper-retirement-risk` | `cdm_tmforum.ml_models.copper_retirement_risk` | V5 (champion) / V4 (challenger) | READY |
+# MAGIC | `copper-retirement-risk` | `<catalog>.<model_schema>.copper_retirement_risk` | V5 (champion) / V4 (challenger) | READY |
 # MAGIC | `commodity-forecaster` | TBD | — | NOT YET DEPLOYED |
 # MAGIC | `triage-classifier` | TBD | — | NOT YET DEPLOYED |
+# MAGIC
+# MAGIC **Parameters:** `catalog`, `schema`, `model_schema`, `serving_endpoint` widgets (defaults = bundle variables). Sections 9–12 absorbed `scripts/monitor_drift_activation` (2026-10-24). **SYNTHETIC DATA.**
 # MAGIC
 # MAGIC **Monitoring Schedule:** Run weekly (Monday 06:00 UTC) or on-demand after model retrain / re-score events.
 # MAGIC
@@ -63,16 +65,26 @@ from databricks.sdk import WorkspaceClient
 w = WorkspaceClient()
 client = mlflow.tracking.MlflowClient()
 
+# Parameters (ACC-DE-PARAMETERIZE) — defaults mirror databricks.yml bundle variables
+dbutils.widgets.text("catalog", "cdm_tmforum")
+dbutils.widgets.text("schema", "copper_retirement")
+dbutils.widgets.text("model_schema", "ml_models")
+dbutils.widgets.text("serving_endpoint", "copper-retirement-risk")
+CATALOG = dbutils.widgets.get("catalog")
+SCHEMA = dbutils.widgets.get("schema")
+FQ = f"{CATALOG}.{SCHEMA}"
+
 # Constants
-MODEL_NAME = "cdm_tmforum.ml_models.copper_retirement_risk"
-ENDPOINT_NAME = "copper-retirement-risk"
-INFERENCE_TABLE = "cdm_tmforum.copper_retirement.risk_inference_unpacked"
-PROFILE_METRICS = "cdm_tmforum.copper_retirement.risk_inference_unpacked_profile_metrics"
-DRIFT_METRICS = "cdm_tmforum.copper_retirement.risk_inference_unpacked_drift_metrics"
-PREDICTIONS_TABLE = "cdm_tmforum.copper_retirement.copper_risk_predictions"
-FAIRNESS_TABLE = "cdm_tmforum.copper_retirement.v5_fairness_report"
-FAIRNESS_SUMMARY = "cdm_tmforum.copper_retirement.v5_fairness_dimension_summary"
-TARGET_TABLE = "cdm_tmforum.copper_retirement.copper_risk_target"
+MODEL_NAME = f"{CATALOG}.{dbutils.widgets.get('model_schema')}.copper_retirement_risk"
+ENDPOINT_NAME = dbutils.widgets.get("serving_endpoint")
+INFERENCE_TABLE = f"{FQ}.risk_inference_unpacked"
+PAYLOAD_TABLE = f"{FQ}.risk_model_inference_payload"
+PROFILE_METRICS = f"{FQ}.risk_inference_unpacked_profile_metrics"
+DRIFT_METRICS = f"{FQ}.risk_inference_unpacked_drift_metrics"
+PREDICTIONS_TABLE = f"{FQ}.copper_risk_predictions"
+FAIRNESS_TABLE = f"{FQ}.v5_fairness_report"
+FAIRNESS_SUMMARY = f"{FQ}.v5_fairness_dimension_summary"
+TARGET_TABLE = f"{FQ}.copper_risk_target"
 
 CHAMPION_VERSION = 5
 CHALLENGER_VERSION = 4
@@ -134,7 +146,7 @@ freshness = spark.sql(f"""
            MIN(request_date) as earliest,
            MAX(request_date) as latest,
            DATEDIFF(CURRENT_DATE(), MAX(request_date)) as days_since_last
-    FROM cdm_tmforum.copper_retirement.risk_model_inference_payload
+    FROM {PAYLOAD_TABLE}
 """).collect()[0]
 
 print(f"Total inference requests: {freshness.total_requests}")
@@ -178,7 +190,7 @@ MONITORED_FEATURES = [
 ]
 
 # Get training baseline from copper_risk_target + feature tables
-training_df = spark.sql("""
+training_df = spark.sql(f"""
     SELECT t.physical_device_id,
            t.alarm_count, t.critical_alarm_rate, t.service_affecting_rate,
            t.sla_breach_count, t.sla_breach_rate AS test_fail_rate,
@@ -190,14 +202,17 @@ training_df = spark.sql("""
            COALESCE(pl.avg_loop_length_ft, 0) AS avg_loop_length_ft,
            COALESCE(pl.avg_splice_count, 0) AS avg_splice_count,
            COALESCE(pl.avg_db_loss, 0) AS avg_db_loss
-    FROM cdm_tmforum.copper_retirement.copper_risk_target t
-    LEFT JOIN cdm_tmforum.copper_retirement.feature_device_billing_dispute bd
+    FROM {FQ}.copper_risk_target t
+    LEFT JOIN {FQ}.feature_device_billing_dispute bd
         ON t.physical_device_id = bd.physical_device_id
-    LEFT JOIN cdm_tmforum.copper_retirement.feature_device_complaint_rate cc
+    LEFT JOIN {FQ}.feature_device_complaint_rate cc
         ON t.physical_device_id = cc.physical_device_id
-    LEFT JOIN cdm_tmforum.copper_retirement.feature_device_firmware_age fw
+    LEFT JOIN {FQ}.feature_device_firmware_age fw
         ON t.physical_device_id = fw.physical_device_id
-    LEFT JOIN cdm_tmforum.copper_retirement.copper_loop_plant pl
+    LEFT JOIN (  -- per-device plant aggregates (same as batch_score_copper_risk); raw table has no avg_* columns
+        SELECT physical_device_id, AVG(loop_length_ft) AS avg_loop_length_ft,
+               AVG(splice_point_count) AS avg_splice_count, AVG(test_result_db_loss) AS avg_db_loss
+        FROM {FQ}.copper_loop_plant GROUP BY physical_device_id) pl
         ON t.physical_device_id = pl.physical_device_id
 """).toPandas()
 
@@ -326,21 +341,21 @@ for metric in compare_metrics:
 # Agreement analysis from copper_risk_scores
 print("\n--- Champion/Challenger Agreement ---")
 try:
-    agreement = spark.sql("""
+    agreement = spark.sql(f"""
         SELECT 
             COUNT(*) as total,
             SUM(CASE WHEN champion_tier = challenger_tier THEN 1 ELSE 0 END) as agree,
             ROUND(SUM(CASE WHEN champion_tier = challenger_tier THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as agreement_pct
-        FROM cdm_tmforum.copper_retirement.copper_risk_scores
+        FROM {FQ}.copper_risk_scores
     """).collect()[0]
     print(f"  Total devices: {agreement.total}")
     print(f"  Agreement: {agreement.agree} ({agreement.agreement_pct}%)")
     
     # Disagreements by tier
     print("\n  Disagreements (champion ≠ challenger):")
-    disagree = spark.sql("""
+    disagree = spark.sql(f"""
         SELECT champion_tier, challenger_tier, COUNT(*) as n
-        FROM cdm_tmforum.copper_retirement.copper_risk_scores
+        FROM {FQ}.copper_risk_scores
         WHERE champion_tier != challenger_tier
         GROUP BY champion_tier, challenger_tier
         ORDER BY n DESC
@@ -571,3 +586,119 @@ print("   Requires agent evaluation (P6-EVAL-AGENT-SETS-0920 complete) and")
 print("   @ml-engineer to register triage model to UC if applicable.")
 print("4. SCHEDULE THIS NOTEBOOK: Run weekly as a Lakeflow Job to track drift")
 print("   trends over time. Configure Slack/email alerting on RED thresholds.")
+
+# COMMAND ----------
+
+# DBTITLE 1,Section 9-12: Drift activation and live-traffic checks
+# MAGIC %md
+# MAGIC ## Sections 9–12 — Drift activation & live-traffic checks
+# MAGIC
+# MAGIC Merged from the retired `scripts/monitor_drift_activation` (ACC-NB-DEMO-CONSOLIDATE, 2026-10-24). Run after inference capture is enabled on the serving endpoint (or after `scripts/batch_score_copper_risk` with `run_inference_demo=true` has written demo traffic). All table names come from the Setup cell parameters. **SYNTHETIC DATA.**
+
+# COMMAND ----------
+
+# DBTITLE 1,Section 9: Auto-capture, inference volume, monitor refresh
+# ── Section 9: Auto-capture + inference table growth + monitor refresh ──
+ep = w.serving_endpoints.get(ENDPOINT_NAME)
+ac = ep.config.auto_capture_config if ep.config else None
+auto_capture_ok = bool(ac and ac.enabled)
+print(f"Endpoint {ep.name}: {ep.state.ready if ep.state else 'UNKNOWN'}")
+if auto_capture_ok:
+    print(f"Auto-capture ENABLED -> {ac.catalog_name}.{ac.schema_name}.{ac.table_name_prefix}*")
+else:
+    print(f"Auto-capture NOT enabled. Enable in Serving UI: catalog={CATALOG}, schema={SCHEMA}, prefix=risk_model_inference")
+if ep.tags:
+    tags = {t.key: t.value for t in ep.tags}
+    if 'telco_project' not in tags:
+        print(f"WARNING: endpoint missing governed tag telco_project (tags={tags})")
+
+inf = spark.sql(f"""
+    SELECT COUNT(*) AS total_rows, COUNT(DISTINCT DATE(request_time)) AS distinct_days,
+           MIN(request_time) AS earliest, MAX(request_time) AS latest
+    FROM {PAYLOAD_TABLE}
+""").collect()[0]
+print(f"Payload table: {inf['total_rows']} rows across {inf['distinct_days']} days ({inf['earliest']} -> {inf['latest']})")
+if inf['total_rows'] <= 20:
+    print("Low volume: run scripts/batch_score_copper_risk with run_inference_demo=true")
+
+# Trigger a Lakehouse Monitor refresh (SDK; works on serverless without a PAT)
+try:
+    r = w.quality_monitors.run_refresh(table_name=INFERENCE_TABLE)
+    print(f"Monitor refresh triggered: refresh_id={r.refresh_id}, state={r.state}")
+except Exception as e:
+    print(f"Monitor refresh not triggered: {str(e)[:300]} (404 = monitor missing, 409/400 = refresh already running)")
+
+# COMMAND ----------
+
+# DBTITLE 1,Section 10: Drift alerts (PSI) and live prediction mix vs baseline
+# ── Section 10: PSI drift alerts + live prediction distribution vs V5 baseline ──
+drift_n = spark.table(DRIFT_METRICS).count()
+print(f"Drift metrics rows: {drift_n}")
+if drift_n:
+    try:
+        alerts = spark.sql(f"""
+            SELECT column_name, drift_type, statistic, value FROM {DRIFT_METRICS}
+            WHERE statistic = 'psi' AND value > 0.2
+        """)
+        if alerts.count():
+            print("DRIFT ALERTS (PSI > 0.2):"); display(alerts)
+        else:
+            print("No PSI > 0.2 alerts")
+    except Exception as e:
+        print(f"Drift alert check note: {e}")
+else:
+    print("No drift metrics yet - need 2+ monitor windows.")
+
+# Baseline: V5 batch scoring of the demo dataset (synthetic) - low 20.0%, medium 39.7%, high 30.3%, critical 10.0%
+BASELINE = {0: ('low', 20.0), 1: ('medium', 39.7), 2: ('high', 30.3), 3: ('critical', 10.0)}
+rows = spark.sql(f"""
+    SELECT prediction AS code, COUNT(*) AS n, ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER(), 2) AS pct
+    FROM {INFERENCE_TABLE} GROUP BY prediction ORDER BY prediction
+""").collect()
+print(f"\n{'Tier':<10}{'Live %':>8}{'Base %':>8}{'Delta':>8}")
+for r in rows:
+    name, base = BASELINE.get(r['code'], ('unknown', None))
+    delta = (r['pct'] - base) if base is not None else None
+    flag = '' if delta is None or abs(delta) <= 5 else '  <-- shift > 5pp'
+    print(f"{name:<10}{r['pct']:>7.1f}%{(base or 0):>7.1f}%{(delta or 0):>+7.1f}{flag}")
+print("Thresholds: >5pp distribution shift; >10pp retrain recommended; PSI > 0.2 feature drift")
+
+# COMMAND ----------
+
+# DBTITLE 1,Section 11: Latency SLA and anomalous requests
+# ── Section 11: Latency SLA (model card: p50 < 200ms, p99 < 1000ms) + anomalies ──
+display(spark.sql(f"""
+    SELECT request_date, COUNT(*) AS request_count,
+           ROUND(PERCENTILE(execution_duration_ms, 0.50), 1) AS p50_ms,
+           ROUND(PERCENTILE(execution_duration_ms, 0.95), 1) AS p95_ms,
+           ROUND(PERCENTILE(execution_duration_ms, 0.99), 1) AS p99_ms,
+           PERCENTILE(execution_duration_ms, 0.50) < 200 AS p50_sla_ok,
+           PERCENTILE(execution_duration_ms, 0.99) < 1000 AS p99_sla_ok
+    FROM {PAYLOAD_TABLE} WHERE status_code = 200
+    GROUP BY request_date ORDER BY request_date
+"""))
+display(spark.sql(f"""
+    SELECT databricks_request_id, request_time, status_code, execution_duration_ms,
+           CASE WHEN status_code != 200 THEN 'HTTP_ERROR' ELSE 'HIGH_LATENCY' END AS anomaly_type
+    FROM {PAYLOAD_TABLE}
+    WHERE status_code != 200 OR execution_duration_ms > 1000
+    ORDER BY request_time DESC LIMIT 20
+"""))
+
+# COMMAND ----------
+
+# DBTITLE 1,Section 12: Daily prediction trend and top feature ranges
+# ── Section 12: Reusable daily monitoring queries ──
+display(spark.sql(f"""
+    SELECT request_date, COUNT(*) AS total_predictions,
+           COUNT_IF(prediction = 0) AS low_count, COUNT_IF(prediction = 1) AS medium_count,
+           COUNT_IF(prediction = 2) AS high_count, COUNT_IF(prediction = 3) AS critical_count,
+           ROUND(100.0 * COUNT_IF(prediction = 3) / COUNT(*), 1) AS critical_pct
+    FROM {INFERENCE_TABLE} GROUP BY request_date ORDER BY request_date
+"""))
+
+top_features = ["alarm_count", "test_fail_rate", "sla_breach_count", "problem_count", "device_age_days", "firmware_obsolescence_score"]
+display(spark.sql(" UNION ALL ".join(
+    f"SELECT '{c}' AS feature, ROUND(AVG({c}), 2) AS live_mean, ROUND(STDDEV({c}), 2) AS live_std, "
+    f"ROUND(MIN({c}), 2) AS live_min, ROUND(MAX({c}), 2) AS live_max FROM {INFERENCE_TABLE}"
+    for c in top_features)))

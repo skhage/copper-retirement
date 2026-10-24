@@ -7,8 +7,9 @@
 # MAGIC
 # MAGIC **Model:** V5 LightGBM (39 features, 4-class risk tier classifier)  
 # MAGIC **Endpoint:** `copper-retirement-risk` (Databricks Model Serving)  
-# MAGIC **UC Registry:** `cdm_tmforum.ml_models.copper_retirement_risk` (Version 5, Champion)  
-# MAGIC **MLflow Experiment:** `/Users/stephen.hage@databricks.com/copper-retirement/experiments/copper_risk_classifier`  
+# MAGIC **UC Registry:** `<catalog>.ml_models.copper_retirement_risk` (Version 5, Champion; widget `model_name`)  
+# MAGIC **MLflow Experiment:** `<project_root>/experiments/copper_risk_classifier` (widget `experiment_path`)  
+# MAGIC **Parameters:** widgets `catalog` / `schema` (defaults match bundle variables `catalog_name` / `schema_name`)  
 # MAGIC **Scored:** 2,672 copper devices across Lakelink Fiber's network  
 # MAGIC **Date:** 2026-09-17
 # MAGIC
@@ -16,6 +17,15 @@
 # MAGIC 1. **Model Performance Summary** — AUC, precision, recall by risk tier
 # MAGIC 2. **5 Example Risk Score Explanations** — with feature attributions
 # MAGIC 3. **Fairness Analysis** — by device type and geography
+
+# COMMAND ----------
+
+# DBTITLE 1,Parameters (catalog / schema)
+# Parameterized (ACC-DE-PARAMETERIZE): defaults match bundle variables catalog_name / schema_name.
+# SQL cells below bind these widgets via :catalog / :schema named parameters.
+dbutils.widgets.text("catalog", "cdm_tmforum")
+dbutils.widgets.text("schema", "copper_retirement")
+print(f"Using {dbutils.widgets.get('catalog')}.{dbutils.widgets.get('schema')}")
 
 # COMMAND ----------
 
@@ -30,7 +40,8 @@
 # MAGIC | Metric | Value |
 # MAGIC |---|---|
 # MAGIC | AUC-ROC | **0.986** |
-# MAGIC | Overall Accuracy | **97.9%** (2,616 / 2,672 correct) |
+# MAGIC | Overall Accuracy (holdout, 535 devices) | **89.5%** |
+# MAGIC | In-sample accuracy (all 2,672 incl. training rows; NOT a holdout metric) | 97.9% |
 # MAGIC | Weighted F1 | **0.896** |
 # MAGIC | 5-Fold CV AUC (mean ± std) | 0.979 ± 0.005 |
 # MAGIC
@@ -214,8 +225,8 @@
 # MAGIC     ROUND(CAST(t.test_fail_rate AS DOUBLE), 4) AS test_fail_rate,
 # MAGIC     t.problem_count,
 # MAGIC     ROUND(CAST(t.recurring_problem_rate AS DOUBLE), 4) AS recurring_problem_rate
-# MAGIC FROM cdm_tmforum.copper_retirement.gold_device_risk_predictions p
-# MAGIC JOIN cdm_tmforum.copper_retirement.copper_risk_target t
+# MAGIC FROM IDENTIFIER(:catalog || '.' || :schema || '.gold_device_risk_predictions') p
+# MAGIC JOIN IDENTIFIER(:catalog || '.' || :schema || '.copper_risk_target') t
 # MAGIC     ON p.physical_device_id = t.physical_device_id
 # MAGIC WHERE p.physical_device_id IN (10153, 19634, 12789, 19567, 13410)
 # MAGIC ORDER BY p.composite_risk_score DESC
@@ -307,7 +318,7 @@
 # MAGIC     ROUND(accuracy, 4) AS accuracy,
 # MAGIC     ROUND(stat_parity_rate, 4) AS stat_parity_rate,
 # MAGIC     flag
-# MAGIC FROM cdm_tmforum.copper_retirement.v5_fairness_report
+# MAGIC FROM IDENTIFIER(:catalog || '.' || :schema || '.v5_fairness_report')
 # MAGIC WHERE dimension IN ('device_type', 'region')
 # MAGIC ORDER BY dimension, slice_value
 
@@ -321,7 +332,7 @@
 # MAGIC     risk_tier_predicted,
 # MAGIC     COUNT(*) AS device_count,
 # MAGIC     ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (PARTITION BY device_type), 1) AS pct_of_type
-# MAGIC FROM cdm_tmforum.copper_retirement.gold_device_risk_predictions
+# MAGIC FROM IDENTIFIER(:catalog || '.' || :schema || '.gold_device_risk_predictions')
 # MAGIC GROUP BY device_type, risk_tier_predicted
 # MAGIC ORDER BY device_type,
 # MAGIC     CASE risk_tier_predicted WHEN 'low' THEN 1 WHEN 'medium' THEN 2 WHEN 'high' THEN 3 WHEN 'critical' THEN 4 END
@@ -357,7 +368,136 @@
 # MAGIC | Model Card | `copper-retirement/resources/ML_MODEL_CARD.md` |
 # MAGIC | Production Readiness | `copper-retirement/resources/ML_PRODUCTION_READINESS.md` |
 # MAGIC | Monitoring Baseline | `copper-retirement/resources/monitoring_baseline.md` |
-# MAGIC | MLflow Experiment | `/Users/stephen.hage@databricks.com/copper-retirement/experiments/copper_risk_classifier` |
+# MAGIC | MLflow Experiment | `<project_root>/experiments/copper_risk_classifier` |
 # MAGIC | Serving Endpoint | `copper-retirement-risk` (Databricks Model Serving) |
-# MAGIC | Predictions Table | `cdm_tmforum.copper_retirement.gold_device_risk_predictions` |
-# MAGIC | Fairness Report | `cdm_tmforum.copper_retirement.v5_fairness_report` |
+# MAGIC | Predictions Table | `<catalog>.<schema>.gold_device_risk_predictions` |
+# MAGIC | Fairness Report | `<catalog>.<schema>.v5_fairness_report` |
+
+# COMMAND ----------
+
+# DBTITLE 1,Section 5: Partner Retraining Template
+# MAGIC %md
+# MAGIC ## 5. Partner Retraining Template (retrain on customer data)
+# MAGIC
+# MAGIC See `risk/MODEL_CARD.md` for the feature contract, fairness gates, and limitations.
+# MAGIC
+# MAGIC **Before running on customer data:** replace the demo label. The demo `risk_tier` is a binned composite of features the model also sees (label circularity). Use a forward-looking outcome (e.g. failure / truck roll / outage in the next 90-180 days) with point-in-time features.
+# MAGIC
+# MAGIC Steps: (1) set widgets, (2) validate the 39-column contract, (3) train LightGBM with v5 hyperparameters, (4) per-slice fairness gate, (5) log to MLflow and optionally register as `@challenger`, (6) promote to `@champion` only after the gate passes and a human sign-off is recorded. Promotion updates the EXISTING `copper-retirement-risk` endpoint; never create a new one.
+# MAGIC
+# MAGIC Default `register=false` makes this a dry run.
+
+# COMMAND ----------
+
+# DBTITLE 1,Retrain: Install LightGBM
+# MAGIC %pip install -q lightgbm
+
+# COMMAND ----------
+
+# DBTITLE 1,Retrain: Parameters and Contract Check
+import os
+dbutils.widgets.text("catalog", "cdm_tmforum")
+dbutils.widgets.text("schema", "copper_retirement")
+dbutils.widgets.text("feature_table", "copper_risk_features")  # contract table, see MODEL_CARD.md section 6
+dbutils.widgets.text("label_col", "risk_tier")
+dbutils.widgets.text("slice_cols", "device_type,region,customer_segment")
+dbutils.widgets.text("model_name", "")       # blank = <catalog>.ml_models.copper_retirement_risk
+dbutils.widgets.text("experiment_path", "")  # blank = <this notebook's folder>/experiments/copper_risk_classifier
+dbutils.widgets.dropdown("register", "false", ["false", "true"])
+
+import mlflow
+from mlflow.models import get_model_info
+mlflow.set_registry_uri("databricks-uc")
+
+P = {k: dbutils.widgets.get(k) for k in ["catalog","schema","feature_table","label_col","slice_cols","model_name","experiment_path","register"]}
+_nb_dir = os.path.dirname(dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get())
+P["model_name"] = P["model_name"].strip() or f"{P['catalog']}.ml_models.copper_retirement_risk"
+P["experiment_path"] = P["experiment_path"].strip() or f"{_nb_dir}/experiments/copper_risk_classifier"
+TIERS = ["low", "medium", "high", "critical"]
+# Feature contract = input signature of the current champion (39 doubles)
+FEATURES = [i.name for i in get_model_info(f"models:/{P['model_name']}@champion").signature.inputs.inputs]
+SLICES = [s.strip() for s in P["slice_cols"].split(",") if s.strip()]
+
+src = f"{P['catalog']}.{P['schema']}.{P['feature_table']}"
+df = spark.table(src)
+missing = [c for c in FEATURES + [P["label_col"]] if c not in df.columns]
+assert not missing, f"Feature contract violation in {src}: missing {missing}"
+SLICES = [s for s in SLICES if s in df.columns]
+pdf = df.select(*FEATURES, P["label_col"], *SLICES).toPandas()
+bad = set(pdf[P["label_col"]].dropna().unique()) - set(TIERS)
+assert not bad, f"Unexpected label values: {bad}"
+print(f"{src}: {len(pdf)} rows, {len(FEATURES)} features, slices={SLICES}")
+
+# COMMAND ----------
+
+# DBTITLE 1,Retrain: Train, Fairness Gate, Log and Register
+import numpy as np, lightgbm as lgb
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, recall_score
+from mlflow.models import infer_signature
+
+X = pdf[FEATURES].astype(float).fillna(0.0)
+y = pdf[P["label_col"]].map({t: i for i, t in enumerate(TIERS)}).astype(int)
+idx_tr, idx_te = train_test_split(np.arange(len(X)), test_size=0.2, stratify=y, random_state=42)
+
+# v5 hyperparameters; re-tune (e.g. Optuna) once real labels are in place
+params = dict(objective="multiclass", num_class=4, boosting_type="gbdt", learning_rate=0.243, max_depth=3,
+              num_leaves=80, n_estimators=489, min_child_samples=22, subsample=0.643, colsample_bytree=0.720,
+              random_state=42, verbosity=-1)
+
+mlflow.set_experiment(P["experiment_path"])
+with mlflow.start_run(run_name="partner_retrain") as run:
+    model = lgb.LGBMClassifier(**params).fit(X.iloc[idx_tr], y.iloc[idx_tr])
+    proba = model.predict_proba(X.iloc[idx_te]); pred = proba.argmax(1); yt = y.iloc[idx_te].values
+    metrics = {"test_auc_roc": roc_auc_score(yt, proba, multi_class="ovr"),
+               "test_accuracy": accuracy_score(yt, pred),
+               "test_f1_weighted": f1_score(yt, pred, average="weighted"),
+               "recall_critical": recall_score(yt == 3, pred == 3)}
+    # Fairness gate: recall on high+critical per slice (GREEN >= 0.85, YELLOW 0.75-0.85 or n<50, RED < 0.75)
+    hc_true, hc_pred = np.isin(yt, [2, 3]), np.isin(pred, [2, 3])
+    rows = []
+    for s in SLICES:
+        vals = pdf[s].iloc[idx_te].fillna("unknown").values
+        for v in sorted(set(vals)):
+            m = vals == v
+            if hc_true[m].sum() == 0: continue
+            r = recall_score(hc_true[m], hc_pred[m])
+            flag = "RED" if r < 0.75 else ("YELLOW" if r < 0.85 or m.sum() < 50 else "GREEN")
+            rows.append({"slice": f"{s}={v}", "n": int(m.sum()), "recall_high_crit": round(r, 4), "status": flag})
+    n_red = sum(r["status"] == "RED" for r in rows)
+    mlflow.log_params({**params, "feature_table": src, "feature_count": len(FEATURES)})
+    mlflow.log_metrics({**metrics, "fairness_red_slices": n_red})
+    mlflow.log_dict({"slice_results": rows}, "fairness_report.json")
+    mlflow.set_tags({"telco_project": "copper-retirement", "developer": "copper-ml", "fairness_status": "RED" if n_red else "PASS"})
+    info = mlflow.lightgbm.log_model(model, artifact_path="model",
+                                     signature=infer_signature(X.iloc[:5], model.predict(X.iloc[:5])), input_example=X.iloc[:2])
+
+print({k: round(v, 4) for k, v in metrics.items()}, "| red slices:", n_red)
+display(spark.createDataFrame(rows)) if rows else None
+
+if P["register"] == "true":
+    assert n_red == 0, "Fairness gate failed (RED slice); not registering"
+    mv = mlflow.register_model(f"runs:/{run.info.run_id}/model", P["model_name"])
+    mlflow.MlflowClient().set_registered_model_alias(P["model_name"], "challenger", mv.version)
+    print(f"Registered {P['model_name']} v{mv.version} as @challenger")
+else:
+    print("Dry run: register=false, nothing registered")
+
+# COMMAND ----------
+
+# DBTITLE 1,Retrain: Promote Challenger to Champion (manual)
+# MANUAL STEP. Run only after: challenger AUC >= champion AUC - 0.01, recall_critical >= 0.80,
+# no RED slice, and a human sign-off row in copper-task-board `decisions`.
+PROMOTE = False
+if PROMOTE:
+    from databricks.sdk import WorkspaceClient
+    from databricks.sdk.service.serving import ServedEntityInput
+    c = mlflow.MlflowClient()
+    new_v = c.get_model_version_by_alias(P["model_name"], "challenger").version
+    old_v = c.get_model_version_by_alias(P["model_name"], "champion").version
+    c.set_registered_model_alias(P["model_name"], "champion", new_v)
+    c.set_registered_model_alias(P["model_name"], "challenger", old_v)  # keep for rollback
+    w = WorkspaceClient()
+    w.serving_endpoints.update_config(name="copper-retirement-risk", served_entities=[ServedEntityInput(
+        entity_name=P["model_name"], entity_version=str(new_v), workload_size="Small", scale_to_zero_enabled=True)])
+    print(f"Promoted v{new_v} to @champion; v{old_v} now @challenger; endpoint updating")

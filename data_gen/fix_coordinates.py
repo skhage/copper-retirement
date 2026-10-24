@@ -3,6 +3,13 @@
 # [tool.databricks.environment]
 # environment_version = "5"
 # ///
+# DBTITLE 1,RETIRED - merged into populate_h3_indexes
+# MAGIC %md
+# MAGIC # RETIRED (2026-10-24) — DO NOT RUN
+# MAGIC Running this would overwrite the later coordinate refinements in `tmf_shared.geographic_site` / `geographic_address`: current values no longer match this hash formula, but all of them are inside their state boxes. The safe, idempotent version (only repairs out-of-box rows) is `data_gen/populate_h3_indexes` Part A (`repair_coordinates=true`). Pending deletion (ACC-NB-DEMO-CONSOLIDATE / asset_ledger).
+
+# COMMAND ----------
+
 # DBTITLE 1,FIX-COORDINATES: Replace synthetic garbage coords with realistic US state bounding boxes
 # MAGIC %md
 # MAGIC # FIX-COORDINATES: Geographic Coordinate Repair

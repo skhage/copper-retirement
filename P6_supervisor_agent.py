@@ -21,9 +21,14 @@
 # MAGIC ## Part 3: Agent Evaluation Sets
 # MAGIC 75 labeled test cases (25 per agent) with MLflow tracing + scoring harness + serving promotion gate.
 # MAGIC
+# MAGIC ## Part 4: Regulatory RAG Eval (real sources)
+# MAGIC 38-question eval set (`reg_rag_eval_dataset` v3: FCC, 811/one-call, OSHA, EPA, state PUC, ROW; 30 answerable + 8 flag-gap) with citation scorers: citation present, citation URL valid (must be an official URL in `regulatory_source_register`), expected citation, jurisdiction correctness, fact regex, LLM-judge groundedness, and gap abstention. **Answers without citations fail.** Results append to `reg_rag_eval_results`.
+# MAGIC
+# MAGIC The regulatory RAG chain (cell *Regulatory RAG chain*) retrieves **only `is_synthetic = false` chunks**. It queries the VS index first and falls back to Delta TF-IDF over real chunks until ACC-REG-VS-RESYNC re-syncs the index.
+# MAGIC
 # MAGIC **Architecture:** Supervisor LLM → tool-calling dispatch → sub-agent execution → response synthesis
 # MAGIC **LLM:** `databricks-meta-llama-3-3-70b-instruct`
-# MAGIC **Consolidation:** Merged from P6_supervisor_agent + P6_dig_triage_agent + P6_contractor_sourcing_agent + P6_agent_eval_sets_v2 (2026-10-24, ACC-NB-AGENTS-CONSOLIDATE)
+# MAGIC **Consolidation:** Merged from P6_supervisor_agent + P6_dig_triage_agent + P6_contractor_sourcing_agent + P6_agent_eval_sets_v2 (2026-10-24, ACC-NB-AGENTS-CONSOLIDATE) + P6_regulatory_rag_chain (2026-10-24, ACC-REG-RAG-EVAL)
 
 # COMMAND ----------
 
@@ -35,13 +40,96 @@ import json
 LLM_ENDPOINT = "databricks-meta-llama-3-3-70b-instruct"
 LLM_MAX_TOKENS = 2048
 LLM_TEMPERATURE = 0.1
-CATALOG = "cdm_tmforum"
-SCHEMA = "copper_retirement"
+# Parameterized (ACC-DE-PARAMETERIZE): defaults match bundle variables catalog_name/schema_name
+dbutils.widgets.text("catalog", "cdm_tmforum")
+dbutils.widgets.text("schema", "copper_retirement")
+dbutils.widgets.text("experiment_path", "")  # blank = <this notebook's folder>/experiments/agent_eval_sets
+CATALOG = dbutils.widgets.get("catalog")
+SCHEMA = dbutils.widgets.get("schema")
 
 w = WorkspaceClient()
 _api_token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
 llm_client = OpenAI(api_key=_api_token, base_url=f"{w.config.host}/serving-endpoints")
 print(f"✅ Supervisor initialized: {LLM_ENDPOINT}")
+
+# COMMAND ----------
+
+# DBTITLE 1,Regulatory RAG chain (real sources, citation-required)
+# Merged from P6_regulatory_rag_chain (ACC-REG-RAG-EVAL, 2026-10-24). Retrieval is restricted to REAL sources
+# (regulatory_doc_chunks.is_synthetic = false). Every answer must cite official URLs from regulatory_source_register.
+import re, json
+from typing import Optional
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import linear_kernel
+
+VS_INDEX_NAME = f"{CATALOG}.{SCHEMA}.regulatory_doc_chunks_vs_index"   # lives on VS endpoint cmeg-demos-vs (DEC-VS-ENDPOINT-ACTUAL)
+REG_TOP_K = 6
+# Llama-3.3-70B AI Gateway input guardrail flags statute text as "non-violent-crimes" (false positive, 2026-10-24) -> use Claude for RAG
+REG_LLM_ENDPOINT = "databricks-claude-sonnet-4-5"
+JUDGE_ENDPOINT = "databricks-gpt-oss-120b"   # different model family than the generator
+REG_COLUMNS = ["chunk_id", "source_id", "title", "citation", "jurisdiction", "source_url", "embedding_text"]
+
+# Official-source allowlist = register (every citation must resolve to one of these URLs)
+_REGISTER = {r.source_id: r.asDict() for r in spark.table(f"{CATALOG}.{SCHEMA}.regulatory_source_register").collect()}
+OFFICIAL_URLS = {v["official_url"].rstrip("/"): v for v in _REGISTER.values() if v.get("official_url")}
+
+# Delta fallback retriever over REAL chunks only (used until the VS index is re-synced with real docs)
+_REAL = spark.sql(f"""SELECT {', '.join(REG_COLUMNS)} FROM {CATALOG}.{SCHEMA}.regulatory_doc_chunks
+                     WHERE is_synthetic = false AND source_url IS NOT NULL""").toPandas()
+_TFIDF = TfidfVectorizer(stop_words="english", ngram_range=(1, 2), sublinear_tf=True, min_df=1)
+_TFIDF_M = _TFIDF.fit_transform(_REAL["embedding_text"].fillna(""))
+
+def _retrieve_delta(query, top_k=REG_TOP_K, jurisdiction=None):
+    sims = linear_kernel(_TFIDF.transform([query]), _TFIDF_M).ravel()
+    df = _REAL.assign(score=sims)
+    if jurisdiction:
+        df = df[df["jurisdiction"].isin([jurisdiction, "US"])]
+    df = df.sort_values("score", ascending=False)
+    df = df.groupby("source_id", sort=False).head(2).head(top_k)   # source diversity
+    return df.to_dict("records")
+
+def _retrieve_vs(query, top_k=REG_TOP_K, jurisdiction=None):
+    filt = {"is_synthetic": False}
+    if jurisdiction: filt["jurisdiction"] = [jurisdiction, "US"]
+    r = w.vector_search_indexes.query_index(index_name=VS_INDEX_NAME, columns=REG_COLUMNS,
+                                            query_text=query, num_results=top_k, filters_json=json.dumps(filt))
+    cols = [c.name for c in r.manifest.columns]
+    return [dict(zip(cols, row)) for row in (r.result.data_array or [])]
+
+def retrieve_regulatory_chunks(query, top_k=REG_TOP_K, jurisdiction=None):
+    """VS first (real chunks only); falls back to Delta TF-IDF when VS has no real, URL-bearing chunks."""
+    try:
+        hits = [h for h in _retrieve_vs(query, top_k, jurisdiction) if h.get("source_url")]
+        if hits: return hits, "vector_search"
+    except Exception:
+        pass   # index not yet re-synced with is_synthetic/source_url columns (ACC-REG-VS-RESYNC)
+    return _retrieve_delta(query, top_k, jurisdiction), "delta_tfidf_fallback"
+
+def format_context(chunks):
+    if not chunks: return "NO SOURCES RETRIEVED."
+    return "\n\n".join(
+        f"[S{i}] {c['title']} | Citation: {c['citation']} | Jurisdiction: {c['jurisdiction']} | URL: {c['source_url']}\n{c['embedding_text'][:2500]}"
+        for i, c in enumerate(chunks, 1))
+
+REG_SYSTEM_PROMPT = """You are a regulatory compliance assistant for a telecom carrier retiring copper plant.
+Answer ONLY from the numbered SOURCES. Rules:
+1. Every factual sentence must end with a citation in the form [S#](URL) using the exact URL shown for that source.
+2. Never cite a URL, rule number, deadline or docket that is not in the SOURCES. Never answer from memory.
+3. Keep federal (US) and state rules distinct; name the jurisdiction for each requirement.
+4. If the SOURCES do not contain the specific detail asked for, reply starting with "INSUFFICIENT SOURCES:" and say what is missing. Do not guess.
+Be concise (<= 150 words)."""
+
+def regulatory_rag_query(question, jurisdiction=None, top_k=REG_TOP_K):
+    chunks, mode = retrieve_regulatory_chunks(question, top_k, jurisdiction)
+    ctx = format_context(chunks)
+    resp = llm_client.chat.completions.create(model=REG_LLM_ENDPOINT, temperature=0.0, max_tokens=600,
+        messages=[{"role": "system", "content": REG_SYSTEM_PROMPT},
+                  {"role": "user", "content": f"SOURCES:\n{ctx}\n\nQUESTION: {question}"}])
+    return {"question": question, "answer": resp.choices[0].message.content, "retrieval_mode": mode,
+            "sources": [{k: c.get(k) for k in ("source_id", "citation", "jurisdiction", "source_url")} for c in chunks],
+            "context": ctx}
+
+print(f"✅ Regulatory RAG ready: {len(_REAL):,} real chunks, {len(OFFICIAL_URLS)} official URLs, generator={REG_LLM_ENDPOINT}")
 
 # COMMAND ----------
 
@@ -146,21 +234,13 @@ def _nt(t): return t.strip().lower().replace(" ","_") if t else t
 
 
 def _exec_regulatory(question, state_filter=None):
-    """Lightweight regulatory query — direct SQL lookup on enriched docs."""
+    """Regulatory sub-agent: grounded RAG over REAL sources only (see cell 'Regulatory RAG chain').
+    Returns the cited answer plus official source URLs; never answers from memory."""
     try:
-        # Query the regulatory doc chunks table directly as a simplified RAG
-        state_cond = f"AND jurisdiction_state_code = '{_ns(state_filter)}'" if state_filter else ""
-        q = f"""
-            SELECT title, embedding_text, docket_number, jurisdiction_state_code,
-                   regulatory_topic, notice_period_days, issuing_body, document_status
-            FROM {CATALOG}.{SCHEMA}.regulatory_doc_chunks
-            WHERE embedding_text ILIKE '%{question.split()[0]}%' {state_cond}
-            LIMIT 5
-        """
-        rows = _ser([r.asDict() for r in spark.sql(q).collect()])
-        if not rows:
-            return json.dumps({"agent": "regulatory", "answer": f"No regulatory documents found matching query. Use the dedicated P6_regulatory_rag_chain notebook for Vector Search RAG queries.", "sources": []}, default=str)
-        return json.dumps({"agent": "regulatory", "matching_docs": len(rows), "data": rows, "note": "Simplified SQL lookup. For full RAG with embeddings, use P6_regulatory_rag_chain."}, default=str)
+        out = regulatory_rag_query(question, jurisdiction=_ns(state_filter) if state_filter else None)
+        return json.dumps({"agent": "regulatory", "answer": out["answer"], "retrieval_mode": out["retrieval_mode"],
+                           "sources": out["sources"],
+                           "instruction": "Repeat the [S#](URL) citations verbatim. Do not add rules or deadlines not in this answer."}, default=str)
     except Exception as e:
         return json.dumps({"agent": "regulatory", "error": str(e)})
 
@@ -733,13 +813,16 @@ PROJECT_TAGS = {"telco_project": "copper-retirement", "developer": "copper-ml"}
 EVAL_VERSION = "v2"
 
 # Create/get experiment
-exp = mlflow.set_experiment("/Users/stephen.hage@databricks.com/copper-retirement/experiments/agent_eval_sets")
+import os
+_nb_dir = os.path.dirname(dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get())
+EXPERIMENT_PATH = dbutils.widgets.get("experiment_path").strip() or f"{_nb_dir}/experiments/agent_eval_sets"
+exp = mlflow.set_experiment(EXPERIMENT_PATH)
 client = MlflowClient()
 client.set_experiment_tag(exp.experiment_id, "telco_project", "copper-retirement")
 client.set_experiment_tag(exp.experiment_id, "eval_version", EVAL_VERSION)
 
 # Load eval sets from Delta (75 cases: 25 triage + 25 contractor + 25 supervisor)
-eval_df = spark.sql("SELECT * FROM cdm_tmforum.copper_retirement.agent_eval_dataset_v2")
+eval_df = spark.sql(f"SELECT * FROM {CATALOG}.{SCHEMA}.agent_eval_dataset_v2")
 print(f"Loaded {eval_df.count()} eval cases from Delta")
 
 # Split by agent
@@ -902,3 +985,125 @@ def print_gate_report(gate_results: List[dict]):
 
 print("\u2705 Gate evaluator ready.")
 print("Usage: evaluate_gate(results, 'triage'), print_gate_report([...])")
+
+# COMMAND ----------
+
+# DBTITLE 1,Part 4: Regulatory RAG Eval (real sources)
+# MAGIC %md
+# MAGIC ## Part 4: Regulatory RAG Eval (real sources)
+# MAGIC Merged from `P6_regulatory_rag_chain` (ACC-REG-RAG-EVAL). Eval set: `reg_rag_eval_dataset` v3 (38 questions: FCC 12, 811/one-call 12, state PUC 6, OSHA 3, ROW 3, EPA 1, multi-jurisdiction 1; 30 answerable + 8 flag-gap).
+# MAGIC
+# MAGIC * Expected citations come from `regulatory_source_register.official_url`. Expected facts are regexes checked against the real chunk text.
+# MAGIC * **Flag-gap questions** cover sources that are registered but not indexed (WA UTC, WA 811, AZ ACC) or indexed with incomplete parsed text (AZ hand-dig zone, ID 811, OSHA Subpart P, ID PUC Rule 311). The chain must answer `INSUFFICIENT SOURCES` and must not answer from memory.
+# MAGIC * **Gate:** overall pass >= 80%, citation URL validity = 100%, jurisdiction correctness = 100%, flag-gap abstention = 100%. An answer with no citation fails.
+
+# COMMAND ----------
+
+# DBTITLE 1,Regulatory RAG — scorers
+# ---------- Scorers: answers without valid citations FAIL ----------
+import re, json, concurrent.futures as cf
+_URL_RE = re.compile(r"https?://[^\s\)\]>\"']+")
+_ABSTAIN_RE = re.compile(r"INSUFFICIENT SOURCES|do(es)? not (contain|include|provide|specify)|not (found|available) in the (provided )?sources", re.I)
+
+def _urls(text): return {u.rstrip(".,;:").rstrip("/") for u in _URL_RE.findall(text or "")}
+
+def score_citation_present(ans, row):            # every answerable response must cite >=1 URL
+    return len(_urls(ans)) > 0
+
+def score_citation_url_valid(ans, row):          # every cited URL must be an official URL in the register
+    u = _urls(ans); return bool(u) and all(x in OFFICIAL_URLS for x in u)
+
+def score_expected_citation(ans, row):           # cites at least one expected official source
+    return bool(_urls(ans) & {x.rstrip("/") for x in row["expected_citation_urls"]})
+
+def score_jurisdiction(ans, row):                # cited sources are federal or the asked state; federal Qs cite only federal
+    j = {OFFICIAL_URLS[x]["jurisdiction"] for x in _urls(ans) if x in OFFICIAL_URLS}
+    if not j: return False
+    allowed = {"US"} if row["jurisdiction"] == "US" else {"US", row["jurisdiction"]}
+    ok = j <= allowed
+    if row["jurisdiction"] != "US": ok = ok and row["jurisdiction"] in j
+    return ok
+
+def score_facts(ans, row):
+    return all(re.search(f, ans or "", re.I) for f in row["expected_facts_regex"])
+
+def score_abstain(ans, row):                     # flag-gap questions must abstain, not answer from memory
+    return bool(_ABSTAIN_RE.search(ans or ""))
+
+JUDGE_PROMPT = """You are grading a regulatory RAG answer for groundedness.
+Return JSON {"grounded": true|false, "reason": "<short>"}. grounded=true only if EVERY factual claim (numbers, deadlines, rule cites) in ANSWER is directly supported by SOURCES. An answer that says the sources are insufficient is grounded if it makes no unsupported claims."""
+
+def score_groundedness(ans, ctx):
+    r = llm_client.chat.completions.create(model=JUDGE_ENDPOINT, temperature=0, max_tokens=2500,
+        messages=[{"role": "system", "content": JUDGE_PROMPT},
+                  {"role": "user", "content": f"SOURCES:\n{ctx[:14000]}\n\nANSWER:\n{ans}"}])
+    c = r.choices[0].message.content
+    if isinstance(c, list): c = " ".join(p.get("text", "") for p in c if isinstance(p, dict))
+    m = re.search(r"\{.*\}", c or "", re.S)
+    try: d = json.loads(m.group(0)); return bool(d.get("grounded")), d.get("reason", "")
+    except Exception: return False, "judge_parse_error"
+
+def evaluate_row(row):
+    jur = None if row["jurisdiction"] == "US" else row["jurisdiction"]
+    out = regulatory_rag_query(row["question"], jurisdiction=jur)
+    a = out["answer"]; g, why = score_groundedness(a, out["context"])
+    s = dict(eval_id=row["eval_id"], category=row["category"], jurisdiction=row["jurisdiction"], answerable=bool(row["answerable"]),
+             answer=a, retrieval_mode=out["retrieval_mode"], retrieved_source_ids=[x["source_id"] for x in out["sources"]],
+             cited_urls=sorted(_urls(a)), groundedness=g, groundedness_reason=why,
+             retrieval_hit=bool(set(row["expected_source_ids"]) & {x["source_id"] for x in out["sources"]}))
+    if row["answerable"]:
+        s.update(citation_present=score_citation_present(a,row), citation_url_valid=score_citation_url_valid(a,row),
+                 expected_citation=score_expected_citation(a,row), jurisdiction_correct=score_jurisdiction(a,row),
+                 facts_correct=score_facts(a,row), abstained=score_abstain(a,row))
+        s["passed"] = all([s["citation_present"], s["citation_url_valid"], s["jurisdiction_correct"], s["groundedness"], s["facts_correct"]])
+    else:
+        ab = score_abstain(a,row); urls_ok = all(x in OFFICIAL_URLS for x in _urls(a))
+        s.update(citation_present=len(_urls(a))>0, citation_url_valid=urls_ok, expected_citation=None,
+                 jurisdiction_correct=None, facts_correct=None, abstained=ab)
+        s["passed"] = ab and urls_ok and g
+    return s
+
+def run_reg_rag_eval(eval_df, workers=6):
+    with cf.ThreadPoolExecutor(workers) as ex:
+        return list(ex.map(evaluate_row, [r for _, r in eval_df.iterrows()]))
+
+print("✅ Regulatory scorers ready")
+
+# COMMAND ----------
+
+# DBTITLE 1,Regulatory RAG — run eval, persist results, gate
+import datetime, pandas as pd
+REG_EVAL_TABLE = f"{CATALOG}.{SCHEMA}.reg_rag_eval_dataset"
+REG_RESULTS_TABLE = f"{CATALOG}.{SCHEMA}.reg_rag_eval_results"
+
+reg_eval_df = spark.table(REG_EVAL_TABLE).where("eval_version = 'v3_real_sources'").toPandas()
+R = pd.DataFrame(run_reg_rag_eval(reg_eval_df))
+run_ts = datetime.datetime.now(datetime.timezone.utc)
+R["run_id"] = "reg-rag-v3-" + run_ts.strftime("%Y%m%dT%H%M"); R["run_ts"] = run_ts
+R["generator"] = REG_LLM_ENDPOINT; R["judge"] = JUDGE_ENDPOINT
+for c in ["expected_citation", "jurisdiction_correct", "facts_correct"]: R[c] = R[c].astype("boolean")
+spark.createDataFrame(R).write.mode("append").option("mergeSchema", "true").saveAsTable(REG_RESULTS_TABLE)
+
+ans, gap = R[R.answerable], R[~R.answerable]
+gate = {
+    "overall_pass": R.passed.mean(),
+    "citation_url_valid": ans.citation_url_valid.mean(),
+    "jurisdiction_correct": ans.jurisdiction_correct.astype(float).mean(),
+    "flag_gap_abstention": gap.abstained.mean() if len(gap) else 1.0,
+}
+blockers = [k for k, v in gate.items() if v < (0.80 if k == "overall_pass" else 1.0)]
+print(f"Run {R.run_id[0]}: {int(R.passed.sum())}/{len(R)} passed | retrieval={R.retrieval_mode.unique().tolist()}")
+for k, v in gate.items(): print(f"  {k}: {v:.1%}")
+print("  by category:", R.groupby("category").passed.agg(['sum','count']).to_dict('index'))
+print("GATE:", "✅ PASS" if not blockers else f"❌ FAIL {blockers}")
+display(R[~R.passed][["eval_id", "category", "jurisdiction", "retrieved_source_ids", "abstained", "groundedness_reason"]])
+
+# COMMAND ----------
+
+# DBTITLE 1,Regulatory RAG — demo questions
+# Demo questions carried over from P6_regulatory_rag_chain (now answered from real, cited sources)
+for q, j in [("What are the FCC notice requirements and timelines for retiring copper telephone lines?", None),
+             ("What are Colorado's requirements for discontinuing basic local exchange service beyond federal FCC rules?", "CO"),
+             ("What is the Section 214 discontinuance process and when is an application automatically granted?", None)]:
+    r = regulatory_rag_query(q, jurisdiction=j)
+    print(f"\nQ: {q}\n[{r['retrieval_mode']}] {[s['source_id'] for s in r['sources']]}\n{r['answer']}\n" + "-" * 80)

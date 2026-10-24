@@ -8,7 +8,7 @@
 # MAGIC **Architecture:** Vector Search (similarity retrieval) → Context formatting → Foundation Model API (generation) → Structured response with citations
 # MAGIC
 # MAGIC **Components:**
-# MAGIC - **Index:** `cdm_tmforum.copper_retirement.regulatory_doc_chunks_vs_index` (528 chunks, BGE-large-en embeddings)
+# MAGIC - **Index:** `<catalog>.<schema>.regulatory_doc_chunks_vs_index` (widgets `catalog`/`schema`; BGE-large-en embeddings; real sources flagged `is_synthetic=false`)
 # MAGIC - **Endpoint:** `cmeg-demos-vs` (Databricks Vector Search)
 # MAGIC - **LLM:** `databricks-meta-llama-3-3-70b-instruct` (Foundation Model API)
 # MAGIC - **Source data:** FCC orders, state PUC filings, carrier guides, Section 214 discontinuance docs
@@ -25,9 +25,16 @@
 # DBTITLE 1,Configuration
 # ---------- Configuration ----------
 
+# Parameterized (ACC-DE-PARAMETERIZE): defaults match bundle variables
+dbutils.widgets.text("catalog", "cdm_tmforum")
+dbutils.widgets.text("schema", "copper_retirement")
+dbutils.widgets.text("vs_endpoint", "cmeg-demos-vs")
+CATALOG = dbutils.widgets.get("catalog")
+SCHEMA = dbutils.widgets.get("schema")
+
 # Vector Search
-VS_INDEX_NAME = "cdm_tmforum.copper_retirement.regulatory_doc_chunks_vs_index"
-VS_ENDPOINT_NAME = "cmeg-demos-vs"
+VS_INDEX_NAME = f"{CATALOG}.{SCHEMA}.regulatory_doc_chunks_vs_index"
+VS_ENDPOINT_NAME = dbutils.widgets.get("vs_endpoint")
 
 # Foundation Model API
 LLM_ENDPOINT = "databricks-meta-llama-3-3-70b-instruct"

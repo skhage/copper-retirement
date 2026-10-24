@@ -21,14 +21,21 @@
 # COMMAND ----------
 
 # DBTITLE 1,Configuration
+# Parameterized (ACC-DE-PARAMETERIZE): project root is derived from this notebook's location
+# (works for any user folder or DAB deploy path); override with the project_root widget.
+import os
+dbutils.widgets.text("project_root", "")
+_nb_path = dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get()
+PROJECT_ROOT = dbutils.widgets.get("project_root").strip() or ("/Workspace" + os.path.dirname(_nb_path))
+
 # App names and source paths
 APPS = {
     "copper-map": {
-        "source_path": "/Workspace/Users/stephen.hage@databricks.com/copper-retirement/apps/copper-map",
+        "source_path": f"{PROJECT_ROOT}/apps/copper-map",
         "beat": "Beat 1: Where is our copper / risk?",
     },
     "regulatory-assistant": {
-        "source_path": "/Workspace/Users/stephen.hage@databricks.com/copper-retirement/apps/regulatory-assistant",
+        "source_path": f"{PROJECT_ROOT}/apps/regulatory-assistant",
         "beat": "Beat 4: Clear on regs?",
     },
 }
