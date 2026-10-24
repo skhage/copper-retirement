@@ -18,10 +18,10 @@ interface Props {
 }
 
 const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: string; label: string }> = {
-  completed: { icon: CheckCircle2, color: 'text-[#00A972]', label: 'Completed' },
-  in_progress: { icon: Clock, color: 'text-amber-500', label: 'In Progress' },
+  completed: { icon: CheckCircle2, color: 'text-accent-strong', label: 'Completed' },
+  in_progress: { icon: Clock, color: 'text-warning', label: 'In Progress' },
   pending: { icon: Circle, color: 'text-muted-foreground', label: 'Pending' },
-  overdue: { icon: AlertTriangle, color: 'text-[#FF3621]', label: 'Overdue' },
+  overdue: { icon: AlertTriangle, color: 'text-danger', label: 'Overdue' },
   not_applicable: { icon: Circle, color: 'text-muted-foreground/50', label: 'N/A' },
 };
 
@@ -106,13 +106,13 @@ export function RegulatoryChecklist({ filters }: Props) {
   return (
     <div className="rounded-lg border bg-card p-4 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
-        <FileText size={16} strokeWidth={1.5} className="text-[#FF3621]" />
+        <FileText size={16} strokeWidth={1.5} className="text-primary" aria-hidden="true" />
         <h2 className="text-sm font-semibold">Regulatory Compliance Checklist</h2>
         {isLoading && (
           <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>
         )}
         {!isLoading && data && (
-          <span className="text-[10px] bg-[#00A972]/10 text-[#00A972] px-2 py-0.5 rounded font-medium">
+          <span className="text-[10px] bg-accent/10 text-accent-strong px-2 py-0.5 rounded font-medium">
             LIVE — {totalItems} items across {groups.length} wire centers
           </span>
         )}
@@ -122,19 +122,19 @@ export function RegulatoryChecklist({ filters }: Props) {
       <div className="grid grid-cols-4 gap-3 mb-4">
         <div className="rounded border p-2">
           <p className="text-[10px] text-muted-foreground">Wire Centers</p>
-          <p className="text-lg font-bold text-[#1B3139]">{groups.length}</p>
+          <p className="text-lg font-bold text-secondary">{groups.length}</p>
         </div>
         <div className="rounded border p-2">
           <p className="text-[10px] text-muted-foreground">Required Items</p>
-          <p className="text-lg font-bold text-[#FF3621]">{totalRequired}</p>
+          <p className="text-lg font-bold text-primary-strong">{totalRequired}</p>
         </div>
         <div className="rounded border p-2">
           <p className="text-[10px] text-muted-foreground">Completed</p>
-          <p className="text-lg font-bold text-[#00A972]">{totalCompleted}</p>
+          <p className="text-lg font-bold text-accent-strong">{totalCompleted}</p>
         </div>
         <div className="rounded border p-2">
           <p className="text-[10px] text-muted-foreground">Compliance Rate</p>
-          <p className="text-lg font-bold text-[#6E8898]">
+          <p className="text-lg font-bold text-muted-foreground">
             {totalRequired > 0 ? `${((totalCompleted / totalRequired) * 100).toFixed(0)}%` : '—'}
           </p>
         </div>
@@ -146,14 +146,14 @@ export function RegulatoryChecklist({ filters }: Props) {
           const isExpanded = expandedWC.has(g.wireCenter);
           const pct = g.totalRequired > 0 ? (g.completedCount / g.totalRequired) * 100 : 100;
           const pctColor =
-            pct >= 100 ? 'bg-[#00A972]' : pct >= 50 ? 'bg-amber-500' : 'bg-[#FF3621]';
+            pct >= 100 ? 'bg-viz-3' : pct >= 50 ? 'bg-viz-5' : 'bg-viz-1';
 
           return (
             <div key={g.wireCenter} className="rounded border overflow-hidden">
               {/* Accordion header */}
               <button
                 onClick={() => toggleWC(g.wireCenter)}
-                className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/30 transition-colors focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
+                className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/30 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 aria-expanded={isExpanded}
               >
                 <div className="flex items-center gap-2">
@@ -215,7 +215,7 @@ export function RegulatoryChecklist({ filters }: Props) {
                               <span>Assigned: {item.assigned_to}</span>
                             )}
                             {item.completed_date && (
-                              <span className="text-[#00A972]">Completed: {formatDate(item.completed_date)}</span>
+                              <span className="text-accent-strong">Completed: {formatDate(item.completed_date)}</span>
                             )}
                           </div>
                         </div>

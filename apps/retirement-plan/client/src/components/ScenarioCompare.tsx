@@ -24,14 +24,14 @@ export function ScenarioCompare() {
   };
 
   const riskColor = (score: number) =>
-    score >= 80 ? 'text-red-600' : score >= 60 ? 'text-amber-600' : 'text-green-600';
+    score >= 80 ? 'text-danger' : score >= 60 ? 'text-warning' : 'text-success';
 
   return (
     <div className="rounded-lg border bg-card p-4 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold">Optimizer Scenarios</h2>
         <button
-          className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded hover:opacity-90 transition-colors focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="text-xs bg-primary-strong text-primary-foreground px-3 py-1.5 rounded hover:opacity-90 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
           onClick={() => {
             console.log('[retirement-plan] Requesting new scenario run...');
             // TODO: POST /api/plan/scenario when P4-SEQ is available
@@ -65,7 +65,7 @@ export function ScenarioCompare() {
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
                   s.status === 'active'
-                    ? 'bg-accent/10 text-accent'
+                    ? 'bg-accent/10 text-accent-strong'
                     : s.status === 'draft'
                     ? 'bg-muted text-muted-foreground'
                     : 'bg-muted text-muted-foreground'
@@ -106,12 +106,12 @@ export function ScenarioCompare() {
                 <button
                   onClick={() => handleSetActive(s.scenario_id)}
                   aria-label={`Set ${s.name} as active scenario`}
-                  className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded hover:opacity-90 transition-colors focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
+                  className="text-xs bg-primary-strong text-primary-foreground px-2 py-1 rounded hover:opacity-90 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
                   Set Active
                 </button>
               )}
-              <button className="text-xs border px-2 py-1 rounded hover:bg-muted transition-colors focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none">
+              <button className="text-xs border px-2 py-1 rounded hover:bg-muted transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
                 View Detail
               </button>
             </div>

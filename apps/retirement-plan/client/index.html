@@ -3,25 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Retirement Plan Tracker — Lakelink Fiber</title>
+  <title>Copper Retirement Accelerator — Lakelink Fiber</title>
+  <!-- Inter 400/500/600/700 (ACC-APP-TOKENS-WIRE) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            background: '#F9F7F4',
-            foreground: '#1B3139',
-            primary: { DEFAULT: '#FF3621', foreground: '#FFFFFF' },
-            secondary: { DEFAULT: '#1B3139', foreground: '#FFFFFF' },
-            accent: { DEFAULT: '#00A972', foreground: '#FFFFFF' },
-            muted: { DEFAULT: '#F0EEEA', foreground: '#6E8898' },
-            border: '#E5E2DD',
-            card: { DEFAULT: '#FFFFFF', foreground: '#1B3139' },
-          },
-        },
-      },
-    };
+    // Tailwind keys map to CSS variables in src/styles/tokens.css (single source of truth).
+    // Partner white-label: edit the BRAND LAYER in tokens.css only. Do NOT declare hex here.
+    const v = (n) => `rgb(var(--${n}) / <alpha-value>)`;
+    tailwind.config = { theme: { extend: {
+      fontFamily: { sans: ['var(--font-sans)'] },
+      colors: {
+        background: v('color-bg'), foreground: v('color-fg'),
+        primary:   { DEFAULT: v('color-primary'), strong: v('color-primary-strong'), foreground: v('color-card') },
+        secondary: { DEFAULT: v('color-secondary'), foreground: v('color-on-dark') },
+        accent:    { DEFAULT: v('color-accent'), strong: v('color-accent-strong'), foreground: v('color-card') },
+        muted:     { DEFAULT: v('color-muted'), foreground: v('color-muted-fg') },
+        card:      { DEFAULT: v('color-card'), foreground: v('color-fg') },
+        border: v('color-border'), input: v('color-border-input'), ring: v('color-ring'),
+        success: v('color-success-text'), danger: v('color-danger-text'), warning: v('color-warning-text'),
+        synthetic: { DEFAULT: v('color-synthetic-bg'), foreground: v('color-synthetic-fg') },
+        viz: { 1: v('viz-1'), 2: v('viz-2'), 3: v('viz-3'), 4: v('viz-4'), 5: v('viz-5') },
+      } } } };
   </script>
 </head>
 <body class="bg-background text-foreground">

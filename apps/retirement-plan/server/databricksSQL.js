@@ -10,7 +10,8 @@
 const DATABRICKS_HOST = process.env.DATABRICKS_HOST;
 const WAREHOUSE_ID = process.env.DATABRICKS_WAREHOUSE_ID;
 
-async function executeSQL(statement) {
+// Exported so every tab router (server/routes/*.js) shares ONE SQL-warehouse helper (PORT-MAP §1).
+export async function executeSQL(statement) {
   if (!DATABRICKS_HOST) throw new Error('DATABRICKS_HOST env var not set');
   if (!WAREHOUSE_ID) throw new Error('DATABRICKS_WAREHOUSE_ID env var not set');
 

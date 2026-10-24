@@ -1,29 +1,21 @@
 /**
- * App.tsx
- * Root component for the Retirement Plan Tracker (P7-PLAN)
- * Demo Beat 2: "Capital-efficient plan to zero copper?"
+ * App.tsx — Copper Retirement Accelerator (unified partner-facing app)
+ * DEC-ACCEL-UNIFIED-APP / ACC-APP-UNIFY-SHELL. Evolved in place from retirement-plan.
  *
- * Layout:
- *   [PlanKPIs]                              ← top bar (6 KPI cards)
- *   [WaveSelector]                          ← wave filter bar
- *   Tabs:
- *     Gantt → [GanttTimeline]              ← horizontal Gantt chart
- *     Table → [MigrationTable]             ← tabular view with filters
- *     Scenarios → [ScenarioCompare]        ← optimizer scenario comparison
- *   [CostBenefitPanel]                      ← per-wire-center cost/benefit
+ * IA (BRAND_GUIDE §0, demo order), URL hash routing:
+ *   #map         Map & Risk        <- copper-map           (ACC-APP-PORT-MAP)
+ *   #plan[/sub]  Plan              <- retirement-plan      (this app; sub = timeline|table|budget|regulatory|scenarios)
+ *   #triage      Dig Triage        <- dig-triage           (ACC-APP-PORT-TRIAGE, PORTED 2026-10-24: tabs/triage/, server/routes/triage.js)
+ *   #regulatory  Regulatory        <- regulatory-assistant (ACC-APP-PORT-REG; every answer/row carries source title + official URL)
+ *   #commodity   Commodity & Value <- commodity-dashboard  (ACC-APP-PORT-COMMODITY)
  *
- * All data is SYNTHETIC until P4-SEQ + P0-DATAGEN-MIGRATION land.
+ * Styling: styles/tokens.css only (ACC-APP-TOKENS-WIRE). Partner rebrand = edit the BRAND LAYER there.
  */
-import { useState, useCallback } from 'react';
-import { PlanKPIs } from './components/PlanKPIs';
-import { GanttTimeline } from './components/GanttTimeline';
-import { WaveSelector } from './components/WaveSelector';
-import { CostBenefitPanel } from './components/CostBenefitPanel';
-import { MigrationTable } from './components/MigrationTable';
-import { ScenarioCompare } from './components/ScenarioCompare';
-import { BudgetChart } from './components/BudgetChart';
-import { RegulatoryChecklist } from './components/RegulatoryChecklist';
-import type { WireCenterPlan } from './mock/mockData';
+import { useState, useEffect, useCallback } from 'react';
+import { LakeLinkHeader, TabBar, ErrorBoundary, panelId, tabId } from './components/shared';
+import { PlanTab, isPlanSub, type PlanSub } from './tabs/PlanTab';
+import { PendingPortTab } from './tabs/PendingPortTab';
+import { TriageTab } from './tabs/triage/App';
 
 export interface PlanFilters {
   wave: string;       // 'all' | '1' | '2' | ... | '8'
@@ -32,105 +24,101 @@ export interface PlanFilters {
   constraint: string; // 'all' | 'contract_locked' | 'regulatory_notice_pending' | ...
 }
 
+const TOP_TABS = [
+  { id: 'map', label: 'Map & Risk' },
+  { id: 'plan', label: 'Plan' },
+  { id: 'triage', label: 'Dig Triage' },
+  { id: 'regulatory', label: 'Regulatory' },
+  { id: 'commodity', label: 'Commodity & Value' },
+] as const;
+type TopTab = (typeof TOP_TABS)[number]['id'];
+
+interface Route { tab: TopTab; planSub: PlanSub }
+
+// Land on Plan (the live tab) until ACC-APP-PORT-MAP lands; then switch default to 'map' (demo order).
+const DEFAULT_ROUTE: Route = { tab: 'plan', planSub: 'timeline' };
+
+function parseHash(hash: string): Route {
+  const [tab, sub] = hash.replace(/^#\/?/, '').split('/');
+  const top = TOP_TABS.find((t) => t.id === tab)?.id ?? DEFAULT_ROUTE.tab;
+  return { tab: top, planSub: isPlanSub(sub) ? sub : DEFAULT_ROUTE.planSub };
+}
+
+function toHash(r: Route) { return r.tab === 'plan' ? `#plan/${r.planSub}` : `#${r.tab}`; }
+
 export default function App() {
-  // --- State ---
-  const [filters, setFilters] = useState<PlanFilters>({
-    wave: 'all',
-    state: 'all',
-    status: 'all',
-    constraint: 'all',
-  });
-  const [selectedWireCenter, setSelectedWireCenter] = useState<WireCenterPlan | null>(null);
-  const [activeTab, setActiveTab] = useState<'gantt' | 'table' | 'budget' | 'regulatory' | 'scenarios'>('gantt');
+  const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash));
 
-  const handleWireCenterSelect = useCallback((wc: WireCenterPlan | null) => {
-    setSelectedWireCenter(wc);
+  useEffect(() => {
+    const onHash = () => setRoute(parseHash(window.location.hash));
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  const handleFilterChange = useCallback((newFilters: PlanFilters) => {
-    setFilters(newFilters);
+  const navigate = useCallback((next: Route) => {
+    const h = toHash(next);
+    if (window.location.hash !== h) window.history.replaceState(null, '', h);
+    setRoute(next);
   }, []);
+
+  const label = TOP_TABS.find((t) => t.id === route.tab)!.label;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Lakelink Fiber nav bar */}
-      <nav className="flex items-center gap-3 px-4 py-3 bg-[#1B3139] text-white">
-        <span className="text-lg font-semibold">Lakelink Fiber</span>
-        <span className="text-sm opacity-70">|</span>
-        <span className="text-sm">Retirement Plan Tracker</span>
-        <div className="ml-auto">
-          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-            SYNTHETIC DATA
-          </span>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-background font-sans">
+      <LakeLinkHeader
+        subtitle="Copper Retirement Accelerator"
+        tagline="Find the copper, plan the path, dig safely, stay compliant, monetize the scrap"
+        dataSource="MOCK"
+      />
 
-      <div className="p-4">
+      <TabBar
+        tabs={TOP_TABS}
+        activeId={route.tab}
+        onChange={(tab) => navigate({ ...route, tab })}
+        idPrefix="top"
+        ariaLabel="Accelerator sections"
+      />
 
-      {/* KPI bar */}
-      <PlanKPIs />
-
-      {/* Wave filter bar */}
-      <WaveSelector filters={filters} onFilterChange={handleFilterChange} />
-
-      {/* Tab navigation */}
-      <div className="flex gap-1 mb-3 border-b">
-        {(['gantt', 'table', 'budget', 'regulatory', 'scenarios'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none ${
-              activeTab === tab
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {tab === 'gantt'
-              ? 'Gantt Timeline'
-              : tab === 'table'
-              ? 'Migration Table'
-              : tab === 'budget'
-              ? 'Budget'
-              : tab === 'regulatory'
-              ? 'Regulatory Checklist'
-              : 'Scenario Compare'}
-          </button>
-        ))}
-      </div>
-
-      {/* Main content */}
-      {activeTab === 'gantt' && (
-        <GanttTimeline
-          filters={filters}
-          onWireCenterSelect={handleWireCenterSelect}
-          selectedWireCenter={selectedWireCenter}
-        />
-      )}
-
-      {activeTab === 'table' && (
-        <MigrationTable
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onWireCenterSelect={handleWireCenterSelect}
-        />
-      )}
-
-      {activeTab === 'budget' && <BudgetChart />}
-
-      {activeTab === 'regulatory' && <RegulatoryChecklist filters={filters} />}
-
-      {activeTab === 'scenarios' && <ScenarioCompare />}
-
-      {/* Cost/benefit detail panel (shows when a wire center is selected) */}
-      {selectedWireCenter && (
-        <div className="mt-4">
-          <CostBenefitPanel
-            wireCenter={selectedWireCenter}
-            onClose={() => setSelectedWireCenter(null)}
-          />
-        </div>
-      )}
-      </div>
+      <main
+        role="tabpanel"
+        id={panelId('top', route.tab)}
+        aria-labelledby={tabId('top', route.tab)}
+        className="px-4 md:px-6 py-4"
+      >
+        <ErrorBoundary name={label} key={route.tab}>
+          {route.tab === 'map' && (
+            <PendingPortTab
+              title="Map & Risk"
+              question="Where is our copper, and which plant is most at risk?"
+              taskCode="ACC-APP-PORT-MAP"
+              sourceApp="copper-map"
+              dataNote="copper_retirement.gold_wire_center_scorecard, Lakebase copper_app.device_risk_map / wire_center_boundaries, and serving endpoint copper-retirement-risk."
+            />
+          )}
+          {route.tab === 'plan' && (
+            <PlanTab sub={route.planSub} onSubChange={(planSub) => navigate({ tab: 'plan', planSub })} />
+          )}
+          {route.tab === 'triage' && <TriageTab />}
+          {route.tab === 'regulatory' && (
+            <PendingPortTab
+              title="Regulatory"
+              question="Are we clear on notice, 811 and permit rules in every jurisdiction?"
+              taskCode="ACC-APP-PORT-REG"
+              sourceApp="regulatory-assistant"
+              dataNote="real official sources in copper_retirement.regulatory_source_register via regulatory_doc_chunks_vs_index. Every answer and jurisdiction row will show the source title and official URL."
+            />
+          )}
+          {route.tab === 'commodity' && (
+            <PendingPortTab
+              title="Commodity & Value"
+              question="What is the recovered copper worth, and when should we sell?"
+              taskCode="ACC-APP-PORT-COMMODITY"
+              sourceApp="commodity-dashboard"
+              dataNote="copper_retirement.copper_commodity_price_official (IMF PCOPPUSDM via FRED) and copper_app.gold_copper_recovery_schedule."
+            />
+          )}
+        </ErrorBoundary>
+      </main>
     </div>
   );
 }

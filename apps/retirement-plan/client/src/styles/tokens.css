@@ -1,0 +1,136 @@
+/* =====================================================================
+ * Copper Retirement Accelerator — Shared Design Tokens (ACC-APP-IA)
+ * Owner: @designer (binding). Single source of truth for the unified
+ * accelerator app (apps/retirement-plan) AND copper-task-board.
+ *
+ * PARTNER WHITE-LABEL: a partner rebrands by editing ONLY the
+ * "BRAND LAYER" block below (or swapping this file). Every other token,
+ * Tailwind key, and component class derives from these variables.
+ * Rules for partners: keep every *-text / fg token >= 4.5:1 on
+ * --color-bg and --color-card; keep --color-ring / --color-border-input
+ * >= 3:1 (WCAG 2.1 AA 1.4.3 / 1.4.11).
+ *
+ * Values are space-separated RGB triplets so Tailwind opacity modifiers
+ * work: rgb(var(--color-primary) / <alpha-value>).
+ * Contrast ratios below computed 2026-10-24 (WCAG relative luminance).
+ * ===================================================================== */
+
+:root {
+  /* ---------- BRAND LAYER (swap for partner white-label) ---------- */
+  --brand-name: "Lakelink Fiber";
+  --color-primary:        255 54 33;   /* #FF3621 brand red. Fills, underline, icons, large text only (3.39:1 on bg) */
+  --color-primary-strong: 200 32 12;   /* #C8200C red for TEXT + button bg w/ white text (5.35:1 on bg, white-on 5.73:1) */
+  --color-secondary:      27 49 57;    /* #1B3139 dark navy. Headings, dark surfaces */
+  --color-accent:         0 169 114;   /* #00A972 green. Fills/icons/large text only (2.84:1 on bg) */
+  --color-accent-strong:  0 122 82;    /* #007A52 green for TEXT (5.03:1 on bg, white-on 5.38:1) */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* ---------- NEUTRALS / SURFACES ---------- */
+  --color-bg:             249 247 244; /* #F9F7F4 surface (page) */
+  --color-card:           255 255 255; /* #FFFFFF elevated surface */
+  --color-muted:          240 238 234; /* #F0EEEA hover / secondary surface */
+  --color-fg:             27 49 57;    /* #1B3139 body text: 12.71:1 bg, 13.59:1 card */
+  --color-muted-fg:       91 110 125;  /* #5B6E7D SETTLED (supersedes #6E8898): 4.95:1 bg, 5.29:1 card, 4.56:1 muted */
+  --color-on-dark:        255 255 255; /* text on navy: 13.59:1 */
+  --color-on-dark-muted:  184 196 204; /* #B8C4CC muted text on navy: 7.64:1 */
+  --color-border:         229 226 221; /* #E5E2DD decorative dividers only (not for inputs) */
+  --color-border-input:   122 139 152; /* #7A8B98 form controls / meaningful borders: 3.29:1 bg, 3.52:1 card */
+  --color-ring:           255 54 33;   /* focus ring = brand red: 3.39:1 bg, 3.12:1 muted, 3.76:1 navy */
+
+  /* ---------- SEMANTIC STATUS (text-safe) ---------- */
+  --color-success-text:   0 122 82;    /* #007A52 */
+  --color-danger-text:    200 32 12;   /* #C8200C */
+  --color-warning-text:   163 64 15;   /* #A3400F replaces salmon text: 5.96:1 bg (salmon was 2.13:1) */
+  --color-synthetic-bg:   254 243 199; /* #FEF3C7 SYNTHETIC data badge bg */
+  --color-synthetic-fg:   146 64 14;   /* #92400E SYNTHETIC badge text: 6.37:1 */
+
+  /* ---------- DATA VIZ (fills/strokes only — NEVER text) ---------- */
+  --viz-1: 255 54 33;   /* #FF3621 */
+  --viz-2: 27 49 57;    /* #1B3139 */
+  --viz-3: 0 169 114;   /* #00A972 */
+  --viz-4: 110 136 152; /* #6E8898 steel */
+  --viz-5: 255 140 105; /* #FF8C69 salmon: fill only; must carry a fg-colored label or 1px --color-secondary outline */
+  --risk-critical: 255 54 33;
+  --risk-high:     255 140 105;
+  --risk-medium:   110 136 152;
+  --risk-low:      0 169 114;
+
+  /* ---------- TYPE / SPACING / SHAPE (8px grid) ---------- */
+  --text-base: 14px;
+  --leading-base: 1.5;
+  --weight-body: 400;
+  --weight-label: 500;
+  --weight-heading: 700;
+  --space-1: 8px;  --space-2: 16px; --space-3: 24px; --space-4: 32px;
+  --gap-grid: 12px;            /* gap-3, allowed half-step */
+  --radius-card: 8px;
+  --radius-control: 6px;
+  --pad-card: 16px;            /* compact variant 12px */
+  --pad-page-mobile: 16px;
+  --pad-page-desktop: 24px;
+  --icon-stroke: 1.5;          /* Lucide strokeWidth */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --tab-indicator: 2px;
+}
+
+/* ---------- BASE ---------- */
+html { font-family: var(--font-sans); font-size: var(--text-base); line-height: var(--leading-base); }
+body { background: rgb(var(--color-bg)); color: rgb(var(--color-fg)); }
+
+/* Global focus ring (WCAG 2.4.7) — applies even where a component forgets it */
+:where(a, button, input, select, textarea, [role="tab"], [tabindex]):focus-visible {
+  outline: var(--focus-ring-width) solid rgb(var(--color-ring));
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* ---------- TOP-LEVEL TAB BAR (unified app IA) ---------- */
+/* Usage: <nav role="tablist" class="ll-tabs"><button role="tab" aria-selected="true" class="ll-tab">...</button></nav> */
+.ll-tabs { display: flex; gap: var(--space-1); border-bottom: 1px solid rgb(var(--color-border)); overflow-x: auto; }
+.ll-tab {
+  padding: var(--space-1) var(--space-2);
+  font-weight: var(--weight-label);
+  color: rgb(var(--color-muted-fg));
+  border-bottom: var(--tab-indicator) solid transparent;
+  background: transparent; white-space: nowrap; min-height: 44px; /* touch target */
+}
+.ll-tab:hover { color: rgb(var(--color-fg)); }
+.ll-tab[aria-selected="true"] {
+  color: rgb(var(--color-fg));          /* NOT text-primary (3.39:1 fails AA) */
+  font-weight: 600;
+  border-bottom-color: rgb(var(--color-primary));
+}
+
+/* ---------- SYNTHETIC DATA BADGE (charter: synthetic must be labeled in UI) ---------- */
+.ll-badge-synthetic {
+  background: rgb(var(--color-synthetic-bg)); color: rgb(var(--color-synthetic-fg));
+  font-size: 12px; font-weight: var(--weight-label); padding: 2px var(--space-1); border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
+/* =====================================================================
+ * TAILWIND MAPPING — paste into client/index.html tailwind.config
+ * (replaces the hardcoded hex config; do not re-declare hex anywhere):
+ *
+ * const v = (n) => `rgb(var(--${n}) / <alpha-value>)`;
+ * tailwind.config = { theme: { extend: {
+ *   fontFamily: { sans: ['var(--font-sans)'] },
+ *   colors: {
+ *     background: v('color-bg'), foreground: v('color-fg'),
+ *     primary:   { DEFAULT: v('color-primary'), strong: v('color-primary-strong'), foreground: v('color-card') },
+ *     secondary: { DEFAULT: v('color-secondary'), foreground: v('color-on-dark') },
+ *     accent:    { DEFAULT: v('color-accent'), strong: v('color-accent-strong'), foreground: v('color-card') },
+ *     muted:     { DEFAULT: v('color-muted'), foreground: v('color-muted-fg') },
+ *     card:      { DEFAULT: v('color-card'), foreground: v('color-fg') },
+ *     border: v('color-border'), input: v('color-border-input'), ring: v('color-ring'),
+ *     success: v('color-success-text'), danger: v('color-danger-text'), warning: v('color-warning-text'),
+ *     viz: { 1: v('viz-1'), 2: v('viz-2'), 3: v('viz-3'), 4: v('viz-4'), 5: v('viz-5') },
+ *   } } } };
+ *
+ * Class rules: buttons = bg-primary-strong text-primary-foreground;
+ * red/green TEXT = text-primary-strong / text-accent-strong;
+ * never text-primary, text-accent, or text-viz-5 on light surfaces.
+ * ===================================================================== */

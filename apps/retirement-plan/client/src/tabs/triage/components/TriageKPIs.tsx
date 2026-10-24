@@ -3,7 +3,10 @@
  * Top bar showing 6 KPI cards for the dig-safe triage console.
  * Uses mock data until dig_safe_incident table + P6-TRIAGE agent land.
  */
+import { useState, useEffect } from 'react';
 import { USE_MOCK_DATA, getMockKPIs } from '../mock/mockData';
+import type { TriageKPIs as TriageKPIsType } from '../mock/mockData';
+import { fetchKPIs } from '../lib/triageApi';
 import { formatCount } from '../lib/formatters';
 
 interface KPICard {
@@ -14,44 +17,56 @@ interface KPICard {
 }
 
 export function TriageKPIs() {
-  // TODO: Replace with live SQL query when USE_MOCK_DATA=false
-  const kpis = getMockKPIs();
+  const [kpis, setKpis] = useState<TriageKPIsType>(getMockKPIs());
+  const [isLive, setIsLive] = useState(false);
+
+  useEffect(() => {
+    if (USE_MOCK_DATA) return;
+    fetchKPIs()
+      .then((data) => {
+        setKpis(data);
+        setIsLive(true);
+      })
+      .catch((err) => {
+        console.warn('[TriageKPIs] Live fetch failed, using mock:', err);
+      });
+  }, []);
 
   const cards: KPICard[] = [
     {
       label: 'Open Incidents',
       value: formatCount(kpis.open_incidents),
-      color: 'text-primary',
+      color: 'text-primary-strong',
       subtext: `${kpis.critical_incidents} critical`,
     },
     {
       label: 'Avg Resolution',
       value: `${kpis.avg_resolution_hours.toFixed(1)}h`,
-      color: 'text-[#FF8C69]',
+      color: 'text-warning',
       subtext: 'resolved incidents',
     },
     {
       label: 'This Week',
       value: formatCount(kpis.incidents_this_week),
-      color: 'text-[#1B3139]',
+      color: 'text-secondary',
       subtext: 'new incidents',
     },
     {
       label: 'Reroutes Pending',
       value: formatCount(kpis.reroutes_pending),
-      color: 'text-[#6E8898]',
+      color: 'text-muted-foreground',
       subtext: 'awaiting approval',
     },
     {
       label: 'Active Contractors',
       value: formatCount(kpis.active_contractors),
-      color: 'text-accent',
+      color: 'text-accent-strong',
       subtext: 'available for dispatch',
     },
     {
       label: 'Critical',
       value: formatCount(kpis.critical_incidents),
-      color: 'text-primary',
+      color: 'text-primary-strong',
       subtext: 'require immediate action',
     },
   ];

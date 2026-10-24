@@ -4,19 +4,18 @@
  * Uses pin markers on a placeholder map until deck.gl is integrated.
  *
  * Severity colors:
- *   critical → red (#EB1600)
- *   major    → orange (#FF8C00)
- *   minor    → gold (#FFD700)
- *   info     → cyan (#40d1f5)
+ *   critical → --risk-critical, major → --risk-high, minor → --risk-medium, info → --viz-2 (styles/tokens.css)
  *
  * Click incident marker to select for detail panel + agent chat.
  *
  * TODO: Replace placeholder with deck.gl ScatterplotLayer once deps installed.
  * TODO: Add real-time incident feed via SSE once P6-TRIAGE is deployed.
  */
-import { USE_MOCK_DATA, getMockIncidents, SEVERITY_COLORS } from '../mock/mockData';
+import { useState, useEffect } from 'react';
+import { USE_MOCK_DATA, getMockIncidents, SEVERITY_COLORS, NEUTRAL_FILL } from '../mock/mockData';
 import type { Incident } from '../mock/mockData';
 import type { TriageFilters } from '../App';
+import { fetchIncidents } from '../lib/triageApi';
 
 interface IncidentMapProps {
   filters: TriageFilters;
@@ -43,9 +42,33 @@ function toPixel(
 }
 
 export function IncidentMap({ filters, onIncidentSelect, selectedIncident }: IncidentMapProps) {
-  const incidents = USE_MOCK_DATA
-    ? getMockIncidents(filters)
-    : []; // TODO: fetch from SQL query
+  const [allIncidents, setAllIncidents] = useState<Incident[]>(
+    USE_MOCK_DATA ? getMockIncidents() : []
+  );
+  const [isLoading, setIsLoading] = useState(!USE_MOCK_DATA);
+
+  useEffect(() => {
+    if (USE_MOCK_DATA) return;
+    setIsLoading(true);
+    fetchIncidents(200)
+      .then((data) => {
+        setAllIncidents(data as unknown as Incident[]);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.warn('[IncidentMap] Live fetch failed, falling back to mock:', err);
+        setAllIncidents(getMockIncidents());
+        setIsLoading(false);
+      });
+  }, []);
+
+  // Client-side filtering
+  const incidents = allIncidents.filter((inc) => {
+    if (filters.severity && filters.severity !== 'all' && inc.severity !== filters.severity) return false;
+    if (filters.state && filters.state !== 'all' && inc.state !== filters.state) return false;
+    if (filters.status && filters.status !== 'all' && inc.status !== filters.status) return false;
+    return true;
+  });
 
   const MAP_WIDTH = 800;
   const MAP_HEIGHT = 480;
@@ -55,7 +78,10 @@ export function IncidentMap({ filters, onIncidentSelect, selectedIncident }: Inc
       <div className="flex items-center justify-between p-3 border-b">
         <h2 className="text-sm font-semibold">Incident Map</h2>
         <span className="text-xs text-muted-foreground">
-          {incidents.length} incidents shown
+          {isLoading ? 'Loading live data...' : `${incidents.length} incidents shown`}
+          {!USE_MOCK_DATA && !isLoading && (
+            <span className="ml-1 text-accent-strong">● LIVE</span>
+          )}
         </span>
       </div>
 
@@ -66,7 +92,7 @@ export function IncidentMap({ filters, onIncidentSelect, selectedIncident }: Inc
       >
         {/* US outline placeholder */}
         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">
-          [deck.gl map placeholder — install deps to activate]
+          Schematic US view (lat/lon projection)
         </div>
 
         {/* Incident markers */}
@@ -79,16 +105,16 @@ export function IncidentMap({ filters, onIncidentSelect, selectedIncident }: Inc
               key={inc.incident_id}
               onClick={() => onIncidentSelect(isSelected ? null : inc)}
               aria-label={`Incident ${inc.incident_id}: ${inc.severity} severity, ${inc.cable_damage_type} in ${inc.state}`}
-              className="absolute rounded-full border-2 border-white shadow-md hover:scale-125 transition-transform cursor-pointer focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
+              className="absolute rounded-full border-2 border-card shadow-md hover:scale-125 motion-reduce:hover:scale-100 transition-transform cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               style={{
                 left: `${(x / MAP_WIDTH) * 100}%`,
                 top: `${(y / MAP_HEIGHT) * 100}%`,
                 width: isSelected ? 20 : 14,
                 height: isSelected ? 20 : 14,
-                backgroundColor: SEVERITY_COLORS[inc.severity] || '#888',
+                backgroundColor: SEVERITY_COLORS[inc.severity] || NEUTRAL_FILL,
                 transform: 'translate(-50%, -50%)',
                 zIndex: isSelected ? 10 : 1,
-                outline: isSelected ? '3px solid #FF3621' : 'none',
+                outline: isSelected ? '3px solid rgb(var(--color-secondary))' : 'none',
               }}
               title={`${inc.incident_id}: ${inc.severity} — ${inc.cable_damage_type} (${inc.state})`}
             />

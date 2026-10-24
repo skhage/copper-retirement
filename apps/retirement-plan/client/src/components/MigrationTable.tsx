@@ -74,7 +74,7 @@ export function MigrationTable({ filters, onFilterChange, onWireCenterSelect }: 
                 tabIndex={0}
                 role="columnheader"
                 aria-sort={sortKey === key ? (sortAsc ? 'ascending' : 'descending') : 'none'}
-                className="px-3 py-2 text-left font-medium cursor-pointer hover:text-primary focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
+                className="px-3 py-2 text-left font-medium cursor-pointer hover:text-primary-strong focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 {label}{sortIcon(key)}
               </th>

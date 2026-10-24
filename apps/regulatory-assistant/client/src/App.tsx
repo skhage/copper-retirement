@@ -79,9 +79,9 @@ export default function App() {
         </div>
       </LakeLinkHeader>
 
-      {/* Tab navigation — responsive: scrollable on mobile (WCAG 2.1 AA) */}
+      {/* Tab navigation — underline active (BRAND_GUIDE §5) */}
       <div className="px-4 sm:px-6 border-b overflow-x-auto">
-        <div className="flex gap-1 pt-2 min-w-max" role="tablist" aria-label="Regulatory assistant sections">
+        <div className="flex gap-1 min-w-max" role="tablist" aria-label="Regulatory assistant sections">
           {TABS.map((tab) => (
             <button
               key={tab.key}
@@ -90,12 +90,11 @@ export default function App() {
               aria-selected={activeTab === tab.key}
               aria-controls={`tabpanel-${tab.key}`}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-3 sm:px-4 py-2 text-sm font-medium rounded-t transition-colors whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF3621] ${
+              className={`px-3 sm:px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none ${
                 activeTab === tab.key
-                  ? 'text-white'
-                  : 'text-muted-foreground hover:bg-muted'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
-              style={activeTab === tab.key ? { backgroundColor: '#FF3621' } : undefined}
             >
               {tab.label}
             </button>

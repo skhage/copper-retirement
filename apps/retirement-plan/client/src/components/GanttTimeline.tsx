@@ -35,16 +35,16 @@ const QUARTERS = [
   '2029 Q1', '2029 Q2', '2029 Q3', '2029 Q4',
 ];
 
-// Wave color palette
+// Wave fills from tokens.css (fill only). Salmon (viz-5) bars carry a navy outline per BRAND_GUIDE.
 const WAVE_COLORS: Record<number, string> = {
-  1: 'bg-[#FF3621]',
-  2: 'bg-[#1B3139]',
-  3: 'bg-[#00A972]',
-  4: 'bg-[#6E8898]',
-  5: 'bg-[#FF8C69]',
-  6: 'bg-[#4A7C6F]',
-  7: 'bg-[#C42D1A]',
-  8: 'bg-[#2E4A55]',
+  1: 'bg-viz-1',
+  2: 'bg-viz-2',
+  3: 'bg-viz-3',
+  4: 'bg-viz-4',
+  5: 'bg-viz-5 ring-1 ring-secondary',
+  6: 'bg-accent-strong',
+  7: 'bg-primary-strong',
+  8: 'bg-muted-foreground',
 };
 
 const STATUS_OPACITY: Record<string, string> = {
@@ -91,12 +91,12 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
         <h2 className="text-sm font-semibold">Retirement Wave Timeline (2026–2029)</h2>
         {isLoading && <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>}
         {!isLoading && liveData && (
-          <span className="text-[10px] bg-[#00A972]/10 text-[#00A972] px-2 py-0.5 rounded font-medium">
+          <span className="text-[10px] bg-accent/10 text-accent-strong px-2 py-0.5 rounded font-medium">
             LIVE — {liveData.length} wire centers from optimizer
           </span>
         )}
         {!isLoading && !liveData && (
-          <span className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">
+          <span className="ll-badge-synthetic">
             MOCK DATA
           </span>
         )}
@@ -128,7 +128,7 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
               role="button"
               tabIndex={0}
               aria-label={`Wire center ${wc.wire_center_name}, Wave ${wc.wave}, ${wc.status.replace(/_/g, ' ')}`}
-              className={`flex items-center h-8 cursor-pointer rounded transition-colors focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none ${
+              className={`flex items-center h-8 cursor-pointer rounded transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
                 isSelected ? 'bg-primary/5 ring-1 ring-primary/30' : 'hover:bg-muted/50'
               }`}
               onClick={() => onWireCenterSelect(isSelected ? null : wc)}
@@ -156,7 +156,7 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
                 {/* Gantt bar */}
                 <div
                   className={`absolute top-1 h-4 rounded-sm ${
-                    WAVE_COLORS[wc.wave] || 'bg-gray-400'
+                    WAVE_COLORS[wc.wave] || 'bg-viz-4'
                   } ${STATUS_OPACITY[wc.status] || 'opacity-60'} transition-all`}
                   style={{ left: `${left}%`, width: `${Math.max(width, 0.5)}%` }}
                   title={`${wc.wire_center_name} | Wave ${wc.wave} | ${wc.status} | ${wc.scheduled_start} → ${wc.scheduled_end}`}

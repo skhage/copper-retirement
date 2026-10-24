@@ -8,9 +8,9 @@ import type { ActionLogEntry } from '../mock/mockData';
 import { formatTimestamp } from '../lib/formatters';
 
 const DECISION_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  approved: { bg: 'bg-green-100', text: 'text-green-800', label: 'APPROVED' },
-  rejected: { bg: 'bg-red-100', text: 'text-red-800', label: 'REJECTED' },
-  pending_approval: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'PENDING' },
+  approved: { bg: 'bg-accent/15', text: 'text-accent-strong', label: 'APPROVED' },
+  rejected: { bg: 'bg-primary/15', text: 'text-primary-strong', label: 'REJECTED' },
+  pending_approval: { bg: 'bg-synthetic', text: 'text-warning', label: 'PENDING' },
 };
 
 export function ActionLog() {

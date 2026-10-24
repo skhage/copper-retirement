@@ -11,7 +11,8 @@
  */
 
 // --- Feature flag: set to false to use live SQL queries ---
-export const USE_MOCK_DATA = true;
+// Toggle: true = mock fixtures (offline dev), false = live UC queries (demo/prod)
+export const USE_MOCK_DATA = false;
 
 // --- Types ---
 export type Severity = 'critical' | 'major' | 'minor' | 'informational';
@@ -79,19 +80,33 @@ export interface TriageKPIs {
 }
 
 // --- Severity color mapping ---
+// Fill colors come from styles/tokens.css (risk scale / viz palette). FILLS ONLY — never use as text color.
+// Ported from dig-triage (ACC-APP-PORT-TRIAGE): hex values replaced with tokens.
 export const SEVERITY_COLORS: Record<Severity, string> = {
-  critical: '#EB1600',      // Databricks red
-  major: '#FF8C00',         // Orange
-  minor: '#FFD700',         // Gold/yellow
-  informational: '#40d1f5', // Databricks cyan
+  critical: 'rgb(var(--risk-critical))',
+  major: 'rgb(var(--risk-high))',
+  minor: 'rgb(var(--risk-medium))',
+  informational: 'rgb(var(--viz-2))',
 };
 
 export const STATUS_COLORS: Record<IncidentStatus, string> = {
-  open: '#EB1600',
-  in_progress: '#FF8C00',
-  resolved: '#00A972',
-  closed: '#8B8B8B',
+  open: 'rgb(var(--risk-critical))',
+  in_progress: 'rgb(var(--risk-high))',
+  resolved: 'rgb(var(--risk-low))',
+  closed: 'rgb(var(--viz-4))',
 };
+
+export const NEUTRAL_FILL = 'rgb(var(--viz-4))';
+
+/** WCAG-safe badge style: tinted fill + colored left bar, text stays --color-fg (>= 4.5:1). */
+export function badgeStyle(fill: string | undefined) {
+  const c = fill || NEUTRAL_FILL;
+  return {
+    backgroundColor: c.replace(/\)\)$/, ') / 0.15)'),
+    color: 'rgb(var(--color-fg))',
+    boxShadow: `inset 3px 0 0 ${c}`,
+  };
+}
 
 export const SEVERITY_LEVELS: Severity[] = ['critical', 'major', 'minor', 'informational'];
 

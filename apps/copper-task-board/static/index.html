@@ -10,13 +10,14 @@
 
   <style>
     :root{
-      --aubergine:#3f0e40; --aubergine-2:#350d36; --aubergine-hover:rgba(255,255,255,.08);
-      --sidebar-text:#bcabbc; --sidebar-strong:#f7f7f7; --active:#1164a3;
-      --copper:#d4571f; --copper-dark:#b8460f; --green:#007a5a; --green-hover:#148567;
-      --bg:#ffffff; --panel:#ffffff; --rail:#f8f8f8;
-      --border:#e3e1e4; --border-strong:#d0cdd2;
-      --text:#1d1c1d; --muted:#616061; --faint:#8d8d8d;
-      --hover:#f6f6f6; --link:#1264a3;
+      /* Lakelink Fiber brand tokens (BRAND_GUIDE) */
+      --aubergine:#1B3139; --aubergine-2:#162A31; --aubergine-hover:rgba(255,255,255,.08);
+      --sidebar-text:#8EABB8; --sidebar-strong:#F9F7F4; --active:#FF3621;
+      --copper:#FF3621; --copper-dark:#E02E1A; --green:#00A972; --green-hover:#00916A;
+      --bg:#F9F7F4; --panel:#ffffff; --rail:#F0EEEA;
+      --border:#E5E2DD; --border-strong:#D0CDD2;
+      --text:#1B3139; --muted:#6E8898; --faint:#8d8d8d;
+      --hover:#F0EEEA; --link:#FF3621;
       --crit-bg:#fde4e2; --crit-tx:#a12018; --crit-bd:#f3b6b1;
       --high-bg:#fdeddb; --high-tx:#9a5b00; --high-bd:#f2d3a6;
       --med-bg:#e6f2fb; --med-tx:#1264a3; --med-bd:#bcdcf3;
@@ -24,7 +25,7 @@
     }
     *{margin:0;padding:0;box-sizing:border-box}
     html,body{height:100%}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Lato,Roboto,Helvetica,Arial,sans-serif;
+    body{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
       background:var(--bg);color:var(--text);font-size:15px;line-height:1.46;-webkit-font-smoothing:antialiased}
     #root{height:100%}
     button{font-family:inherit}
@@ -39,7 +40,7 @@
     .sidebar{width:270px;flex-shrink:0;background:var(--aubergine);color:var(--sidebar-text);display:flex;flex-direction:column;overflow:hidden}
     .ws-head{padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:default}
     .ws-title{display:flex;align-items:center;gap:9px;min-width:0}
-    .ws-mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--copper),#e8823f);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:.95rem;flex-shrink:0;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+    .ws-mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#FF3621,#FF8C69);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:.95rem;flex-shrink:0;box-shadow:0 1px 2px rgba(0,0,0,.3)}
     .ws-name{color:var(--sidebar-strong);font-weight:800;font-size:1.02rem;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .ws-name .caret{font-size:.7rem;margin-left:4px;color:var(--sidebar-text)}
     .ws-name .subtle{display:block;font-weight:500;font-size:.72rem;color:var(--sidebar-text);letter-spacing:0}
@@ -66,6 +67,7 @@
     .row.active .presence{border-color:var(--active)}
     .presence.on{background:#2bac76}
     .presence.off{background:var(--aubergine);border-color:var(--sidebar-text)}
+    .row.active .presence{border-color:var(--active)}
 
     /* ── Main column ───────────────────────────────────── */
     .main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
@@ -86,10 +88,10 @@
     .clock{font-size:.72rem;color:var(--faint)}
 
     /* filter banner */
-    .filter-banner{display:flex;align-items:center;gap:8px;padding:7px 16px;background:#fff7ed;border-bottom:1px solid #fcd9b6;font-size:.82rem;color:var(--copper-dark)}
+    .filter-banner{display:flex;align-items:center;gap:8px;padding:7px 16px;background:#FFF0ED;border-bottom:1px solid #FFB8A8;font-size:.82rem;color:var(--copper-dark)}
     .filter-banner b{color:var(--text)}
-    .filter-banner button{margin-left:auto;background:none;border:1px solid #f0c48f;color:var(--copper-dark);border-radius:6px;padding:2px 9px;cursor:pointer;font-size:.76rem;font-weight:600}
-    .filter-banner button:hover{background:#fdecd8}
+    .filter-banner button{margin-left:auto;background:none;border:1px solid #FFB8A8;color:var(--copper-dark);border-radius:6px;padding:2px 9px;cursor:pointer;font-size:.76rem;font-weight:600}
+    .filter-banner button:hover{background:#FFE8E3}
 
     /* error toast */
     .toast{margin:10px 16px 0;background:#fde4e2;color:var(--crit-tx);border:1px solid var(--crit-bd);border-radius:8px;padding:9px 12px;font-size:.84rem;display:flex;align-items:center;gap:10px}
@@ -133,8 +135,8 @@
 
     /* ── Pinned AI summary ─────────────────────────────── */
     .pinned{margin:6px 16px 12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-    .pin-head{display:flex;align-items:center;gap:10px;padding:11px 15px;background:linear-gradient(90deg,#fbf0e9,#fdf7f2);border-bottom:1px solid var(--border)}
-    .pin-bot{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--copper),#eb9a5f);display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0}
+    .pin-head{display:flex;align-items:center;gap:10px;padding:11px 15px;background:linear-gradient(90deg,#F0EEEA,#F9F7F4);border-bottom:1px solid var(--border)}
+    .pin-bot{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#FF3621,#FF8C69);display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0}
     .pin-titles{flex:1;min-width:0}
     .pin-name{font-weight:800;font-size:.9rem;display:flex;align-items:center;gap:7px}
     .pin-name .app-badge{font-size:.6rem;font-weight:800;background:var(--norm-bg);color:var(--muted);border-radius:4px;padding:1px 5px;letter-spacing:.03em}
@@ -179,10 +181,10 @@
     .empty .big{font-size:2rem;margin-bottom:8px}
     .empty .t{font-size:1rem;font-weight:700;color:var(--muted);margin-bottom:3px}
     .empty .s{font-size:.85rem}
-    .boot{height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--muted);background:var(--aubergine)}
-    .boot .mark{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--copper),#e8823f);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:1.5rem;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+    .boot{height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--muted);background:#1B3139}
+    .boot .mark{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#FF3621,#FF8C69);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:1.5rem;box-shadow:0 4px 16px rgba(0,0,0,.3)}
     .boot .spinner{width:26px;height:26px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
-    .boot .txt{color:#e9dce9;font-size:.9rem}
+    .boot .txt{color:#F9F7F4;font-size:.9rem}
     @keyframes spin{to{transform:rotate(360deg)}}
 
     /* ── Responsive ────────────────────────────────────── */

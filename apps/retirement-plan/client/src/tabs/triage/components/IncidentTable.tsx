@@ -3,9 +3,11 @@
  * Sortable/filterable table of dig-safe incidents.
  * Includes filter dropdowns for severity, state, and status.
  */
-import { USE_MOCK_DATA, getMockIncidents, getMockStates, SEVERITY_LEVELS, SEVERITY_COLORS, STATUS_COLORS } from '../mock/mockData';
+import { useState, useEffect, useMemo } from 'react';
+import { USE_MOCK_DATA, getMockIncidents, getMockStates, SEVERITY_LEVELS, SEVERITY_COLORS, STATUS_COLORS, badgeStyle } from '../mock/mockData';
 import type { Incident } from '../mock/mockData';
 import type { TriageFilters } from '../App';
+import { fetchIncidents } from '../lib/triageApi';
 import {
   formatCurrency,
   formatHours,
@@ -21,9 +23,39 @@ interface IncidentTableProps {
 }
 
 export function IncidentTable({ filters, onFilterChange, onIncidentSelect }: IncidentTableProps) {
-  const incidents = USE_MOCK_DATA
-    ? getMockIncidents(filters)
-    : []; // TODO: fetch from SQL query
+  const [allIncidents, setAllIncidents] = useState<Incident[]>(
+    USE_MOCK_DATA ? getMockIncidents() : []
+  );
+  const [isLoading, setIsLoading] = useState(!USE_MOCK_DATA);
+
+  useEffect(() => {
+    if (USE_MOCK_DATA) return;
+    setIsLoading(true);
+    fetchIncidents(200)
+      .then((data) => {
+        setAllIncidents(data as unknown as Incident[]);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.warn('[IncidentTable] Live fetch failed, falling back to mock:', err);
+        setAllIncidents(getMockIncidents());
+        setIsLoading(false);
+      });
+  }, []);
+
+  // Derive available states from live data
+  const stateOptions = useMemo(
+    () => USE_MOCK_DATA ? getMockStates() : [...new Set(allIncidents.map((i) => i.state))].sort(),
+    [allIncidents]
+  );
+
+  // Client-side filtering
+  const incidents = allIncidents.filter((inc) => {
+    if (filters.severity && filters.severity !== 'all' && inc.severity !== filters.severity) return false;
+    if (filters.state && filters.state !== 'all' && inc.state !== filters.state) return false;
+    if (filters.status && filters.status !== 'all' && inc.status !== filters.status) return false;
+    return true;
+  });
 
   return (
     <div className="bg-card rounded-lg border shadow-sm">
@@ -35,7 +67,7 @@ export function IncidentTable({ filters, onFilterChange, onIncidentSelect }: Inc
             value={filters.severity}
             onChange={(e) => onFilterChange({ ...filters, severity: e.target.value })}
             aria-label="Filter by severity"
-            className="border rounded px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
+            className="border rounded px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             <option value="all">All</option>
             {SEVERITY_LEVELS.map((s) => (
@@ -49,10 +81,10 @@ export function IncidentTable({ filters, onFilterChange, onIncidentSelect }: Inc
             value={filters.state}
             onChange={(e) => onFilterChange({ ...filters, state: e.target.value })}
             aria-label="Filter by state"
-            className="border rounded px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
+            className="border rounded px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             <option value="all">All</option>
-            {getMockStates().map((s) => (
+            {stateOptions.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
@@ -63,7 +95,7 @@ export function IncidentTable({ filters, onFilterChange, onIncidentSelect }: Inc
             value={filters.status}
             onChange={(e) => onFilterChange({ ...filters, status: e.target.value })}
             aria-label="Filter by status"
-            className="border rounded px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
+            className="border rounded px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             <option value="all">All</option>
             <option value="open">Open</option>
@@ -73,7 +105,10 @@ export function IncidentTable({ filters, onFilterChange, onIncidentSelect }: Inc
           </select>
         </div>
         <span className="text-xs text-muted-foreground ml-auto">
-          {incidents.length} incidents
+          {isLoading ? 'Loading live data...' : `${incidents.length} incidents`}
+          {!USE_MOCK_DATA && !isLoading && (
+            <span className="ml-1 text-accent-strong">● LIVE</span>
+          )}
         </span>
       </div>
 
@@ -110,10 +145,7 @@ export function IncidentTable({ filters, onFilterChange, onIncidentSelect }: Inc
                 <td className="px-3 py-2">
                   <span
                     className="text-xs font-bold px-2 py-0.5 rounded"
-                    style={{
-                      backgroundColor: SEVERITY_COLORS[inc.severity] + '20',
-                      color: SEVERITY_COLORS[inc.severity],
-                    }}
+                    style={badgeStyle(SEVERITY_COLORS[inc.severity])}
                   >
                     {severityLabel(inc.severity)}
                   </span>
@@ -127,10 +159,7 @@ export function IncidentTable({ filters, onFilterChange, onIncidentSelect }: Inc
                 <td className="px-3 py-2">
                   <span
                     className="text-xs px-2 py-0.5 rounded"
-                    style={{
-                      backgroundColor: STATUS_COLORS[inc.status] + '20',
-                      color: STATUS_COLORS[inc.status],
-                    }}
+                    style={badgeStyle(STATUS_COLORS[inc.status])}
                   >
                     {inc.status.replace('_', ' ')}
                   </span>

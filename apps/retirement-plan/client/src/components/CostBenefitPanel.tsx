@@ -27,7 +27,7 @@ export function CostBenefitPanel({ wireCenter, onClose }: Props) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold">{wc.wire_center_name}</h3>
-          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+          <span className="text-xs bg-primary/10 text-primary-strong px-2 py-0.5 rounded">
             Wave {wc.wave}
           </span>
           <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">
@@ -38,7 +38,7 @@ export function CostBenefitPanel({ wireCenter, onClose }: Props) {
         <button
           onClick={onClose}
           aria-label="Close detail panel"
-          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none rounded"
+          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none rounded"
         >
           <X size={14} strokeWidth={1.5} /> Close
         </button>
@@ -48,25 +48,25 @@ export function CostBenefitPanel({ wireCenter, onClose }: Props) {
       <div className="grid grid-cols-4 gap-4 mb-4">
         <div className="rounded border p-3">
           <p className="text-xs text-muted-foreground">Migration Cost</p>
-          <p className="text-lg font-bold text-red-600">
+          <p className="text-lg font-bold text-danger">
             {formatCurrency(wc.migration_cost_usd)}
           </p>
         </div>
         <div className="rounded border p-3">
           <p className="text-xs text-muted-foreground">Revenue at Risk (MRR)</p>
-          <p className="text-lg font-bold text-amber-600">
+          <p className="text-lg font-bold text-warning">
             {formatCurrency(wc.revenue_at_risk_mrr)}
           </p>
         </div>
         <div className="rounded border p-3">
           <p className="text-xs text-muted-foreground">Scrap Recovery</p>
-          <p className="text-lg font-bold text-green-600">
+          <p className="text-lg font-bold text-success">
             {formatCurrency(wc.scrap_recovery_usd)}
           </p>
         </div>
         <div className="rounded border p-3">
           <p className="text-xs text-muted-foreground">Net Annual Savings</p>
-          <p className="text-lg font-bold text-accent">
+          <p className="text-lg font-bold text-accent-strong">
             {formatCurrency(wc.net_savings_usd)}
           </p>
         </div>
@@ -116,11 +116,11 @@ export function CostBenefitPanel({ wireCenter, onClose }: Props) {
                 <span
                   className={`w-2 h-2 rounded-full ${
                     m.status === 'achieved'
-                      ? 'bg-green-500'
+                      ? 'bg-viz-3'
                       : m.status === 'in_progress'
-                      ? 'bg-amber-500'
+                      ? 'bg-viz-5'
                       : m.status === 'at_risk'
-                      ? 'bg-red-500'
+                      ? 'bg-viz-1'
                       : 'bg-muted'
                   }`}
                 />

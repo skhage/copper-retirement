@@ -1,6 +1,6 @@
-# app.yaml — Retirement Plan Tracker (P7-PLAN)
+# app.yaml — Copper Retirement Accelerator (unified partner-facing app; evolved from retirement-plan)
+# DEC-ACCEL-UNIFIED-APP: tabs Map & Risk | Plan | Dig Triage | Regulatory | Commodity & Value
 # Databricks Apps deployment config
-# Scaffold: analytics + lakebase (read gold tables + write plan edits)
 
 command:
   - sh
@@ -9,11 +9,10 @@ command:
 
 name: retirement-plan
 description: |
-  Retirement plan tracker for LakeLink Fiber's copper retirement program.
-  Demo Beat 2: "Capital-efficient plan to zero copper?"
-  Gantt/timeline visualization with wave sequencing, cost/benefit analysis,
-  constraint flags, and Lakebase write-back for plan edits.
-  All data is SYNTHETIC.
+  Copper Retirement Solution Accelerator (partner-facing). One app, five tabs:
+  Map & Risk, Plan (wave Gantt, migration table, budget, checklist, scenarios),
+  Dig Triage, Regulatory (every answer cites an official source URL), Commodity & Value.
+  Network/customer data is SYNTHETIC and labeled in the UI.
 
 # Governance tags — applied to the Databricks App resource on deploy
 # DAB bundle equivalent (bundle/databricks.yml):
@@ -21,10 +20,10 @@ description: |
 #     apps:
 #       retirement-plan:
 #         tags:
-#           project: copper-retirement
+#           telco_project: copper-retirement
 #           developer: copper-app
 tags:
-  project: copper-retirement
+  telco_project: copper-retirement   # directive 6: governed tag key telco_project (old `project` deprecated)
   developer: copper-app
 
 resources:
@@ -44,5 +43,12 @@ env:
     description: Workspace URL
   - name: DATABRICKS_WAREHOUSE_ID
     description: SQL warehouse ID for analytics queries
+  # Data location (partner override: edit these values to match --var catalog_name/schema_name)
+  - name: CATALOG
+    value: cdm_tmforum
+  - name: SCHEMA
+    value: copper_retirement
+  - name: DIG_811_TABLE
+    value: cdm_tmforum.provable_resilience_intelligence.stg_811_dig_ticket
   # - name: LAKEBASE_CONNECTION_STRING
   #   description: Lakebase Postgres connection for plan write-back (P5-SCHEMA)

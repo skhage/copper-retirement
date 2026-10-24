@@ -169,7 +169,7 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
               <div
                 className={`inline-block max-w-[95%] rounded-lg px-3 py-2 text-sm ${
                   msg.role === 'user'
-                    ? 'bg-[#1B3139] text-white'
+                    ? 'bg-secondary text-secondary-foreground'
                     : 'bg-muted'
                 }`}
               >
@@ -193,11 +193,11 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
                     className="mt-2 p-2 rounded bg-background border text-foreground"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase" style={{
-                        color: action.priority === 'critical' ? '#EB1600'
-                          : action.priority === 'high' ? '#FF8C00'
-                          : '#6E8898',
-                      }}>
+                      <span className={`text-xs font-semibold uppercase ${
+                        action.priority === 'critical' ? 'text-danger'
+                          : action.priority === 'high' ? 'text-warning'
+                          : 'text-muted-foreground'
+                      }`}>
                         {action.type} — {action.priority}
                       </span>
                       <span className="text-xs text-muted-foreground">
@@ -213,14 +213,14 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
                         <button
                           onClick={() => handleActionDecision(action, 'approved')}
                           aria-label={`Approve action: ${action.type}`}
-                          className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:outline-none"
+                          className="px-3 py-1 text-xs bg-accent-strong text-accent-foreground rounded hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
                         >
                           Approve
                         </button>
                         <button
                           onClick={() => handleActionDecision(action, 'rejected')}
                           aria-label={`Reject action: ${action.type}`}
-                          className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:outline-none"
+                          className="px-3 py-1 text-xs bg-primary-strong text-primary-foreground rounded hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
                         >
                           Reject
                         </button>
@@ -228,8 +228,8 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
                     ) : (
                       <span className={`inline-block mt-2 text-xs px-2 py-0.5 rounded ${
                         action.status === 'approved'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
+                          ? 'bg-accent/15 text-accent-strong'
+                          : 'bg-primary/15 text-primary-strong'
                       }`}>
                         {action.status.toUpperCase()}
                       </span>
@@ -262,14 +262,14 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Ask the triage agent..."
             aria-label="Message for triage agent"
-            className="flex-1 border rounded px-3 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none"
+            className="flex-1 border rounded px-3 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             disabled={!selectedIncident}
           />
           <button
             onClick={handleSend}
             disabled={!selectedIncident || !inputValue.trim()}
             aria-label="Send message"
-            className="px-4 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:ring-offset-2 focus-visible:outline-none"
+            className="px-4 py-1.5 text-sm bg-primary-strong text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             Send
           </button>

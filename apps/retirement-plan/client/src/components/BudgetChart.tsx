@@ -9,10 +9,11 @@ import { fetchLiveBudget } from '../lib/planApi';
 import { formatCurrency, formatCount, formatPercent } from '../lib/formatters';
 import type { BudgetRow } from '../lib/planApi';
 
-// Brand-aligned wave colors
+// Wave fills from tokens.css data-viz palette (fill only, never text).
+// Waves 6-8 reuse viz-1..3 at the strong variants to stay within the token set.
 const WAVE_COLORS = [
-  '#FF3621', '#1B3139', '#00A972', '#6E8898',
-  '#FF8C69', '#4A7C6F', '#C42D1A', '#2E4A55',
+  'rgb(var(--viz-1))', 'rgb(var(--viz-2))', 'rgb(var(--viz-3))', 'rgb(var(--viz-4))',
+  'rgb(var(--viz-5))', 'rgb(var(--color-accent-strong))', 'rgb(var(--color-primary-strong))', 'rgb(var(--color-muted-fg))',
 ];
 
 export function BudgetChart() {
@@ -54,12 +55,12 @@ export function BudgetChart() {
           <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>
         )}
         {!isLoading && data && (
-          <span className="text-[10px] bg-[#00A972]/10 text-[#00A972] px-2 py-0.5 rounded font-medium">
+          <span className="text-[10px] bg-accent/10 text-accent-strong px-2 py-0.5 rounded font-medium">
             LIVE — {rows.length} waves
           </span>
         )}
         {!isLoading && !data && (
-          <span className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">
+          <span className="ll-badge-synthetic">
             NO DATA
           </span>
         )}
@@ -69,19 +70,19 @@ export function BudgetChart() {
       <div className="grid grid-cols-4 gap-3 mb-5">
         <div className="rounded border p-2">
           <p className="text-[10px] text-muted-foreground">Total Allocated</p>
-          <p className="text-lg font-bold text-[#1B3139]">{formatCurrency(totalAllocated)}</p>
+          <p className="text-lg font-bold text-secondary">{formatCurrency(totalAllocated)}</p>
         </div>
         <div className="rounded border p-2">
           <p className="text-[10px] text-muted-foreground">Total Spent</p>
-          <p className="text-lg font-bold text-[#FF3621]">{formatCurrency(totalSpent)}</p>
+          <p className="text-lg font-bold text-primary-strong">{formatCurrency(totalSpent)}</p>
         </div>
         <div className="rounded border p-2">
           <p className="text-[10px] text-muted-foreground">Remaining</p>
-          <p className="text-lg font-bold text-[#00A972]">{formatCurrency(totalAllocated - totalSpent)}</p>
+          <p className="text-lg font-bold text-accent-strong">{formatCurrency(totalAllocated - totalSpent)}</p>
         </div>
         <div className="rounded border p-2">
           <p className="text-[10px] text-muted-foreground">Revenue at Risk (Annual)</p>
-          <p className="text-lg font-bold text-[#FF8C69]">{formatCurrency(totalRevAtRisk)}</p>
+          <p className="text-lg font-bold text-warning">{formatCurrency(totalRevAtRisk)}</p>
         </div>
       </div>
 
@@ -163,11 +164,11 @@ export function BudgetChart() {
       {/* Legend */}
       <div className="flex gap-4 mt-4 pt-3 border-t">
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-sm bg-[#FF3621] opacity-90" />
+          <div className="w-3 h-3 rounded-sm bg-viz-1 opacity-90" />
           <span className="text-[10px] text-muted-foreground">Spent</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-sm bg-[#FF3621] opacity-25" />
+          <div className="w-3 h-3 rounded-sm bg-viz-1 opacity-25" />
           <span className="text-[10px] text-muted-foreground">Remaining</span>
         </div>
       </div>

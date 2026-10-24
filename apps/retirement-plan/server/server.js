@@ -21,6 +21,7 @@ import {
   fetchMilestones,
   healthCheck,
 } from './databricksSQL.js';
+import triageRouter from './routes/triage.js'; // ACC-APP-PORT-TRIAGE (ported from dig-triage)
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -241,6 +242,9 @@ app.get('/api/plan/health', async (req, res) => {
     },
   });
 });
+
+// --- Unified accelerator tab routers (DEC-ACCEL-UNIFIED-APP) ---
+app.use('/api/triage', triageRouter);
 
 // SPA fallback
 app.get('*', (req, res) => {

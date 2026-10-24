@@ -9,7 +9,7 @@
  * and reroute suggestions from live UC functions.
  */
 import type { Incident } from '../mock/mockData';
-import { SEVERITY_COLORS, STATUS_COLORS } from '../mock/mockData';
+import { SEVERITY_COLORS, STATUS_COLORS, badgeStyle } from '../mock/mockData';
 import type { IncidentDetail, NearbyIncident, RerouteSuggestion } from '../lib/triageApi';
 import { X, Radio, MapPin, AlertTriangle, ArrowRightLeft } from 'lucide-react';
 import {
@@ -31,10 +31,10 @@ interface IncidentDetailPanelProps {
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
-  P1: '#EB1600',
-  P2: '#FF8C00',
-  P3: '#FFD700',
-  P4: '#40d1f5',
+  P1: 'rgb(var(--risk-critical))',
+  P2: 'rgb(var(--risk-high))',
+  P3: 'rgb(var(--risk-medium))',
+  P4: 'rgb(var(--viz-2))',
 };
 
 export function IncidentDetailPanel({
@@ -52,19 +52,13 @@ export function IncidentDetailPanel({
           <h3 className="text-sm font-bold">{incident.incident_id}</h3>
           <span
             className="text-xs font-bold px-2 py-0.5 rounded"
-            style={{
-              backgroundColor: SEVERITY_COLORS[incident.severity] + '20',
-              color: SEVERITY_COLORS[incident.severity],
-            }}
+            style={badgeStyle(SEVERITY_COLORS[incident.severity])}
           >
             {severityLabel(incident.severity)}
           </span>
           <span
             className="text-xs px-2 py-0.5 rounded"
-            style={{
-              backgroundColor: STATUS_COLORS[incident.status] + '20',
-              color: STATUS_COLORS[incident.status],
-            }}
+            style={badgeStyle(STATUS_COLORS[incident.status])}
           >
             {incident.status.replace('_', ' ').toUpperCase()}
           </span>
@@ -72,10 +66,7 @@ export function IncidentDetailPanel({
           {enrichedData?.triage_priority && (
             <span
               className="text-xs font-bold px-2 py-0.5 rounded"
-              style={{
-                backgroundColor: (PRIORITY_COLORS[enrichedData.triage_priority] || '#6E8898') + '20',
-                color: PRIORITY_COLORS[enrichedData.triage_priority] || '#6E8898',
-              }}
+              style={badgeStyle(PRIORITY_COLORS[enrichedData.triage_priority])}
             >
               {enrichedData.triage_priority}
             </span>
@@ -87,7 +78,7 @@ export function IncidentDetailPanel({
         <button
           onClick={onClose}
           aria-label="Close detail panel"
-          className="text-muted-foreground hover:text-foreground text-lg leading-none focus-visible:ring-2 focus-visible:ring-[#FF3621] focus-visible:outline-none rounded"
+          className="text-muted-foreground hover:text-foreground text-lg leading-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none rounded"
         >
           <X size={18} strokeWidth={1.5} />
         </button>
@@ -117,7 +108,7 @@ export function IncidentDetailPanel({
           {enrichedData?.recommended_action && (
             <div>
               <p className="text-xs text-muted-foreground">Recommended Action</p>
-              <p className="text-sm font-medium text-[#FF3621]">
+              <p className="text-sm font-medium text-primary-strong">
                 {enrichedData.recommended_action.replace(/_/g, ' ')}
               </p>
             </div>
@@ -175,13 +166,13 @@ export function IncidentDetailPanel({
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Service Interruption</p>
-            <p className={`text-sm font-medium ${incident.service_interruption ? 'text-red-600' : 'text-green-600'}`}>
+            <p className={`text-sm font-medium ${incident.service_interruption ? 'text-danger' : 'text-success'}`}>
               {incident.service_interruption ? 'YES' : 'No'}
             </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Reroute Required</p>
-            <p className={`text-sm font-medium ${incident.reroute_required ? 'text-orange-600' : 'text-green-600'}`}>
+            <p className={`text-sm font-medium ${incident.reroute_required ? 'text-warning' : 'text-success'}`}>
               {incident.reroute_required ? 'YES' : 'No'}
             </p>
           </div>
@@ -216,13 +207,13 @@ export function IncidentDetailPanel({
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Contractor at Fault</p>
-            <p className={`text-sm font-medium ${incident.contractor_at_fault ? 'text-red-600' : 'text-muted-foreground'}`}>
+            <p className={`text-sm font-medium ${incident.contractor_at_fault ? 'text-danger' : 'text-muted-foreground'}`}>
               {incident.contractor_at_fault ? 'YES' : 'No'}
             </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">811 One-Call Filed</p>
-            <p className={`text-sm font-medium ${!incident.one_call_ticket_submitted ? 'text-red-600' : 'text-green-600'}`}>
+            <p className={`text-sm font-medium ${!incident.one_call_ticket_submitted ? 'text-danger' : 'text-success'}`}>
               {incident.one_call_ticket_submitted ? 'Yes' : 'NOT FILED'}
             </p>
           </div>
@@ -235,12 +226,12 @@ export function IncidentDetailPanel({
 
       {/* Reroute Suggestion (from UC reroute_suggest function) */}
       {rerouteSuggestion && (
-        <div className="mx-4 mb-4 p-3 rounded-lg border bg-[#F9F7F4]">
+        <div className="mx-4 mb-4 p-3 rounded-lg border bg-background">
           <div className="flex items-center gap-2 mb-2">
-            <ArrowRightLeft size={16} strokeWidth={1.5} className="text-[#FF3621]" />
+            <ArrowRightLeft size={16} strokeWidth={1.5} className="text-primary" aria-hidden="true" />
             <h4 className="text-xs font-semibold uppercase">Reroute Suggestion</h4>
             {rerouteSuggestion.wire_center_fiber_ready === 'true' && (
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">Fiber Ready</span>
+              <span className="text-xs bg-accent/15 text-accent-strong px-2 py-0.5 rounded">Fiber Ready</span>
             )}
           </div>
           <div className="flex gap-6">
@@ -260,7 +251,7 @@ export function IncidentDetailPanel({
       {nearbyIncidents.length > 0 && (
         <div className="mx-4 mb-4">
           <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle size={16} strokeWidth={1.5} className="text-[#FF8C00]" />
+            <AlertTriangle size={16} strokeWidth={1.5} className="text-viz-5" aria-hidden="true" />
             <h4 className="text-xs font-semibold uppercase text-muted-foreground">
               Nearby Incidents ({nearbyIncidents.length} within 50 km)
             </h4>
@@ -271,10 +262,7 @@ export function IncidentDetailPanel({
                 <span className="font-medium">INC-{ni.incident_id}</span>
                 <span
                   className="ml-1 px-1 py-0.5 rounded text-[10px] font-bold"
-                  style={{
-                    backgroundColor: (SEVERITY_COLORS[ni.severity as keyof typeof SEVERITY_COLORS] || '#888') + '20',
-                    color: SEVERITY_COLORS[ni.severity as keyof typeof SEVERITY_COLORS] || '#888',
-                  }}
+                  style={badgeStyle(SEVERITY_COLORS[ni.severity as keyof typeof SEVERITY_COLORS])}
                 >
                   {ni.severity}
                 </span>
