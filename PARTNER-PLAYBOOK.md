@@ -124,18 +124,24 @@ This is the V1 two-app script (copper-map + regulatory-assistant). In R2 it move
 
 ## 6. Deploy and environment baseline (merged from DEMO-ENV-FREEZE-CHECKLIST.md; README.md kept)
 
-Target: one command, `databricks bundle deploy -t <target>` with variables (ACC-DAB-ONE-COMMAND done; validate defects ACC-QA-DEF-DAB-VALIDATE / -PARAMS / -SERVING / -APPS open with @devops). Until those close, a fresh workspace needs the steps below.
+One command (host comes from the partner's CLI profile; nothing workspace-specific is hard-coded in `databricks.yml`):
+
+`databricks bundle deploy -t partner --var warehouse_id=<WAREHOUSE_ID> --var catalog_name=<CATALOG> [--var schema_name=... --var vs_endpoint=... --var vs_index=... --var serving_endpoint=... --var lakebase_project=... --var lakebase_branch=...]`
+
+Run `databricks bundle validate -t partner --var warehouse_id=<WAREHOUSE_ID>` first. `BUNDLE_VAR_<name>` environment variables work instead of `--var`. Targets: `partner` = fresh workspace (also creates the schema); `dev` / `staging` / `prod` = reuse existing catalog + schema. The bundle deploys 1 pipeline, 1 daily refresh job, and 2 apps (unified accelerator + copper-task-board). Validated 2026-10-24 on all 4 targets (@devops).
+
+**Prerequisites the bundle does not create:** the UC catalog (with TMF SID source schemas that the pipeline reads), a SQL warehouse, a Lakebase project, a Vector Search endpoint + index, and the risk serving endpoint (created by the retrain template in `beat1_risk_model_walkthrough`). The Lakebase sync job is disabled until `scripts/sync_gold_to_lakebase.py` lands (ACC-CREATE-LAKEBASE-SYNC-SCRIPT).
 
 | Component | Reference implementation (this workspace) | Partner variable |
 | --- | --- | --- |
-| Catalog / schema | `cdm_tmforum.copper_retirement` | `catalog`, `schema` |
+| Catalog / schema | `cdm_tmforum.copper_retirement` | `catalog_name`, `schema_name` |
 | Pipeline | `copper-retirement-pipeline` (b52532a2-6398-44ed-b239-9e95cafb745c), serverless, 8 MVs: bronze_copper_devices, bronze_copper_services, bronze_dig_safe_incidents, silver_copper_plant_enriched, silver_device_service_impact, gold_wire_center_scorecard, gold_contractor_scorecard, gold_retirement_executive_summary | — |
-| Risk model | `cdm_tmforum.ml_models.copper_retirement_risk` V5 champion (LightGBM, 39 features, AUC 0.986), V4 fallback | `model_name` |
+| Risk model | `cdm_tmforum.ml_models.copper_retirement_risk` V5 champion (LightGBM, 39 features, AUC 0.986), V4 fallback | — (set in retrain notebook) |
 | Serving endpoint | `copper-retirement-risk`, Small, scale-to-zero, inference logging to `risk_model_inference_payload` | `serving_endpoint` |
 | Vector Search | endpoint `demo_telco_vs_endpoint` (STANDARD); index `regulatory_doc_chunks_vs_index` on `regulatory_doc_chunks`, `databricks-gte-large-en`, TRIGGERED sync | `vs_endpoint`, `vs_index` |
-| Lakebase | project `copper-task-board`, branch `production`, schema `copper_app` (app data) | `lakebase_project` |
+| Lakebase | project `copper-task-board`, branch `production`, schema `copper_app` (app data) | `lakebase_project`, `lakebase_branch` |
 | SQL warehouse | Serverless Starter Warehouse 7b65956f30d66feb (backup telco-builders da0dbcd5676d37eb) | `warehouse_id` |
-| Apps (R2 target) | unified accelerator app (evolved `retirement-plan`) + internal `copper-task-board` | `app_name` |
+| Apps (R2 target) | unified accelerator app (evolved `retirement-plan`) + internal `copper-task-board` | — (names suffixed `-<target>`) |
 
 Baseline row counts after a clean build (V1 snapshot, synthetic): bronze_copper_devices 2,672; bronze_copper_services 17,655; silver_copper_plant_enriched 2,672; silver_device_service_impact 440; gold_wire_center_scorecard 103; gold_circuit_revenue_at_risk 14,777; gold_contractor_scorecard 10,000; gold_retirement_executive_summary 6; gold_device_risk_predictions 2,672. Lakebase copper_app: device_risk_map 2,672; wire_center_scorecard 103; wire_center_boundaries 1,699; contractor_scorecard 10,000; retirement_plan 200; retirement_milestones 927; dig_incidents 5,000; jurisdiction_requirements 56; commodity_prices 10,482. `regulatory_doc_chunks` (528) and `copper_app.regulatory_documents` (297) are being replaced with real sources in R1, so their counts will change.
 
