@@ -1,6 +1,7 @@
 # Copper Retirement — Lakebase Sync Job
 # Syncs gold tables from Unity Catalog to Lakebase copper_app schema
-# for operational write-back apps (retirement-plan, dig-triage).
+# for the operational write-back app (unified retirement-plan accelerator app;
+# dig-triage retired 2026-10-24 and merged into its Dig Triage tab).
 # Schedule: daily after pipeline refresh (8 AM ET).
 # Per CEO TAG RENAME directive: use telco_project (not project).
 #
