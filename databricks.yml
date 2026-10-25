@@ -3,7 +3,7 @@
 # ONE-COMMAND DEPLOY (any workspace; host comes from your CLI profile / env auth):
 #   databricks bundle deploy -t <dev|staging|prod|partner> --var warehouse_id=<WAREHOUSE_ID>
 # Optional overrides: --var catalog_name=... --var schema_name=... --var vs_endpoint=...
-#   --var vs_index=... --var serving_endpoint=... --var lakebase_project=... --var lakebase_branch=...
+#   --var vs_index=... --var serving_endpoint=... --var llm_endpoint=... --var lakebase_project=... --var lakebase_branch=...
 # Or export BUNDLE_VAR_<name>=<value> instead of --var flags.
 #
 # Targets:
@@ -13,19 +13,21 @@
 # a Lakebase project, a Vector Search endpoint, and the risk serving endpoint
 # (created by beat1_risk_model_walkthrough retrain template). See PARTNER-PLAYBOOK.md.
 #
-# Managed resources: 1 pipeline, 1 refresh job, 2 apps (unified accelerator + copper-task-board).
+# Managed resources: 1 pipeline, 1 refresh job, 1 seed job, 2 apps (unified accelerator + copper-task-board).
+# Fresh partner workspace: after deploy, run `databricks bundle run -t partner seed_synthetic_sources_job`
+# to create the SYNTHETIC upstream source tables and build the pipeline (ACC-DE-SEED-JOB).
 
 bundle:
   name: copper_retirement
 
-# Explicit include list: only ACTIVE resources. Retired/inert files in bundle/resources
-# (apps.app.yml, commodity_dashboard/copper_map/regulatory_assistant .app.yml,
-# serving_endpoints.yml, unity_catalog.yml, lakebase_sync.job.yml) are NOT deployed and
-# are pending deletion (ACC-DEVOPS-DELETE-RETIRED-BUNDLE-FILES). dig-triage is fully
-# retired (app deleted, merged into retirement-plan Dig Triage tab; ACC-DEVOPS-RM-DIGTRIAGE-BUNDLE).
+# Explicit include list: only ACTIVE resources. dig-triage and regulatory-assistant are fully
+# retired (apps deleted, merged into retirement-plan tabs; ACC-DEVOPS-RM-DIGTRIAGE-BUNDLE,
+# ACC-DEVOPS-RM-REGASSIST-BUNDLE). Any other file left in bundle/resources that is not listed
+# here is inert and is never deployed.
 include:
   - bundle/resources/copper_retirement_pipeline.pipeline.yml
   - bundle/resources/pipeline_refresh.job.yml
+  - bundle/resources/seed_synthetic_sources.job.yml
   - bundle/resources/retirement_plan.app.yml
   - bundle/resources/copper_task_board.app.yml
 
@@ -47,6 +49,9 @@ variables:
   serving_endpoint:
     description: Model serving endpoint for the copper retirement risk model.
     default: copper-retirement-risk
+  llm_endpoint:
+    description: Foundation model endpoint used by the Regulatory tab for grounded, cited answers (ai_query).
+    default: databricks-claude-sonnet-4-5
   lakebase_project:
     description: Lakebase Postgres project for task board and app write-back data.
     default: copper-task-board

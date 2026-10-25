@@ -39,10 +39,14 @@ features:
 
 # Environment variables (set during deploy)
 env:
-  - name: DATABRICKS_HOST
-    description: Workspace URL
+  # DATABRICKS_HOST and DATABRICKS_CLIENT_ID/SECRET are injected by the Apps runtime (do not override here).
   - name: DATABRICKS_WAREHOUSE_ID
-    description: SQL warehouse ID for analytics queries
+    # Reused existing warehouse "Apps & Agents Warehouse" (group users = CAN_USE, so no permission change).
+    # Partner/DAB deploys do NOT read this value: bundle/resources/retirement_plan.app.yml `config`
+    # supersedes this file and sets DATABRICKS_WAREHOUSE_ID via value_from: sql-warehouse (= --var warehouse_id).
+    # This literal is kept only for manual `databricks apps deploy` of the live reference app, which has
+    # no sql-warehouse resource attached yet (attaching it is ACC-DEVOPS-APP-WH-RESOURCE).
+    value: 9cd919d96b11bf1c
   # Data location (partner override: edit these values to match --var catalog_name/schema_name)
   - name: CATALOG
     value: cdm_tmforum
@@ -50,5 +54,8 @@ env:
     value: copper_retirement
   - name: DIG_811_TABLE
     value: cdm_tmforum.provable_resilience_intelligence.stg_811_dig_ticket
+  # Regulatory tab grounded answers (pay-per-token via ai_query; Llama guardrail rejects statute text)
+  - name: LLM_ENDPOINT
+    value: databricks-claude-sonnet-4-5
   # - name: LAKEBASE_CONNECTION_STRING
   #   description: Lakebase Postgres connection for plan write-back (P5-SCHEMA)

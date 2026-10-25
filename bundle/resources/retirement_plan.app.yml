@@ -3,7 +3,8 @@
 #   Map/Risk | Plan | Dig Triage | Regulatory | Commodity
 # Per DEC-ACCEL-UNIFIED-APP: commodity-dashboard, copper-map, dig-triage,
 # and regulatory-assistant are merged here as tabs. Source app .yml files retired.
-# App environment variables are defined in the app's own app.yaml.
+# Under the bundle, `config` below supersedes apps/retirement-plan/app.yaml; every
+# infra name (warehouse, catalog, schema, LLM endpoint) is a bundle variable.
 
 resources:
   apps:
@@ -16,6 +17,21 @@ resources:
         (RAG assistant), Commodity (LME prices, EBITDA).
         Lakelink Fiber brand. WCAG AA.
       source_code_path: ../../apps/retirement-plan
+      # ACC-QA-DEF-APP-CATALOG: bundle vars flow into the app env (overrides app.yaml env), so
+      # `bundle deploy -t partner --var catalog_name=acme_cat` points every tab at the partner catalog.
+      config:
+        command: ['sh', '-c', 'npm install && npm run build && npm start']
+        env:
+          - name: DATABRICKS_WAREHOUSE_ID
+            value_from: sql-warehouse
+          - name: CATALOG
+            value: ${var.catalog_name}
+          - name: SCHEMA
+            value: ${var.schema_name}
+          - name: DIG_811_TABLE
+            value: ${var.catalog_name}.provable_resilience_intelligence.stg_811_dig_ticket
+          - name: LLM_ENDPOINT
+            value: ${var.llm_endpoint}
       resources:
         - name: sql-warehouse
           description: SQL warehouse for analytics queries (--var warehouse_id)
