@@ -72,6 +72,9 @@ REG_COLUMNS = ["chunk_id", "source_id", "title", "citation", "jurisdiction", "so
 # Official-source allowlist = register (every citation must resolve to one of these URLs)
 _REGISTER = {r.source_id: r.asDict() for r in spark.table(f"{CATALOG}.{SCHEMA}.regulatory_source_register").collect()}
 OFFICIAL_URLS = {v["official_url"].rstrip("/"): v for v in _REGISTER.values() if v.get("official_url")}
+# Also allow chunk-level official URLs (sub-section pages downloaded for a registered source), mapped to that register row
+for _r in spark.sql(f"SELECT DISTINCT source_id, source_url FROM {CATALOG}.{SCHEMA}.regulatory_doc_chunks WHERE is_synthetic = false AND source_url IS NOT NULL").collect():
+    if _r.source_id in _REGISTER: OFFICIAL_URLS.setdefault(_r.source_url.rstrip("/"), _REGISTER[_r.source_id])
 
 # Delta fallback retriever over REAL chunks only (used until the VS index is re-synced with real docs)
 _REAL = spark.sql(f"""SELECT {', '.join(REG_COLUMNS)} FROM {CATALOG}.{SCHEMA}.regulatory_doc_chunks
@@ -88,6 +91,15 @@ def _retrieve_delta(query, top_k=REG_TOP_K, jurisdiction=None):
     df = df.groupby("source_id", sort=False).head(2).head(top_k)   # source diversity
     return df.to_dict("records")
 
+def _retrieve_tvf(query, top_k=REG_TOP_K, jurisdiction=None):
+    """UC TVF search_regulatory_chunks: bge-large cosine over real chunks (ACC-REG-DL-ALT-1024). Used until the VS index is recreated."""
+    df = spark.sql(f"SELECT * FROM {CATALOG}.{SCHEMA}.search_regulatory_chunks(:q, :k)", args={"q": query, "k": top_k * 5}).toPandas()
+    df = df.rename(columns={"chunk_text": "embedding_text"})
+    if jurisdiction:
+        df = df[df["jurisdiction"].isin([jurisdiction, "US"])]
+    df = df.sort_values("score", ascending=False).groupby("source_id", sort=False).head(2).head(top_k)
+    return df.to_dict("records")
+
 def _retrieve_vs(query, top_k=REG_TOP_K, jurisdiction=None):
     filt = {"is_synthetic": False}
     if jurisdiction: filt["jurisdiction"] = [jurisdiction, "US"]
@@ -97,12 +109,17 @@ def _retrieve_vs(query, top_k=REG_TOP_K, jurisdiction=None):
     return [dict(zip(cols, row)) for row in (r.result.data_array or [])]
 
 def retrieve_regulatory_chunks(query, top_k=REG_TOP_K, jurisdiction=None):
-    """VS first (real chunks only); falls back to Delta TF-IDF when VS has no real, URL-bearing chunks."""
+    """VS first (real chunks only) -> UC TVF (bge-large over real chunks) -> Delta TF-IDF fallback."""
     try:
         hits = [h for h in _retrieve_vs(query, top_k, jurisdiction) if h.get("source_url")]
         if hits: return hits, "vector_search"
     except Exception:
-        pass   # index not yet re-synced with is_synthetic/source_url columns (ACC-REG-VS-RESYNC)
+        pass   # index not yet recreated with is_synthetic/source_url columns (ACC-VS-INDEX-RECREATE / ACC-REG-VS-RESYNC)
+    try:
+        hits = _retrieve_tvf(query, top_k, jurisdiction)
+        if hits: return hits, "uc_tvf_bge"
+    except Exception:
+        pass
     return _retrieve_delta(query, top_k, jurisdiction), "delta_tfidf_fallback"
 
 def format_context(chunks):
@@ -991,10 +1008,12 @@ print("Usage: evaluate_gate(results, 'triage'), print_gate_report([...])")
 # DBTITLE 1,Part 4: Regulatory RAG Eval (real sources)
 # MAGIC %md
 # MAGIC ## Part 4: Regulatory RAG Eval (real sources)
-# MAGIC Merged from `P6_regulatory_rag_chain` (ACC-REG-RAG-EVAL). Eval set: `reg_rag_eval_dataset` v3 (38 questions: FCC 12, 811/one-call 12, state PUC 6, OSHA 3, ROW 3, EPA 1, multi-jurisdiction 1; 30 answerable + 8 flag-gap).
+# MAGIC Merged from `P6_regulatory_rag_chain` (ACC-REG-RAG-EVAL). Eval set: `reg_rag_eval_dataset` v3 (38 questions: FCC 12, 811/one-call 12, state PUC 6, OSHA 3, ROW 3, EPA 1, multi-jurisdiction 1; 37 answerable + 1 flag-gap since 2026-10-25; 7 former parse/corpus gaps were flipped to answerable after ACC-REG-DL-ALT-1024 re-chunked them).
 # MAGIC
 # MAGIC * Expected citations come from `regulatory_source_register.official_url`. Expected facts are regexes checked against the real chunk text.
-# MAGIC * **Flag-gap questions** cover sources that are registered but not indexed (WA UTC, WA 811, AZ ACC) or indexed with incomplete parsed text (AZ hand-dig zone, ID 811, OSHA Subpart P, ID PUC Rule 311). The chain must answer `INSUFFICIENT SOURCES` and must not answer from memory.
+# MAGIC * **Flag-gap question** (REG-V3-37, AZ ACC R14-2-1107) covers a source that is registered but not indexed. The chain must answer `INSUFFICIENT SOURCES` and must not answer from memory.
+# MAGIC * **Retrieval chain:** VS index -> UC TVF `search_regulatory_chunks` (bge-large, 1,598 real chunks) -> Delta TF-IDF. Citation allowlist = register `official_url` + chunk-level official `source_url` of registered sources.
+# MAGIC * **Runs 2026-10-25 (ACC-ML-REG-EVAL-DELTA-SEARCH):** TVF on old labels 26/38 -> TVF on new labels 30/38. TF-IDF on new labels 31/38, hybrid RRF 30/38 (one uncited answer). Citation URL validity, jurisdiction correctness and gap abstention were 100% for TVF and TF-IDF. The remaining failures come from the generator (over-abstaining, plus one unsupported 47 CFR 51.333 cite), not from retrieval.
 # MAGIC * **Gate:** overall pass >= 80%, citation URL validity = 100%, jurisdiction correctness = 100%, flag-gap abstention = 100%. An answer with no citation fails.
 
 # COMMAND ----------
@@ -1079,7 +1098,7 @@ REG_RESULTS_TABLE = f"{CATALOG}.{SCHEMA}.reg_rag_eval_results"
 reg_eval_df = spark.table(REG_EVAL_TABLE).where("eval_version = 'v3_real_sources'").toPandas()
 R = pd.DataFrame(run_reg_rag_eval(reg_eval_df))
 run_ts = datetime.datetime.now(datetime.timezone.utc)
-R["run_id"] = "reg-rag-v3-" + run_ts.strftime("%Y%m%dT%H%M"); R["run_ts"] = run_ts
+R["run_id"] = f"reg-rag-v3-{R.retrieval_mode.iloc[0]}-" + run_ts.strftime("%Y%m%dT%H%M"); R["run_ts"] = run_ts
 R["generator"] = REG_LLM_ENDPOINT; R["judge"] = JUDGE_ENDPOINT
 for c in ["expected_citation", "jurisdiction_correct", "facts_correct"]: R[c] = R[c].astype("boolean")
 spark.createDataFrame(R).write.mode("append").option("mergeSchema", "true").saveAsTable(REG_RESULTS_TABLE)
