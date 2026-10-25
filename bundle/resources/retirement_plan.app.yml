@@ -32,9 +32,19 @@ resources:
             value: ${var.catalog_name}.provable_resilience_intelligence.stg_811_dig_ticket
           - name: LLM_ENDPOINT
             value: ${var.llm_endpoint}
+          - name: SERVING_ENDPOINT
+            value: ${var.serving_endpoint}
+      # ACC-DEVOPS-BUNDLE-SP-GRANTS: app resources auto-grant the app service principal on deploy.
+      # UC data grants (schema USE_SCHEMA/SELECT/EXECUTE) are declared on the partner-target schema
+      # in databricks.yml; catalog USE_CATALOG is a documented post-deploy step (PARTNER-PLAYBOOK §6a).
       resources:
         - name: sql-warehouse
           description: SQL warehouse for analytics queries (--var warehouse_id)
           sql_warehouse:
             id: ${var.warehouse_id}
             permission: CAN_USE
+        - name: llm-endpoint
+          description: Foundation model endpoint the Regulatory tab calls through ai_query (--var llm_endpoint)
+          serving_endpoint:
+            name: ${var.llm_endpoint}
+            permission: CAN_QUERY

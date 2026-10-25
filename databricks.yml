@@ -16,6 +16,13 @@
 # Managed resources: 1 pipeline, 1 refresh job, 1 seed job, 2 apps (unified accelerator + copper-task-board).
 # Fresh partner workspace: after deploy, run `databricks bundle run -t partner seed_synthetic_sources_job`
 # to create the SYNTHETIC upstream source tables and build the pipeline (ACC-DE-SEED-JOB).
+#
+# POST-DEPLOY GRANTS (catalog owner, once per workspace; ACC-DEVOPS-BUNDLE-SP-GRANTS):
+#   SP=$(databricks apps get retirement-plan-<target> --output json | jq -r .service_principal_client_id)
+#   GRANT USE CATALOG ON CATALOG <catalog_name> TO `<SP>`;
+#   GRANT USE SCHEMA, SELECT ON SCHEMA <catalog_name>.provable_resilience_intelligence TO `<SP>`;
+# The partner target grants USE_SCHEMA/SELECT/EXECUTE on <catalog_name>.<schema_name> itself.
+# dev/staging/prod reuse a pre-existing schema, so apply the same schema GRANT manually there.
 
 bundle:
   name: copper_retirement
@@ -85,3 +92,13 @@ targets:
           comment: >-
             Copper Retirement Solution Accelerator: pipeline, gold, regulatory source
             and partner value tables. Network/customer data is SYNTHETIC.
+          # ACC-DEVOPS-BUNDLE-SP-GRANTS: grant both app service principals read access on deploy,
+          # so a fresh partner deploy needs no manual schema GRANTs. EXECUTE covers the Dig Triage
+          # UC functions. Catalog USE_CATALOG (and USE_SCHEMA/SELECT on the seeded
+          # provable_resilience_intelligence schema) stay a post-deploy step because the catalog is
+          # a prerequisite, not a bundle resource; see POST-DEPLOY GRANTS in the header.
+          grants:
+            - principal: ${resources.apps.retirement_plan.service_principal_client_id}
+              privileges: [USE_SCHEMA, SELECT, EXECUTE]
+            - principal: ${resources.apps.copper_task_board.service_principal_client_id}
+              privileges: [USE_SCHEMA, SELECT]
