@@ -176,6 +176,40 @@ print(f"Feature DataFrame: {features_df.count()} rows, {len(features_df.columns)
 
 # COMMAND ----------
 
+# DBTITLE 1,Materialize copper_risk_features (partner retrain feature table)
+# ACC-DE-RISK-FEATURE-TABLE: persist the 39-feature contract + label + fairness slices as
+# <catalog>.<schema>.copper_risk_features (default feature_table of the partner retrain template).
+# SYNTHETIC DATA. INSERT OVERWRITE keeps the table's column comments and telco_project tag.
+seg = spark.sql(f"""
+  SELECT physical_device_id, max_by(customer_segment, n) AS customer_segment FROM (
+    SELECT physical_device_id, customer_segment, count(*) n
+    FROM {CATALOG}.{SCHEMA}.silver_device_service_impact
+    WHERE customer_segment IS NOT NULL GROUP BY 1, 2) GROUP BY 1""")
+st = spark.table(f"{CATALOG}.{SCHEMA}.silver_copper_plant_enriched").groupBy("physical_device_id").agg(F.first("state_code").alias("state_code"))
+region_expr = (
+    F.when(F.col("state_code").isin("WA","OR","ID","MT","WY","CO","UT","NV","CA","AK","HI"), "West")
+     .when(F.col("state_code").isin("AZ","NM","TX","OK"), "Southwest")
+     .when(F.col("state_code").isin("MN","WI","MI","IA","MO","IL","IN","OH","ND","SD","NE","KS"), "Midwest")
+     .when(F.col("state_code").isin("ME","NH","VT","MA","RI","CT","NY","NJ","PA","DE","MD","DC"), "Northeast")
+     .when(F.col("state_code").isNotNull(), "Southeast").otherwise("unknown"))
+risk_features = (
+    features_df.join(seg, "physical_device_id", "left").join(st, "physical_device_id", "left")
+    .withColumn("region", region_expr)
+    .withColumn("customer_segment", F.coalesce("customer_segment", F.lit("unknown")))
+    .select("physical_device_id", *[F.col(c).cast("double") for c in FEATURE_COLS], "risk_tier", "device_type", "region", "customer_segment")
+)
+FEATURE_TABLE = f"{CATALOG}.{SCHEMA}.copper_risk_features"
+risk_features.createOrReplaceTempView("_risk_features")
+if spark.catalog.tableExists(FEATURE_TABLE):
+    spark.sql(f"INSERT OVERWRITE {FEATURE_TABLE} SELECT * FROM _risk_features")
+else:
+    risk_features.write.saveAsTable(FEATURE_TABLE)
+    spark.sql(f"ALTER TABLE {FEATURE_TABLE} SET TAGS ('telco_project'='copper-retirement')")
+    spark.sql(f"COMMENT ON TABLE {FEATURE_TABLE} IS 'SYNTHETIC DEMO DATA. 39-feature risk model contract + risk_tier label + fairness slices (device_type, region, customer_segment).'")
+print(f"{FEATURE_TABLE}: {spark.table(FEATURE_TABLE).count()} rows")
+
+# COMMAND ----------
+
 # DBTITLE 1,Build predictions output table
 # Map predicted class index back to risk tier label
 risk_tier_udf = F.udf(lambda idx: RISK_TIERS[idx] if idx is not None and 0 <= idx < len(RISK_TIERS) else None)
