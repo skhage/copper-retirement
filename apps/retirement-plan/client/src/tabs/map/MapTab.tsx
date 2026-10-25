@@ -15,6 +15,7 @@ interface Kpis {
   footprint_devices: number; wire_centers: number; customers_affected: number; fiber_ready_pct: number;
   footprint_critical: number; footprint_high: number; footprint_states: number; scored_devices: number;
   scored_critical: number; scored_high: number; model_version: string | null; footprint: string[];
+  serving_endpoint: string | null; // ACC-APP-SERVING-ENDPOINT-VAR: from server env SERVING_ENDPOINT
 }
 interface Device { id: string; type: string; status: string; tier: Tier; confidence: number | null; state: string; lat: number | null; lon: number | null }
 interface WireCenter {
@@ -30,6 +31,26 @@ const TIER_FILL: Record<Tier, string> = {
   critical: 'rgb(var(--risk-critical))', high: 'rgb(var(--risk-high))', medium: 'rgb(var(--risk-medium))', low: 'rgb(var(--risk-low))',
 };
 const TIER_LABEL: Record<Tier, string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' };
+const TIER_SHAPE: Record<Tier, string> = { critical: 'large circle', high: 'triangle', medium: 'small circle', low: 'small square' };
+
+/** Tier marker with a NON-COLOR cue per tier (WCAG 1.4.1, ACC-DES-DEF-MAP-RISK-CONTRAST):
+ *  critical = large circle + 1px navy stroke, high = triangle, medium = small circle, low = small square. */
+function TierMarker({ tier, x, y, scale = 1, selected = false, opacity = 1 }: { tier: Tier; x: number; y: number; scale?: number; selected?: boolean; opacity?: number }) {
+  const style = {
+    fill: TIER_FILL[tier], stroke: 'rgb(var(--color-secondary))', opacity,
+    strokeWidth: selected ? 2 : tier === 'critical' ? 1 : 0.4,
+  };
+  const r = (selected ? 6 : tier === 'critical' ? 4 : 2.75) * scale;
+  if (tier === 'high') {
+    const s = (selected ? 7 : 3.75) * scale;
+    return <polygon points={`${x},${y - s} ${x + s},${y + s * 0.8} ${x - s},${y + s * 0.8}`} style={style} />;
+  }
+  if (tier === 'low') {
+    const s = (selected ? 5.5 : 2.4) * scale;
+    return <rect x={x - s} y={y - s} width={2 * s} height={2 * s} style={style} />;
+  }
+  return <circle cx={x} cy={y} r={r} style={style} />;
+}
 const fmt = (n: number | null | undefined) => (n == null ? '—' : n.toLocaleString('en-US'));
 
 // Equirectangular projection over the lower 48 (AK/HI devices stay in the tables, not plotted).
@@ -64,8 +85,8 @@ function Legend() {
     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground" aria-label="Map legend">
       {TIERS.map((t) => (
         <span key={t} className="inline-flex items-center gap-1">
-          <svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" style={{ fill: TIER_FILL[t], stroke: 'rgb(var(--color-secondary))', strokeWidth: 0.5 }} /></svg>
-          {TIER_LABEL[t]} risk device
+          <svg width="14" height="14" aria-hidden="true"><TierMarker tier={t} x={7} y={7} scale={1.4} /></svg>
+          {TIER_LABEL[t]} risk device ({TIER_SHAPE[t]})
         </span>
       ))}
       <span className="inline-flex items-center gap-1">
@@ -86,19 +107,20 @@ function RiskMap({ devices, wcs, selected, onSelect }: { devices: Device[]; wcs:
   for (let lat = 25; lat <= 45; lat += 5) grid.push(<line key={`la${lat}`} y1={py(lat)} y2={py(lat)} x1={PAD} x2={W - PAD} />);
   return (
     <figure className="rounded-lg border border-border bg-card p-2">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img"
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="group" /* not role=img: it would hide the focusable wire-center buttons from AT */
         aria-label={`Map of ${plotted.length} model-scored copper devices and ${wcPlotted.length} wire centers across the lower 48 states, colored by predicted risk tier`}>
         <rect x="0" y="0" width={W} height={H} style={{ fill: 'rgb(var(--color-bg))' }} />
         <g style={{ stroke: 'rgb(var(--color-border))', strokeWidth: 1 }} aria-hidden="true">{grid}</g>
         <g>
           {ordered.map((d) => {
             const isSel = selected?.kind === 'device' && selected.d.id === d.id;
+            // Device dots stay out of the tab order (2,672 of them); keyboard users use the
+            // 'Highest-risk devices' table below (ACC-DES-DEF-MAP-KEYBOARD b).
             return (
-              <circle key={d.id} cx={px(d.lon as number)} cy={py(d.lat as number)} r={isSel ? 6 : d.tier === 'critical' ? 3.5 : 2.5}
-                style={{ fill: TIER_FILL[d.tier], stroke: 'rgb(var(--color-secondary))', strokeWidth: isSel ? 2 : 0.4, cursor: 'pointer', opacity: 0.9 }}
-                onClick={() => onSelect({ kind: 'device', d })}>
+              <g key={d.id} style={{ cursor: 'pointer' }} onClick={() => onSelect({ kind: 'device', d })}>
+                <TierMarker tier={d.tier} x={px(d.lon as number)} y={py(d.lat as number)} selected={isSel} opacity={0.9} />
                 <title>{`Device ${d.id} (${d.type}, ${d.state}) — ${TIER_LABEL[d.tier]} risk`}</title>
-              </circle>
+              </g>
             );
           })}
         </g>
@@ -107,11 +129,14 @@ function RiskMap({ devices, wcs, selected, onSelect }: { devices: Device[]; wcs:
             const x = px(w.lon as number), y = py(w.lat as number);
             const isSel = selected?.kind === 'wc' && selected.w.id === w.id;
             const s = isSel ? 7 : 4.5;
+            const label = `${w.name} (${w.state}) — priority #${w.priority_rank}, readiness ${w.readiness}`;
             return (
               <rect key={w.id} x={x - s} y={y - s} width={2 * s} height={2 * s} transform={`rotate(45 ${x} ${y})`}
                 style={{ fill: 'rgb(var(--color-card))', stroke: 'rgb(var(--color-secondary))', strokeWidth: isSel ? 2.5 : 1.5, cursor: 'pointer' }}
-                onClick={() => onSelect({ kind: 'wc', w })}>
-                <title>{`${w.name} (${w.state}) — priority #${w.priority_rank}, readiness ${w.readiness}`}</title>
+                tabIndex={0} role="button" aria-label={`Wire center ${label}`} aria-pressed={isSel}
+                onClick={() => onSelect({ kind: 'wc', w })}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect({ kind: 'wc', w }); } }}>
+                <title>{label}</title>
               </rect>
             );
           })}
@@ -119,13 +144,13 @@ function RiskMap({ devices, wcs, selected, onSelect }: { devices: Device[]; wcs:
       </svg>
       <figcaption className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2">
         <Legend />
-        <span className="text-xs text-muted-foreground">{fmt(plotted.length)} of {fmt(devices.length)} devices plotted (lower 48). Click a marker for detail.</span>
+        <span className="text-xs text-muted-foreground">{fmt(plotted.length)} of {fmt(devices.length)} devices plotted (lower 48). Click a marker, or Tab to a wire center and press Enter, for detail.</span>
       </figcaption>
     </figure>
   );
 }
 
-function DetailPanel({ sel }: { sel: Selection }) {
+function DetailPanel({ sel, servingEndpoint }: { sel: Selection; servingEndpoint?: string | null }) {
   if (!sel) {
     return (
       <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
@@ -143,14 +168,14 @@ function DetailPanel({ sel }: { sel: Selection }) {
       <div className="rounded-lg border border-border bg-card p-4" aria-live="polite">
         <h3 className="text-base font-semibold text-secondary flex items-center gap-2"><Radio size={16} strokeWidth={1.5} aria-hidden="true" />Device {d.id}</h3>
         <dl className="mt-2 text-sm">
-          {row('Predicted risk tier', <span className="inline-flex items-center gap-1"><svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" style={{ fill: TIER_FILL[d.tier] }} /></svg>{TIER_LABEL[d.tier]}</span>)}
+          {row('Predicted risk tier', <span className="inline-flex items-center gap-1"><svg width="14" height="14" aria-hidden="true"><TierMarker tier={d.tier} x={7} y={7} scale={1.4} /></svg>{TIER_LABEL[d.tier]}</span>)}
           {row('Model confidence', d.confidence != null ? `${Math.round(d.confidence * 100)}%` : '—')}
           {row('Device type', d.type.replace(/_/g, ' '))}
           {row('Status', d.status)}
           {row('State', d.state)}
           {row('Location', d.lat != null && d.lon != null ? `${d.lat.toFixed(2)}, ${d.lon.toFixed(2)}` : '—')}
         </dl>
-        <p className="text-xs text-muted-foreground mt-2">Scored by the champion risk model served on <code>copper-retirement-risk</code>.</p>
+        <p className="text-xs text-muted-foreground mt-2">Scored by the champion risk model{servingEndpoint ? <> served on <code>{servingEndpoint}</code></> : null}.</p>
       </div>
     );
   }
@@ -192,6 +217,14 @@ export function MapTab() {
   useEffect(() => { if (state === 'ALL' && tier === 'ALL' && deviceStates.length) setAllStates(deviceStates); }, [state, tier, deviceStates]);
   useEffect(() => setSel(null), [state, tier]);
   const k = kpis.data;
+  // ACC-DES-DEF-MAP-KEYBOARD (b): keyboard-reachable list of the highest-risk devices (critical first, then confidence).
+  const topDevices = useMemo(() => [...(devices.data ?? [])]
+    .sort((a, b) => TIERS.indexOf(a.tier) - TIERS.indexOf(b.tier) || (b.confidence ?? 0) - (a.confidence ?? 0))
+    .slice(0, 25), [devices.data]);
+  // ACC-DES-DEF-MAP-KEYBOARD (d): persistent live region announces every selection.
+  const announce = sel?.kind === 'device' ? `Selected device ${sel.d.id}, ${TIER_LABEL[sel.d.tier]} risk. Details shown beside the map.`
+    : sel?.kind === 'wc' ? `Selected wire center ${sel.w.name}, priority ${sel.w.priority_rank}. Details shown beside the map.` : '';
+  const pick = (s: Selection) => (e: { key: string; preventDefault: () => void }) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSel(s); } };
 
   return (
     <section aria-labelledby="map-title">
@@ -201,6 +234,7 @@ export function MapTab() {
         badges={<SyntheticBadge label="SYNTHETIC NETWORK DATA" />}
       />
 
+      <p className="sr-only" role="status" aria-live="polite">{announce}</p>
       {kpis.err && <EmptyState title="Could not load Map & Risk data"><p>{kpis.err}</p></EmptyState>}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-4">
         <KpiCard label="Copper devices (footprint)" value={k ? fmt(k.footprint_devices) : '…'} sub={k ? `${k.footprint_states} states: ${footprint.join(', ')}` : undefined} />
@@ -242,7 +276,7 @@ export function MapTab() {
             <div className="rounded-lg border border-border bg-card p-8 text-sm text-muted-foreground">Loading risk map…</div>
           )}
         </div>
-        <DetailPanel sel={sel} />
+        <DetailPanel sel={sel} servingEndpoint={k?.serving_endpoint} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
@@ -253,9 +287,12 @@ export function MapTab() {
               <tr><th scope="col" className="p-2">Rank</th><th scope="col" className="p-2">Wire center</th><th scope="col" className="p-2">State</th><th scope="col" className="p-2 text-right">Readiness</th><th scope="col" className="p-2 text-right">Devices</th><th scope="col" className="p-2 text-right">Crit/High</th><th scope="col" className="p-2">Fiber</th></tr>
             </thead>
             <tbody>
-              {(wcs.data ?? []).slice(0, 25).map((w) => (
-                <tr key={w.id} className={`border-t border-border cursor-pointer hover:bg-muted ${sel?.kind === 'wc' && sel.w.id === w.id ? 'bg-muted' : ''}`}
-                  onClick={() => setSel({ kind: 'wc', w })} tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSel({ kind: 'wc', w }); } }}>
+              {(wcs.data ?? []).slice(0, 25).map((w) => {
+                const isSel = sel?.kind === 'wc' && sel.w.id === w.id;
+                return (
+                <tr key={w.id} className={`border-t border-border cursor-pointer hover:bg-muted ${isSel ? 'bg-muted font-semibold' : ''}`}
+                  aria-current={isSel ? 'true' : undefined}
+                  onClick={() => setSel({ kind: 'wc', w })} tabIndex={0} onKeyDown={pick({ kind: 'wc', w })}>
                   <td className="p-2">#{w.priority_rank}</td>
                   <td className="p-2 font-medium text-secondary">{w.name}</td>
                   <td className="p-2">{w.state}</td>
@@ -264,7 +301,8 @@ export function MapTab() {
                   <td className="p-2 text-right">{w.critical}/{w.high}</td>
                   <td className="p-2">{w.fiber_ready ? <span className="text-success">Ready</span> : <span className="text-muted-foreground">Not yet</span>}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
           {wcs.data && wcs.data.length > 25 && <p className="text-xs text-muted-foreground p-2">Top 25 of {wcs.data.length}. Full sequencing is in the Plan tab.</p>}
@@ -293,6 +331,33 @@ export function MapTab() {
             </tbody>
           </table>
           {states.err && <p className="text-xs text-danger p-3">{states.err}</p>}
+        </div>
+
+        <div className="overflow-x-auto rounded-lg border border-border bg-card xl:col-span-2">
+          <table className="w-full text-sm">
+            <caption className="text-left p-3 text-sm font-semibold text-secondary">Highest-risk devices (top 25, critical first) — press Enter on a row for detail</caption>
+            <thead className="bg-muted text-left text-xs text-muted-foreground">
+              <tr><th scope="col" className="p-2">Device</th><th scope="col" className="p-2">Risk tier</th><th scope="col" className="p-2 text-right">Confidence</th><th scope="col" className="p-2">Type</th><th scope="col" className="p-2">State</th><th scope="col" className="p-2">Status</th></tr>
+            </thead>
+            <tbody>
+              {topDevices.map((d) => {
+                const isSel = sel?.kind === 'device' && sel.d.id === d.id;
+                return (
+                  <tr key={d.id} className={`border-t border-border cursor-pointer hover:bg-muted ${isSel ? 'bg-muted font-semibold' : ''}`}
+                    aria-current={isSel ? 'true' : undefined}
+                    onClick={() => setSel({ kind: 'device', d })} tabIndex={0} onKeyDown={pick({ kind: 'device', d })}>
+                    <td className="p-2 font-medium text-secondary">{d.id}</td>
+                    <td className="p-2"><span className="inline-flex items-center gap-1"><svg width="14" height="14" aria-hidden="true"><TierMarker tier={d.tier} x={7} y={7} scale={1.4} /></svg>{TIER_LABEL[d.tier]}</span></td>
+                    <td className="p-2 text-right">{d.confidence != null ? `${Math.round(d.confidence * 100)}%` : '—'}</td>
+                    <td className="p-2">{d.type.replace(/_/g, ' ')}</td>
+                    <td className="p-2">{d.state}</td>
+                    <td className="p-2">{d.status}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {devices.data && !devices.data.length && <p className="text-xs text-muted-foreground p-3">No devices match these filters.</p>}
         </div>
       </div>
 

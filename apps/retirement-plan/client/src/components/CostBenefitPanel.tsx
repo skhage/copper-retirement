@@ -98,7 +98,7 @@ export function CostBenefitPanel({ wireCenter, onClose }: Props) {
 
       {/* Constraint detail */}
       {wc.constraint !== 'none' && wc.constraint_detail && (
-        <div className="rounded bg-amber-50 border border-amber-200 p-2 mb-4 text-xs text-amber-800">
+        <div className="rounded bg-warning/10 border border-warning/40 p-2 mb-4 text-xs text-warning">
           <strong>Constraint:</strong> {wc.constraint_detail}
         </div>
       )}
@@ -129,7 +129,7 @@ export function CostBenefitPanel({ wireCenter, onClose }: Props) {
                   {m.actual_date || m.planned_date}
                 </span>
                 {m.critical_path && (
-                  <span className="text-[9px] bg-red-100 text-red-700 px-1 rounded">
+                  <span className="text-xs bg-danger/10 text-danger px-1 rounded">
                     CP
                   </span>
                 )}

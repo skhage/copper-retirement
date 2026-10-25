@@ -2,7 +2,7 @@
  * BudgetChart.tsx
  * Horizontal stacked bar chart showing budget allocation vs spent across waves.
  * Pure CSS approach — no external charting library.
- * Fetches live data from retirement_plan via /api/plan/budget.
+ * Fetches live data via /api/plan/budget (UC gold_wave_schedule + silver_budget_allocation; spend actuals not tracked yet).
  */
 import { useState, useEffect, useMemo } from 'react';
 import { fetchLiveBudget } from '../lib/planApi';
@@ -55,7 +55,7 @@ export function BudgetChart() {
           <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>
         )}
         {!isLoading && data && (
-          <span className="text-[10px] bg-accent/10 text-accent-strong px-2 py-0.5 rounded font-medium">
+          <span className="text-xs bg-accent/10 text-accent-strong px-2 py-0.5 rounded font-medium">
             LIVE — {rows.length} waves
           </span>
         )}
@@ -69,19 +69,19 @@ export function BudgetChart() {
       {/* Summary KPIs */}
       <div className="grid grid-cols-4 gap-3 mb-5">
         <div className="rounded border p-2">
-          <p className="text-[10px] text-muted-foreground">Total Allocated</p>
+          <p className="text-xs text-muted-foreground">Total Allocated</p>
           <p className="text-lg font-bold text-secondary">{formatCurrency(totalAllocated)}</p>
         </div>
         <div className="rounded border p-2">
-          <p className="text-[10px] text-muted-foreground">Total Spent</p>
+          <p className="text-xs text-muted-foreground">Total Spent</p>
           <p className="text-lg font-bold text-primary-strong">{formatCurrency(totalSpent)}</p>
         </div>
         <div className="rounded border p-2">
-          <p className="text-[10px] text-muted-foreground">Remaining</p>
+          <p className="text-xs text-muted-foreground">Remaining</p>
           <p className="text-lg font-bold text-accent-strong">{formatCurrency(totalAllocated - totalSpent)}</p>
         </div>
         <div className="rounded border p-2">
-          <p className="text-[10px] text-muted-foreground">Revenue at Risk (Annual)</p>
+          <p className="text-xs text-muted-foreground">Revenue at Risk (Annual)</p>
           <p className="text-lg font-bold text-warning">{formatCurrency(totalRevAtRisk)}</p>
         </div>
       </div>
@@ -109,11 +109,11 @@ export function BudgetChart() {
                   <span className="text-xs font-semibold">
                     {row.wave_label || `Wave ${row.retirement_wave}`}
                   </span>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {row.wire_centers} WCs · {formatCount(Number(row.total_devices))} devices · {formatCount(Number(row.total_customers))} customers
                   </span>
                 </div>
-                <div className="flex items-center gap-3 text-[10px]">
+                <div className="flex items-center gap-3 text-xs">
                   <span className="text-muted-foreground">
                     {formatPercent(completionPct)} complete
                   </span>
@@ -151,7 +151,7 @@ export function BudgetChart() {
                 />
                 {/* Label on bar */}
                 {pctOfMax > 15 && (
-                  <span className="absolute top-0 left-2 leading-6 text-[10px] font-medium text-white">
+                  <span className="absolute top-0 left-2 leading-6 text-xs font-medium text-white">
                     {formatCurrency(allocated)}
                   </span>
                 )}
@@ -165,11 +165,11 @@ export function BudgetChart() {
       <div className="flex gap-4 mt-4 pt-3 border-t">
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-sm bg-viz-1 opacity-90" />
-          <span className="text-[10px] text-muted-foreground">Spent</span>
+          <span className="text-xs text-muted-foreground">Spent</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-sm bg-viz-1 opacity-25" />
-          <span className="text-[10px] text-muted-foreground">Remaining</span>
+          <span className="text-xs text-muted-foreground">Remaining</span>
         </div>
       </div>
 

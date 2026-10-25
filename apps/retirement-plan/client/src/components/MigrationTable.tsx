@@ -109,10 +109,10 @@ export function MigrationTable({ filters, onFilterChange, onWireCenterSelect }: 
                 </div>
               </td>
               <td className="px-3 py-2">
-                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                  wc.status === 'in_progress' ? 'bg-amber-100 text-amber-700' :
-                  wc.status === 'completed' ? 'bg-green-100 text-green-700' :
-                  wc.status === 'on_hold' ? 'bg-red-100 text-red-700' :
+                <span className={`text-xs px-1.5 py-0.5 rounded ${
+                  wc.status === 'in_progress' ? 'bg-warning/10 text-warning' :
+                  wc.status === 'completed' ? 'bg-success/10 text-success' :
+                  wc.status === 'on_hold' ? 'bg-danger/10 text-danger' :
                   'bg-muted text-muted-foreground'
                 }`}>
                   {wc.status.replace(/_/g, ' ')}

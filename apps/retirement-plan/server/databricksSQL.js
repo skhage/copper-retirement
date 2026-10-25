@@ -198,54 +198,82 @@ export async function fetchPlanKPIs() {
 /**
  * Fetch budget allocation by wave from retirement_plan + gold_wave_schedule.
  */
+// ACC-APP-PLAN-LAKEBASE-READS (2026-10-25): budget / checklist / milestones previously read Lakebase copper_app.*
+// through the SQL warehouse (TABLE_OR_VIEW_NOT_FOUND: copper_app is a Postgres schema, not UC). They now read the
+// existing UC equivalents in ${FQ} (no new tables). Spend actuals are not tracked anywhere, so total_spent is NULL.
 export async function fetchBudgetByWave() {
   const rows = await executeSQL(`
+    WITH m AS (
+      SELECT wire_center_id, AVG(completion_percentage) AS pct
+      FROM ${FQ}.retirement_milestones GROUP BY wire_center_id)
     SELECT
-      rp.wave_label,
-      rp.retirement_wave,
-      COUNT(*) as wire_centers,
-      ROUND(SUM(COALESCE(rp.budget_allocated, 0)), 0) as total_allocated,
-      ROUND(SUM(COALESCE(rp.budget_spent, 0)), 0) as total_spent,
-      ROUND(SUM(COALESCE(rp.budget_allocated, 0)) - SUM(COALESCE(rp.budget_spent, 0)), 0) as remaining,
-      ROUND(SUM(COALESCE(rp.revenue_at_risk_mrr, 0)) * 12, 0) as annual_revenue_at_risk,
-      SUM(COALESCE(rp.device_count, 0)) as total_devices,
-      SUM(COALESCE(rp.customer_count, 0)) as total_customers,
-      ROUND(AVG(COALESCE(rp.migration_pct_complete, 0)), 1) as avg_completion_pct
-    FROM copper_app.retirement_plan rp
-    GROUP BY rp.wave_label, rp.retirement_wave
-    ORDER BY rp.retirement_wave
+      ws.assigned_wave AS wave_label,
+      ws.assigned_wave AS retirement_wave,
+      COUNT(*) AS wire_centers,
+      ROUND(SUM(COALESCE(b.total_allocated_budget, 0)), 0) AS total_allocated,
+      CAST(NULL AS DOUBLE) AS total_spent,
+      ROUND(SUM(COALESCE(b.estimated_total_cost, 0)), 0) AS total_estimated_cost,
+      ROUND(SUM(COALESCE(b.budget_gap, 0)), 0) AS remaining,
+      ROUND(SUM(COALESCE(ws.annual_revenue_at_risk, 0)), 0) AS annual_revenue_at_risk,
+      SUM(COALESCE(ws.copper_device_count, 0)) AS total_devices,
+      SUM(COALESCE(ws.affected_customer_count, 0)) AS total_customers,
+      ROUND(AVG(COALESCE(m.pct, 0)), 1) AS avg_completion_pct
+    FROM ${FQ}.gold_wave_schedule ws
+    LEFT JOIN ${FQ}.silver_budget_allocation b ON b.wire_center_id = ws.wire_center_id
+    LEFT JOIN m ON m.wire_center_id = ws.wire_center_id
+    GROUP BY ws.assigned_wave
+    ORDER BY ws.assigned_wave
   `);
   return rows;
 }
 
+const wcParam = (wireCenterId) => (wireCenterId ? [{ name: 'wc', value: String(wireCenterId), type: 'STRING' }] : undefined);
+
 /**
  * Fetch regulatory checklist items, optionally filtered by wire_center_id.
  */
+// Checklist = every cited requirement (federal US + the wire center's state) from jurisdiction_requirements_cited,
+// so each item carries citation + official_url. Only VERIFIED_* rows get a computed deadline
+// (wave_start_date minus the cited calendar-day notice). Execution status is not tracked yet -> 'pending'.
 export async function fetchRegulatoryChecklist(wireCenterId) {
-  const whereClause = wireCenterId
-    ? `WHERE rc.wire_center_id = '${wireCenterId.replace(/'/g, "''")}'`
-    : '';
+  const whereClause = wireCenterId ? 'WHERE ws.wire_center_id = :wc' : '';
   const rows = await executeSQL(`
     SELECT
-      rc.checklist_id,
-      rc.wire_center_id,
-      rc.wire_center_name,
-      rc.state_code,
-      rc.checklist_item,
-      rc.item_category,
-      rc.description,
-      rc.required,
-      rc.required_notice_days,
-      rc.deadline_date,
-      rc.status,
-      rc.assigned_to,
-      rc.completed_date,
-      rc.evidence_reference,
-      rc.notes
-    FROM copper_app.regulatory_checklist_status rc
+      CONCAT(ws.wire_center_id, ':', j.requirement_key) AS checklist_id,
+      ws.wire_center_id,
+      ws.wire_center_name,
+      ws.state_code,
+      INITCAP(REPLACE(j.requirement_type, '_', ' ')) AS checklist_item,
+      CASE
+        WHEN j.requirement_type IN ('copper_retirement_notice', 'section_214_discontinuance', 'section_214_applicability') THEN 'section_214'
+        WHEN j.requirement_type = 'state_discontinuance_notice' THEN 'puc_filing'
+        WHEN j.requirement_type = 'e911_coordination' THEN 'e911_coordination'
+        WHEN j.requirement_type LIKE 'lead_cable%' THEN 'environmental'
+        WHEN j.requirement_type LIKE '811%' OR j.requirement_type IN ('excavation_safety', 'permit_authority') THEN 'public_notice'
+        ELSE 'public_notice' END AS item_category,
+      j.requirement_summary AS description,
+      (j.verification_status LIKE 'VERIFIED%') AS required,
+      CASE WHEN j.value_unit = 'calendar_days' THEN CAST(j.value_numeric AS INT) END AS required_notice_days,
+      CASE WHEN j.verification_status LIKE 'VERIFIED%' AND j.value_unit = 'calendar_days'
+            AND j.requirement_type IN ('copper_retirement_notice', 'section_214_discontinuance', 'state_discontinuance_notice', 'e911_coordination')
+           THEN CAST(date_sub(ws.wave_start_date, CAST(j.value_numeric AS INT)) AS STRING) END AS deadline_date,
+      'pending' AS status,
+      CAST(NULL AS STRING) AS assigned_to,
+      CAST(NULL AS STRING) AS completed_date,
+      j.citation AS evidence_reference,
+      j.notes,
+      j.jurisdiction_code,
+      j.citation,
+      j.official_url,
+      j.citation_url,
+      j.verification_status,
+      CAST(j.citation_url_verified_on AS STRING) AS last_verified
+    FROM ${FQ}.gold_wave_schedule ws
+    JOIN ${FQ}.jurisdiction_requirements_cited j
+      ON j.jurisdiction_code = 'US' OR j.jurisdiction_code = ws.state_code
     ${whereClause}
-    ORDER BY rc.state_code, rc.wire_center_id, rc.item_category, rc.checklist_item
-  `);
+    ORDER BY ws.state_code, ws.wire_center_id, j.jurisdiction_level, j.requirement_type
+  `, wcParam(wireCenterId));
   return rows;
 }
 
@@ -253,9 +281,7 @@ export async function fetchRegulatoryChecklist(wireCenterId) {
  * Fetch retirement milestones for the CostBenefitPanel.
  */
 export async function fetchMilestones(wireCenterId) {
-  const whereClause = wireCenterId
-    ? `WHERE rm.wire_center_id = '${wireCenterId.replace(/'/g, "''")}'`
-    : '';
+  const whereClause = wireCenterId ? 'WHERE rm.wire_center_id = :wc' : '';
   const rows = await executeSQL(`
     SELECT
       rm.milestone_id,
@@ -272,10 +298,10 @@ export async function fetchMilestones(wireCenterId) {
       rm.regulatory_requirement_flag,
       rm.risk_level,
       rm.risk_description
-    FROM copper_app.retirement_milestones rm
+    FROM ${FQ}.retirement_milestones rm
     ${whereClause}
     ORDER BY rm.planned_date
-  `);
+  `, wcParam(wireCenterId));
   return rows;
 }
 

@@ -17,7 +17,7 @@
  * All data is SYNTHETIC until P0-DATAGEN-DIGSAFE-EXECUTE + P6-TRIAGE land.
  */
 import { useState, useCallback, useEffect } from 'react';
-import { TabHeader, TabBar, SyntheticBadge } from '../../components/shared';
+import { TabHeader, TabBar, SyntheticBadge, EmptyState } from '../../components/shared';
 import { TriageKPIs } from './components/TriageKPIs';
 import { IncidentMap } from './components/IncidentMap';
 import { TriageAgentChat } from './components/TriageAgentChat';
@@ -26,7 +26,7 @@ import { IncidentDetailPanel } from './components/IncidentDetailPanel';
 import { IncidentTable } from './components/IncidentTable';
 import { ActionLog } from './components/ActionLog';
 import type { Incident, Severity, IncidentStatus } from './mock/mockData';
-import { fetchIncidentDetail, fetchNearbyIncidents, fetchRerouteSuggestion } from './lib/triageApi';
+import { fetchIncidentDetail, fetchNearbyIncidents, fetchRerouteSuggestion, describeApiError, ApiError } from './lib/triageApi';
 import type { IncidentDetail, NearbyIncident, RerouteSuggestion } from './lib/triageApi';
 import { Search } from 'lucide-react';
 
@@ -42,14 +42,19 @@ const SUB_TABS = [
   { id: 'log', label: 'Action Log' },
 ] as const;
 
-interface Summary811 { tickets: number; states: number; telecom: number; origin: string }
+interface Summary811 { tickets: number; states: number; telecom: number; origin: string; source: string }
 
 /** Real 811 one-call context (directive 13: reuse provable_resilience_intelligence.stg_811_dig_ticket). */
 function Dig811Badge() {
   const [s, setS] = useState<Summary811 | null>(null);
+  const [err811, setErr811] = useState<string | null>(null);
   useEffect(() => {
     fetch('/api/triage/811')
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then(async (r) => {
+        if (r.ok) return r.json();
+        const b = await r.json().catch(() => ({}));
+        throw new ApiError(r.status, b.error || `HTTP ${r.status}`);
+      })
       .then((j) => {
         const rows: Array<Record<string, string>> = j.data || [];
         setS({
@@ -57,13 +62,22 @@ function Dig811Badge() {
           telecom: rows.reduce((a, r) => a + (parseInt(r.telecom_tickets, 10) || 0), 0),
           states: new Set(rows.map((r) => r.state)).size,
           origin: rows[0]?.origin || 'INGESTED',
+          // ACC-QA-DEF-TRIAGE-LINEAGE-LABEL: lineage comes from the server (DIG_811_TABLE env), never hard-coded.
+          source: typeof j.source === 'string' ? j.source : '',
         });
       })
-      .catch(() => setS(null));
+      .catch((e) => { setS(null); setErr811(describeApiError(e, 'no 811 rows')); });
   }, []);
+  if (err811) {
+    return (
+      <span className="text-xs text-muted-foreground" role="status" aria-live="polite" title={err811}>
+        811 data unavailable ({err811})
+      </span>
+    );
+  }
   if (!s) return null;
   return (
-    <span className="text-xs text-muted-foreground" title="cdm_tmforum.provable_resilience_intelligence.stg_811_dig_ticket">
+    <span className="text-xs text-muted-foreground" title={s.source || undefined}>
       811 tickets ({s.origin}): {s.tickets.toLocaleString()} across {s.states} states, {s.telecom.toLocaleString()} telecom/copper
     </span>
   );
@@ -86,6 +100,8 @@ export function TriageTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchError, setSearchError] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [enrichErrors, setEnrichErrors] = useState<Array<{ section: string; reason: string }>>([]);
+  const [toast, setToast] = useState<string | null>(null);
 
   // Fetch enriched UC data when an incident is selected
   useEffect(() => {
@@ -93,6 +109,7 @@ export function TriageTab() {
       setEnrichedData(null);
       setNearbyIncidents([]);
       setRerouteSuggestion(null);
+      setEnrichErrors([]);
       return;
     }
     const numericId = parseInt(selectedIncident.incident_id.replace('INC-', ''), 10);
@@ -107,6 +124,12 @@ export function TriageTab() {
       setEnrichedData(detailRes.status === 'fulfilled' ? detailRes.value : null);
       setNearbyIncidents(nearbyRes.status === 'fulfilled' ? nearbyRes.value : []);
       setRerouteSuggestion(rerouteRes.status === 'fulfilled' ? rerouteRes.value : null);
+      // Surface every failed section with its real reason instead of silently showing 'none'.
+      const errs: Array<{ section: string; reason: string }> = [];
+      if (detailRes.status === 'rejected') errs.push({ section: 'Incident enrichment (wire center, nearest device)', reason: describeApiError(detailRes.reason, 'No enrichment row for this incident') });
+      if (nearbyRes.status === 'rejected') errs.push({ section: 'Nearby incidents', reason: describeApiError(nearbyRes.reason, 'No nearby incidents found') });
+      if (rerouteRes.status === 'rejected') errs.push({ section: 'Reroute suggestion', reason: describeApiError(rerouteRes.reason, 'No reroute suggestion for this incident') });
+      setEnrichErrors(errs);
       setIsLoadingEnriched(false);
     });
   }, [selectedIncident?.incident_id]);
@@ -154,7 +177,7 @@ export function TriageTab() {
       setActiveTab('map');
       setSearchQuery('');
     } catch (err) {
-      setSearchError(`Incident ${numericId} not found`);
+      setSearchError(describeApiError(err, `Incident ${numericId} not found`));
     } finally {
       setIsSearching(false);
     }
@@ -168,10 +191,11 @@ export function TriageTab() {
     setShowForm(false);
   }, []);
 
-  const handleFormSubmit = useCallback((incident: Record<string, unknown>) => {
-    console.log('[dig-triage] New incident submitted:', incident);
+  // Demo only: Lakebase write-back is not wired, so nothing is persisted. Say so explicitly.
+  const handleFormSubmit = useCallback((_incident: Record<string, unknown>) => {
     setShowForm(false);
-    // TODO: POST to /api/triage/incident, refresh incident list
+    setToast('Demo only - not saved. Incident intake is shown for illustration; no record was written.');
+    window.setTimeout(() => setToast(null), 8000);
   }, []);
 
   return (
@@ -238,6 +262,15 @@ export function TriageTab() {
               onIncidentSelect={handleIncidentSelect}
               selectedIncident={selectedIncident}
             />
+            {selectedIncident && enrichErrors.length > 0 && (
+              <div className="mt-3 space-y-2" role="alert" aria-live="polite">
+                {enrichErrors.map((e) => (
+                  <EmptyState key={e.section} title={`${e.section} unavailable`}>
+                    <p>{e.reason}</p>
+                  </EmptyState>
+                ))}
+              </div>
+            )}
             {selectedIncident && (
               <div className="mt-3">
                 <IncidentDetailPanel
@@ -272,6 +305,13 @@ export function TriageTab() {
       {showForm && (
         <IncidentForm onClose={handleFormClose} onSubmit={handleFormSubmit} />
       )}
+      <div aria-live="polite" role="status" className="fixed bottom-4 right-4 z-50">
+        {toast && (
+          <div className="rounded-lg border border-input bg-card px-4 py-3 text-sm text-foreground shadow-lg max-w-sm">
+            {toast}
+          </div>
+        )}
+      </div>
       </div>
     </div>
   );

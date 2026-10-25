@@ -1,7 +1,9 @@
 /**
  * RegulatoryChecklist.tsx
  * Per-wire-center regulatory checklist with status tracking.
- * Fetches live data from /api/plan/regulatory (copper_app.regulatory_checklist_status).
+ * Fetches live data from /api/plan/regulatory: every cited federal + state requirement
+ * (UC jurisdiction_requirements_cited) per wire center, each with citation + official URL.
+ * Non-VERIFIED rows are shown as flagged gaps, never as fact (charter citation rule).
  *
  * Grouped by wire center and category. Shows completion status per item.
  * Filterable by state.
@@ -11,6 +13,7 @@ import { fetchLiveRegulatory } from '../lib/planApi';
 import { formatDate } from '../lib/formatters';
 import { CheckCircle2, Circle, AlertTriangle, Clock, FileText } from 'lucide-react';
 import type { RegulatoryItem } from '../lib/planApi';
+import { CitationLink } from './shared';
 import type { PlanFilters } from '../App';
 
 interface Props {
@@ -26,14 +29,14 @@ const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: string; 
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  puc_filing: 'bg-amber-100 text-amber-700',
-  customer_notice: 'bg-blue-100 text-blue-700',
-  e911_coordination: 'bg-red-100 text-red-700',
-  backup_power: 'bg-purple-100 text-purple-700',
-  section_214: 'bg-orange-100 text-orange-700',
-  public_notice: 'bg-green-100 text-green-700',
-  tribal_notice: 'bg-indigo-100 text-indigo-700',
-  environmental: 'bg-teal-100 text-teal-700',
+  puc_filing: 'bg-warning/10 text-warning',
+  customer_notice: 'bg-muted text-foreground',
+  e911_coordination: 'bg-danger/10 text-danger',
+  backup_power: 'bg-muted text-foreground',
+  section_214: 'bg-warning/10 text-warning',
+  public_notice: 'bg-success/10 text-success',
+  tribal_notice: 'bg-muted text-foreground',
+  environmental: 'bg-success/10 text-success',
 };
 
 interface WireCenterGroup {
@@ -112,7 +115,7 @@ export function RegulatoryChecklist({ filters }: Props) {
           <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>
         )}
         {!isLoading && data && (
-          <span className="text-[10px] bg-accent/10 text-accent-strong px-2 py-0.5 rounded font-medium">
+          <span className="text-xs bg-accent/10 text-accent-strong px-2 py-0.5 rounded font-medium">
             LIVE — {totalItems} items across {groups.length} wire centers
           </span>
         )}
@@ -121,19 +124,19 @@ export function RegulatoryChecklist({ filters }: Props) {
       {/* Summary bar */}
       <div className="grid grid-cols-4 gap-3 mb-4">
         <div className="rounded border p-2">
-          <p className="text-[10px] text-muted-foreground">Wire Centers</p>
+          <p className="text-xs text-muted-foreground">Wire Centers</p>
           <p className="text-lg font-bold text-secondary">{groups.length}</p>
         </div>
         <div className="rounded border p-2">
-          <p className="text-[10px] text-muted-foreground">Required Items</p>
+          <p className="text-xs text-muted-foreground">Required Items</p>
           <p className="text-lg font-bold text-primary-strong">{totalRequired}</p>
         </div>
         <div className="rounded border p-2">
-          <p className="text-[10px] text-muted-foreground">Completed</p>
+          <p className="text-xs text-muted-foreground">Completed</p>
           <p className="text-lg font-bold text-accent-strong">{totalCompleted}</p>
         </div>
         <div className="rounded border p-2">
-          <p className="text-[10px] text-muted-foreground">Compliance Rate</p>
+          <p className="text-xs text-muted-foreground">Compliance Rate</p>
           <p className="text-lg font-bold text-muted-foreground">
             {totalRequired > 0 ? `${((totalCompleted / totalRequired) * 100).toFixed(0)}%` : '—'}
           </p>
@@ -158,7 +161,7 @@ export function RegulatoryChecklist({ filters }: Props) {
               >
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold">{g.wireCenterName}</span>
-                  <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+                  <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
                     {g.state}
                   </span>
                 </div>
@@ -170,7 +173,7 @@ export function RegulatoryChecklist({ filters }: Props) {
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {g.completedCount}/{g.totalRequired}
                     </span>
                   </div>
@@ -197,16 +200,29 @@ export function RegulatoryChecklist({ filters }: Props) {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{item.checklist_item}</span>
-                            <span className={`text-[9px] px-1 py-0 rounded ${catClass}`}>
+                            <span className={`text-xs px-1 py-0 rounded ${catClass}`}>
                               {(item.item_category || '').replace(/_/g, ' ')}
                             </span>
                             {(item.required === 'true' || item.required === true as any) && (
-                              <span className="text-[9px] bg-red-100 text-red-600 px-1 rounded">Required</span>
+                              <span className="text-xs bg-danger/10 text-danger px-1 rounded">Required</span>
                             )}
                           </div>
                           {item.description && (
-                            <p className="text-muted-foreground mt-0.5 truncate">{item.description}</p>
+                            <p className="text-muted-foreground mt-0.5">{item.description}</p>
                           )}
+                          {item.verification_status && !String(item.verification_status).startsWith('VERIFIED') && (
+                            <span className="ll-badge-synthetic">Flagged gap - not a verified fact ({item.verification_status})</span>
+                          )}
+                          <div className="mt-0.5">
+                            <CitationLink
+                              title={`${item.jurisdiction_code === 'US' ? 'Federal' : item.state_code}: ${item.citation || item.checklist_item}`}
+                              url={item.official_url}
+                              citationUrl={item.citation_url}
+                              verificationStatus={item.verification_status}
+                              citation={item.citation}
+                              lastVerified={item.last_verified}
+                            />
+                          </div>
                           <div className="flex gap-3 mt-0.5 text-muted-foreground">
                             {item.deadline_date && (
                               <span>Due: {formatDate(item.deadline_date)}</span>

@@ -24,6 +24,7 @@ import {
 import triageRouter from './routes/triage.js'; // ACC-APP-PORT-TRIAGE (ported from dig-triage)
 import regulatoryRouter from './routes/regulatory.js'; // ACC-APP-PORT-REG (ported from regulatory-assistant)
 import mapRouter from './routes/map.js'; // ACC-APP-PORT-MAP (ported from copper-map Dash app)
+import commodityRouter from './routes/commodity.js'; // ACC-APP-PORT-COMMODITY (ported from commodity-dashboard)
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -249,6 +250,7 @@ app.get('/api/plan/health', async (req, res) => {
 app.use('/api/triage', triageRouter);
 app.use('/api/regulatory', regulatoryRouter);
 app.use('/api/map', mapRouter);
+app.use('/api/commodity', commodityRouter);
 
 // SPA fallback
 app.get('*', (req, res) => {

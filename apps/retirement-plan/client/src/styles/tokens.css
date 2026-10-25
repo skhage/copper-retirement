@@ -50,10 +50,18 @@
   --viz-3: 0 169 114;   /* #00A972 */
   --viz-4: 110 136 152; /* #6E8898 steel */
   --viz-5: 255 140 105; /* #FF8C69 salmon: fill only; must carry a fg-colored label or 1px --color-secondary outline */
+  /* Risk-tier MARKER fills (ACC-DES-DEF-MAP-RISK-CONTRAST, WCAG 1.4.11 >= 3:1).
+   * Recomputed 2026-10-25 (WCAG relative luminance) vs bg #F9F7F4 / card #FFFFFF / muted #F0EEEA:
+   *   critical #FF3621 3.39 / 3.62 / 3.12
+   *   high     #B45309 4.70 / 5.02 / 4.33   (was #FF8C69 salmon 2.13:1 FAIL)
+   *   medium   #6E8898 3.48 / 3.72 / 3.21
+   *   low      #008A5E 4.09 / 4.38 / 3.78   (was #00A972 2.84:1 FAIL; keep #00A972 for large surfaces)
+   * Tiers are ALSO distinguished by shape in MapTab.tsx (WCAG 1.4.1): critical = large circle + navy
+   * stroke, high = triangle, medium = small circle, low = small square. */
   --risk-critical: 255 54 33;
-  --risk-high:     255 140 105;
+  --risk-high:     180 83 9;
   --risk-medium:   110 136 152;
-  --risk-low:      0 169 114;
+  --risk-low:      0 138 94;
 
   /* ---------- TYPE / SPACING / SHAPE (8px grid) ---------- */
   --text-base: 14px;
@@ -82,6 +90,13 @@ body { background: rgb(var(--color-bg)); color: rgb(var(--color-fg)); }
 :where(a, button, input, select, textarea, [role="tab"], [tabindex]):focus-visible {
   outline: var(--focus-ring-width) solid rgb(var(--color-ring));
   outline-offset: var(--focus-ring-offset);
+}
+/* SVG children do not render CSS outline consistently across browsers: use a stroke-based ring
+ * (ACC-DES-DEF-MAP-KEYBOARD). !important beats the inline marker stroke. */
+svg [tabindex]:focus-visible {
+  outline: none;
+  stroke: rgb(var(--color-ring)) !important;
+  stroke-width: 3px !important;
 }
 
 /* ---------- TOP-LEVEL TAB BAR (unified app IA) ---------- */

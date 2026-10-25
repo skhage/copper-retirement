@@ -67,7 +67,7 @@ export function IncidentTable({ filters, onFilterChange, onIncidentSelect }: Inc
             value={filters.severity}
             onChange={(e) => onFilterChange({ ...filters, severity: e.target.value })}
             aria-label="Filter by severity"
-            className="border rounded px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="border border-input bg-card rounded px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             <option value="all">All</option>
             {SEVERITY_LEVELS.map((s) => (
@@ -81,7 +81,7 @@ export function IncidentTable({ filters, onFilterChange, onIncidentSelect }: Inc
             value={filters.state}
             onChange={(e) => onFilterChange({ ...filters, state: e.target.value })}
             aria-label="Filter by state"
-            className="border rounded px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="border border-input bg-card rounded px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             <option value="all">All</option>
             {stateOptions.map((s) => (
@@ -95,7 +95,7 @@ export function IncidentTable({ filters, onFilterChange, onIncidentSelect }: Inc
             value={filters.status}
             onChange={(e) => onFilterChange({ ...filters, status: e.target.value })}
             aria-label="Filter by status"
-            className="border rounded px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="border border-input bg-card rounded px-2 py-1 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             <option value="all">All</option>
             <option value="open">Open</option>

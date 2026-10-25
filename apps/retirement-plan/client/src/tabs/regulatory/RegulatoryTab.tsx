@@ -129,7 +129,7 @@ function AskView({ jur }: { jur: string }) {
       </form>
       <div className="flex flex-wrap gap-2">
         {SUGGESTED.map((s) => (
-          <button key={s} type="button" onClick={() => submit(undefined, s)} className="rounded-full border border-border bg-card px-3 py-1 text-xs text-secondary hover:bg-muted">{s}</button>
+          <button key={s} type="button" onClick={() => submit(undefined, s)} className="rounded-full border border-input bg-card px-3 py-1 text-xs text-secondary hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">{s}</button>
         ))}
       </div>
       {err && <EmptyState title="The question could not be answered"><p>{err}</p></EmptyState>}

@@ -6,7 +6,7 @@
  * Data (reused, nothing new created; all SYNTHETIC and labeled in the UI):
  *   ${CATALOG}.${SCHEMA}.gold_retirement_executive_summary  (6 footprint states, DEC-DSI-FOOTPRINT)
  *   ${CATALOG}.${SCHEMA}.gold_wire_center_scorecard         (103 wire centers, readiness + priority rank)
- *   ${CATALOG}.${SCHEMA}.copper_risk_predictions            (2,672 devices scored by champion V5 via copper-retirement-risk)
+ *   ${CATALOG}.${SCHEMA}.copper_risk_predictions            (2,672 devices scored by champion V5 via the SERVING_ENDPOINT model endpoint)
  *   ${CATALOG}.tmf_enterprise.physical_device + ${CATALOG}.tmf_shared.geographic_address (device location)
  * All user input goes through Statement API named parameters (no string interpolation of input).
  */
@@ -16,6 +16,8 @@ import { executeSQL } from '../databricksSQL.js';
 const CATALOG = process.env.CATALOG || 'cdm_tmforum';
 const SCHEMA = process.env.SCHEMA || 'copper_retirement';
 const FQ = `${CATALOG}.${SCHEMA}`;
+// ACC-APP-SERVING-ENDPOINT-VAR: risk model serving endpoint name is partner-configurable (bundle var serving_endpoint).
+const SERVING_ENDPOINT = process.env.SERVING_ENDPOINT || 'copper-retirement-risk';
 // Legacy LakeLink footprint (DEC-DSI-FOOTPRINT): only these states have wire centers + the cited jurisdiction matrix.
 const FOOTPRINT = (process.env.FOOTPRINT_STATES || 'CO,MN,WA,OR,ID,AZ').split(',').map((s) => s.trim().toUpperCase()).filter((s) => /^[A-Z]{2}$/.test(s));
 const FOOT_SQL = `(${FOOTPRINT.map((s) => `'${s}'`).join(',')})`; // whitelisted 2-letter codes only
@@ -46,6 +48,7 @@ async function fetchKpis() {
     fiber_ready_pct: num(r.fiber_ready_pct) ?? 0, footprint_critical: int(r.footprint_critical), footprint_high: int(r.footprint_high),
     footprint_states: int(r.footprint_states), scored_devices: int(r.scored_devices), scored_critical: int(r.scored_critical),
     scored_high: int(r.scored_high), model_version: r.model_version || null, footprint: FOOTPRINT,
+    serving_endpoint: SERVING_ENDPOINT,
   };
 }
 

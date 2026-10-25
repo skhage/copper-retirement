@@ -48,7 +48,7 @@ export function LakeLinkHeader({
       {/* Right: children (filters etc.) + data source badge */}
       <div className="flex items-center gap-3">
         {children}
-        <span className={`text-[11px] px-2.5 py-1 rounded font-medium text-secondary ${badgeBg}`}>
+        <span className={`text-xs px-2.5 py-1 rounded font-medium text-secondary ${badgeBg}`}>
           {dataSource} DATA
         </span>
         {showSynthetic && <span className="ll-badge-synthetic">SYNTHETIC</span>}

@@ -262,7 +262,7 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Ask the triage agent..."
             aria-label="Message for triage agent"
-            className="flex-1 border rounded px-3 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="flex-1 border border-input bg-card rounded px-3 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             disabled={!selectedIncident}
           />
           <button

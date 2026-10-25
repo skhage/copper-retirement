@@ -251,7 +251,7 @@ export function IncidentDetailPanel({
       {nearbyIncidents.length > 0 && (
         <div className="mx-4 mb-4">
           <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle size={16} strokeWidth={1.5} className="text-viz-5" aria-hidden="true" />
+            <AlertTriangle size={16} strokeWidth={1.5} className="text-warning" aria-hidden="true" />
             <h4 className="text-xs font-semibold uppercase text-muted-foreground">
               Nearby Incidents ({nearbyIncidents.length} within 50 km)
             </h4>
@@ -261,7 +261,7 @@ export function IncidentDetailPanel({
               <div key={ni.incident_id} className="text-xs border rounded p-2 bg-muted/50">
                 <span className="font-medium">INC-{ni.incident_id}</span>
                 <span
-                  className="ml-1 px-1 py-0.5 rounded text-[10px] font-bold"
+                  className="ml-1 px-1 py-0.5 rounded text-xs font-bold"
                   style={badgeStyle(SEVERITY_COLORS[ni.severity as keyof typeof SEVERITY_COLORS])}
                 >
                   {ni.severity}

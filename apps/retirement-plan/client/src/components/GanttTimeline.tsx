@@ -91,7 +91,7 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
         <h2 className="text-sm font-semibold">Retirement Wave Timeline (2026–2029)</h2>
         {isLoading && <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>}
         {!isLoading && liveData && (
-          <span className="text-[10px] bg-accent/10 text-accent-strong px-2 py-0.5 rounded font-medium">
+          <span className="text-xs bg-accent/10 text-accent-strong px-2 py-0.5 rounded font-medium">
             LIVE — {liveData.length} wire centers from optimizer
           </span>
         )}
@@ -107,7 +107,7 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
         <div className="w-48 flex-shrink-0 text-xs text-muted-foreground">Wire Center</div>
         <div className="flex-1 flex">
           {QUARTERS.map((q) => (
-            <div key={q} className="flex-1 text-center text-[10px] text-muted-foreground">
+            <div key={q} className="flex-1 text-center text-xs text-muted-foreground">
               {q}
             </div>
           ))}
@@ -170,7 +170,7 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
                   )}
                   {/* Wave label on bar */}
                   {width > 3 && (
-                    <span className="text-[9px] text-white font-medium px-1 leading-4 truncate block">
+                    <span className="text-xs text-white font-medium px-1 leading-4 truncate block">
                       W{wc.wave}
                     </span>
                   )}
@@ -186,7 +186,7 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
         {[1, 2, 3, 4, 5, 6, 7, 8].map((w) => (
           <div key={w} className="flex items-center gap-1">
             <div className={`w-3 h-3 rounded-sm ${WAVE_COLORS[w]}`} />
-            <span className="text-[10px] text-muted-foreground">Wave {w}</span>
+            <span className="text-xs text-muted-foreground">Wave {w}</span>
           </div>
         ))}
       </div>

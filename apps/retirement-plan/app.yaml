@@ -54,6 +54,9 @@ env:
     value: copper_retirement
   - name: DIG_811_TABLE
     value: cdm_tmforum.provable_resilience_intelligence.stg_811_dig_ticket
+  # Risk model serving endpoint (ACC-APP-SERVING-ENDPOINT-VAR; bundle: ${var.serving_endpoint})
+  - name: SERVING_ENDPOINT
+    value: copper-retirement-risk
   # Regulatory tab grounded answers (pay-per-token via ai_query; Llama guardrail rejects statute text)
   - name: LLM_ENDPOINT
     value: databricks-claude-sonnet-4-5

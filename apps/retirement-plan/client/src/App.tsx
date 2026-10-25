@@ -7,17 +7,17 @@
  *   #plan[/sub]  Plan              <- retirement-plan      (this app; sub = timeline|table|budget|regulatory|scenarios)
  *   #triage      Dig Triage        <- dig-triage           (ACC-APP-PORT-TRIAGE, PORTED 2026-10-24: tabs/triage/, server/routes/triage.js)
  *   #regulatory  Regulatory        <- regulatory-assistant (ACC-APP-PORT-REG, PORTED 2026-10-24: tabs/regulatory/, server/routes/regulatory.js; every answer/row carries source title + official URL)
- *   #commodity   Commodity & Value <- commodity-dashboard  (ACC-APP-PORT-COMMODITY)
+ *   #commodity   Commodity & Value <- commodity-dashboard  (ACC-APP-PORT-COMMODITY, PORTED 2026-10-25: tabs/commodity/CommodityTab.tsx, server/routes/commodity.js)
  *
  * Styling: styles/tokens.css only (ACC-APP-TOKENS-WIRE). Partner rebrand = edit the BRAND LAYER there.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { LakeLinkHeader, TabBar, ErrorBoundary, panelId, tabId } from './components/shared';
 import { PlanTab, isPlanSub, type PlanSub } from './tabs/PlanTab';
-import { PendingPortTab } from './tabs/PendingPortTab';
 import { TriageTab } from './tabs/triage/App';
 import { RegulatoryTab } from './tabs/regulatory/RegulatoryTab';
 import { MapTab } from './tabs/map/MapTab';
+import { CommodityTab } from './tabs/commodity/CommodityTab';
 
 export interface PlanFilters {
   wave: string;       // 'all' | '1' | '2' | ... | '8'
@@ -94,15 +94,7 @@ export default function App() {
           )}
           {route.tab === 'triage' && <TriageTab />}
           {route.tab === 'regulatory' && <RegulatoryTab />}
-          {route.tab === 'commodity' && (
-            <PendingPortTab
-              title="Commodity & Value"
-              question="What is the recovered copper worth, and when should we sell?"
-              taskCode="ACC-APP-PORT-COMMODITY"
-              sourceApp="commodity-dashboard"
-              dataNote="copper_retirement.copper_commodity_price_official (IMF PCOPPUSDM via FRED) and copper_app.gold_copper_recovery_schedule."
-            />
-          )}
+          {route.tab === 'commodity' && <CommodityTab />}
         </ErrorBoundary>
       </main>
     </div>

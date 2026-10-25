@@ -63,7 +63,7 @@ export function ScenarioCompare() {
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold">{s.name}</h3>
               <span
-                className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                className={`text-xs px-1.5 py-0.5 rounded font-medium ${
                   s.status === 'active'
                     ? 'bg-accent/10 text-accent-strong'
                     : s.status === 'draft'
@@ -81,19 +81,19 @@ export function ScenarioCompare() {
             {/* Metrics grid */}
             <div className="grid grid-cols-2 gap-2 mb-3">
               <div>
-                <p className="text-[10px] text-muted-foreground">Total Cost</p>
+                <p className="text-xs text-muted-foreground">Total Cost</p>
                 <p className="text-sm font-bold">{formatCurrency(s.total_cost)}</p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground">Duration</p>
+                <p className="text-xs text-muted-foreground">Duration</p>
                 <p className="text-sm font-bold">{s.total_duration_months}mo</p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground">Waves</p>
+                <p className="text-xs text-muted-foreground">Waves</p>
                 <p className="text-sm font-bold">{s.waves_used}</p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground">Risk Score</p>
+                <p className="text-xs text-muted-foreground">Risk Score</p>
                 <p className={`text-sm font-bold ${riskColor(s.risk_score)}`}>
                   {s.risk_score}/100
                 </p>
@@ -111,7 +111,7 @@ export function ScenarioCompare() {
                   Set Active
                 </button>
               )}
-              <button className="text-xs border px-2 py-1 rounded hover:bg-muted transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+              <button className="text-xs border border-input px-2 py-1 rounded hover:bg-muted transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
                 View Detail
               </button>
             </div>
@@ -120,7 +120,7 @@ export function ScenarioCompare() {
       </div>
       )}
 
-      <p className="text-[10px] text-muted-foreground mt-3">
+      <p className="text-xs text-muted-foreground mt-3">
         Scenarios from P4-SEQ optimizer (mock data — optimizer not yet deployed).
         Created {mockScenarios[0]?.created_at}.
       </p>

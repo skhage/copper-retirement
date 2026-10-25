@@ -104,8 +104,14 @@ async function fetch811Summary(state) {
 
 // ---------- router ----------
 const router = express.Router();
+// UC permission failures surface as 403 with an honest message (ACC-DES-DEF-TRIAGE-STATES), never as 'not found'.
+const PERM_RE = /PERMISSION_DENIED|INSUFFICIENT_PERMISSIONS|does not have .*(privilege|permission)|USE (CATALOG|SCHEMA)/i;
 const wrap = (fn) => (req, res) => fn(req, res).catch((err) => {
   console.error(`[accelerator:triage] ${req.method} ${req.path}:`, err.message);
+  if (PERM_RE.test(err.message || '')) {
+    const m = (err.message || '').match(/(?:on|ON) (?:table|TABLE|function|FUNCTION|schema|SCHEMA)?\s*`?([\w.`]+)`?/);
+    return res.status(403).json({ error: `Data access pending: the app service principal lacks SELECT on ${m ? m[1].replace(/`/g, '') : FQ}` });
+  }
   res.status(err.status || 500).json({ error: err.message });
 });
 

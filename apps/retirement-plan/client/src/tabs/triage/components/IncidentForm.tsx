@@ -55,7 +55,10 @@ export function IncidentForm({ onClose, onSubmit }: IncidentFormProps) {
     <div className="fixed inset-0 bg-secondary/60 z-50 flex items-center justify-center">
       <div className="bg-card rounded-lg border shadow-xl w-[520px] max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-bold text-secondary">Report New Incident</h2>
+          <div>
+            <h2 className="text-lg font-bold text-secondary">Report New Incident</h2>
+            <span className="ll-badge-synthetic">DEMO ONLY - NOT SAVED</span>
+          </div>
           <button
             onClick={onClose}
             aria-label="Close"
@@ -66,6 +69,9 @@ export function IncidentForm({ onClose, onSubmit }: IncidentFormProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Demo only: this form shows the intake fields. Submitting does not write to any table (Lakebase write-back is not wired).
+          </p>
           {/* Severity + State */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -194,7 +200,7 @@ export function IncidentForm({ onClose, onSubmit }: IncidentFormProps) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm border rounded-md hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="px-4 py-2 text-sm border border-input rounded-md hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               Cancel
             </button>

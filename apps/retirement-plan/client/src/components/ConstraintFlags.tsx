@@ -18,22 +18,22 @@ const CONSTRAINT_CONFIG: Record<
   contract_locked: {
     icon: '\uD83D\uDD12', // lock
     label: 'Contract locked',
-    color: 'bg-red-100 text-red-700',
+    color: 'bg-danger/10 text-danger',
   },
   regulatory_notice_pending: {
     icon: '\u2696\uFE0F',  // scales
     label: 'Regulatory pending',
-    color: 'bg-amber-100 text-amber-700',
+    color: 'bg-warning/10 text-warning',
   },
   crew_capacity_constrained: {
     icon: '\uD83D\uDEE0\uFE0F', // wrench
     label: 'Crew constrained',
-    color: 'bg-orange-100 text-orange-700',
+    color: 'bg-warning/10 text-warning',
   },
   revrec_locked: {
     icon: '\uD83D\uDCB0', // money bag
     label: 'RevRec locked',
-    color: 'bg-purple-100 text-purple-700',
+    color: 'bg-muted text-foreground',
   },
   none: null,
 };
@@ -42,7 +42,7 @@ export function ConstraintFlags({ constraint, size = 'sm' }: Props) {
   const config = CONSTRAINT_CONFIG[constraint];
   if (!config) return null;
 
-  const textSize = size === 'sm' ? 'text-[9px]' : 'text-xs';
+  const textSize = size === 'sm' ? 'text-xs' : 'text-xs';
   const padding = size === 'sm' ? 'px-1 py-0' : 'px-1.5 py-0.5';
 
   return (
