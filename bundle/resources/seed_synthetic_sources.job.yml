@@ -10,6 +10,14 @@
 # ${var.schema_name} inputs) into ${var.catalog_name}, FK-consistent and labeled
 # SYNTHETIC (table + column comments, copper.seed.synthetic=true, telco_project tag).
 # Task 2 full-refreshes the pipeline so bronze/silver/gold build on the seed.
+# Task 3 provisions the Dig Triage objects that read pipeline outputs
+# (silver_dig_incident_enriched + UC functions incident_lookup, proximity_search,
+# reroute_suggest) via scripts/provision_app_objects.py (ACC-QA-DEF-FRESH-PROVISION).
+#
+# ORDERING: run this job BEFORE opening the app. The app's DIG_811_TABLE
+# (${var.catalog_name}.provable_resilience_intelligence.stg_811_dig_ticket) is
+# created by task 1, and the Triage tab needs task 3. Regulatory tab reference
+# tables (real, cited) are NOT seeded here; see PARTNER-PLAYBOOK §6a.
 #
 # Safety: the seeder refuses to overwrite any existing table that it did not
 # write, so running this against the reference workspace (dev/prod targets)
@@ -44,6 +52,18 @@ resources:
           pipeline_task:
             pipeline_id: ${resources.pipelines.copper_retirement_pipeline.id}
             full_refresh: true
+
+        - task_key: 'provision_app_objects'
+          depends_on:
+            - task_key: 'refresh_pipeline'
+          environment_key: 'seed_env'
+          spark_python_task:
+            python_file: ../../scripts/provision_app_objects.py
+            parameters:
+              - '--catalog'
+              - '${var.catalog_name}'
+              - '--schema'
+              - '${var.schema_name}'
 
       environments:
         - environment_key: 'seed_env'
