@@ -63,7 +63,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 
 VS_INDEX_NAME = f"{CATALOG}.{SCHEMA}.regulatory_doc_chunks_vs_index"   # lives on VS endpoint cmeg-demos-vs (DEC-VS-ENDPOINT-ACTUAL)
-REG_TOP_K = 6
+REG_TOP_K = 8   # ACC-ML-REG-PROMPT-TUNE (2026-10-25): 6 -> 8 to cut over-abstention on multi-subsection statutes
 # Llama-3.3-70B AI Gateway input guardrail flags statute text as "non-violent-crimes" (false positive, 2026-10-24) -> use Claude for RAG
 REG_LLM_ENDPOINT = "databricks-claude-sonnet-4-5"
 JUDGE_ENDPOINT = "databricks-gpt-oss-120b"   # different model family than the generator
@@ -133,16 +133,77 @@ Answer ONLY from the numbered SOURCES. Rules:
 1. Every factual sentence must end with a citation in the form [S#](URL) using the exact URL shown for that source.
 2. Never cite a URL, rule number, deadline or docket that is not in the SOURCES. Never answer from memory.
 3. Keep federal (US) and state rules distinct; name the jurisdiction for each requirement.
-4. If the SOURCES do not contain the specific detail asked for, reply starting with "INSUFFICIENT SOURCES:" and say what is missing. Do not guess.
+4. Rule numbers (CFR/USC sections, state statute sections, FCC/DA order numbers) must be copied exactly as they appear in a source's Citation field or text. If the source text does not show a section number, describe the rule without one.
+5. Read every source fully before deciding a detail is missing. If any source states the fact (even inside a longer passage or a different subsection), answer with it and cite that source.
+6. Start with "INSUFFICIENT SOURCES:" ONLY when no source addresses the topic at all. If sources answer part of the question, answer that part with citations and say briefly which part the sources do not cover.
 Be concise (<= 150 words)."""
+
+# ---------- Rule-citation guardrail (COO-Q-20261025-0549-2) ----------
+# Blocks any rule number (CFR/USC section, state statute section, FCC/DA order number) that does not appear in the
+# retrieved chunk text or Citation field. One corrective regeneration; if still unsupported, the answer is withheld.
+_RULE_RE = re.compile(
+    r"(?:C\.?\s?F\.?\s?R\.?|U\.?\s?S\.?\s?C\.?|§+|Sections?|Stat\.?|RCW|A\.?R\.?S\.?|C\.?R\.?S\.?|I\.?C\.?|Idaho Code|IDAPA)\s*(?:§+\s*)?(?:Part\s+)?"
+    r"([0-9][0-9A-Za-z]*(?:[.\-][0-9A-Za-z]+)+(?:\([0-9A-Za-z]{1,4}\))*)", re.I)
+_URL_STRIP = re.compile(r"https?://[^\s\)\]>\"']+")
+_ORDER_RE = re.compile(r"\b(FCC|DA)[\s-]+(\d{2}-\d{1,4})\b")
+
+def _rule_refs(text):
+    text = _URL_STRIP.sub(" ", text or "")   # never treat URL path fragments (e.g. crs2024-title-09.pdf) as rule numbers
+    refs = {m.group(1).rstrip(".,;:") for m in _RULE_RE.finditer(text)}
+    refs |= {f"{a} {b}" for a, b in _ORDER_RE.findall(text)}
+    return refs
+
+def unsupported_rule_refs(answer, chunks):
+    """Rule numbers cited in the answer that appear in no retrieved chunk (text or Citation field)."""
+    hay = " ".join(f"{c.get('citation') or ''} {c.get('title') or ''} {c.get('embedding_text') or ''}" for c in chunks)
+    hay_n = re.sub(r"\s+", " ", hay).lower()
+    hay_c = re.sub(r"\s+", "", hay_n)   # compact form so '51.333 (a)(2)' matches '51.333(a)(2)'
+    bad = set()
+    for r in _rule_refs(answer):
+        key = r.lower()
+        if " " in key:   # FCC/DA order: accept 'FCC 26-19', 'FCC-26-19'
+            a, b = key.split(" ", 1)
+            ok = re.search(rf"{a}[\s-]+{re.escape(b)}(?!\d)", hay_n) is not None
+        else:            # section incl. any (a)(2) subsection must appear verbatim in the retrieved text
+            k = re.sub(r"\s+", "", key)
+            ok = re.search(rf"(?<![0-9])(?<![0-9]\.){re.escape(k)}(?![0-9])", hay_c) is not None
+            # CFR-style sections (51.333(a)(2)) must match verbatim, subsection included. Only hyphenated state statutes
+            # (C.R.S. 9-1.5-103(4)(a)(I)) may match section + nearby subsection, because codified state PDFs print them apart.
+            if not ok and "(" in k and "-" in k[:k.index("(")]:
+                base, sub = k[:k.index("(")], k[k.index("("):]
+                for c in chunks:
+                    cc = re.sub(r"\s+", "", f"{c.get('citation') or ''} {c.get('embedding_text') or ''}".lower())
+                    # subsection must follow the section number closely (<= 800 chars), not just appear anywhere
+                    if any(sub in cc[m.end():m.end() + 800]
+                           for m in re.finditer(rf"(?<![0-9])(?<![0-9]\.){re.escape(base)}(?![0-9])", cc)):
+                        ok = True; break
+        if not ok: bad.add(r)
+    return sorted(bad)
+
+def _generate(msgs):
+    return llm_client.chat.completions.create(model=REG_LLM_ENDPOINT, temperature=0.0, max_tokens=600,
+                                              messages=msgs).choices[0].message.content
 
 def regulatory_rag_query(question, jurisdiction=None, top_k=REG_TOP_K):
     chunks, mode = retrieve_regulatory_chunks(question, top_k, jurisdiction)
     ctx = format_context(chunks)
-    resp = llm_client.chat.completions.create(model=REG_LLM_ENDPOINT, temperature=0.0, max_tokens=600,
-        messages=[{"role": "system", "content": REG_SYSTEM_PROMPT},
-                  {"role": "user", "content": f"SOURCES:\n{ctx}\n\nQUESTION: {question}"}])
-    return {"question": question, "answer": resp.choices[0].message.content, "retrieval_mode": mode,
+    msgs = [{"role": "system", "content": REG_SYSTEM_PROMPT},
+            {"role": "user", "content": f"SOURCES:\n{ctx}\n\nQUESTION: {question}"}]
+    answer = _generate(msgs)
+    bad = unsupported_rule_refs(answer, chunks)
+    guardrail = "pass"
+    if bad:   # one corrective regeneration
+        guardrail = "corrected"
+        answer = _generate(msgs + [{"role": "assistant", "content": answer},
+            {"role": "user", "content": f"These rule numbers do not appear in the SOURCES: {', '.join(bad)}. "
+                                        "Rewrite the answer without them, citing only rule numbers shown in the SOURCES."}])
+        bad = unsupported_rule_refs(answer, chunks)
+        if bad:
+            guardrail = "blocked"
+            answer = (f"INSUFFICIENT SOURCES: answer withheld by the citation guardrail because it referenced rule "
+                      f"number(s) {', '.join(bad)} that do not appear in the retrieved official sources.")
+    return {"question": question, "answer": answer, "retrieval_mode": mode, "guardrail": guardrail,
+            "unsupported_rule_refs": bad,
             "sources": [{k: c.get(k) for k in ("source_id", "citation", "jurisdiction", "source_url")} for c in chunks],
             "context": ctx}
 
@@ -339,31 +400,36 @@ def _exec_contractors(request):
 def _exec_commodity(request):
     """Query copper commodity price data and forecasts."""
     try:
-        # Current price + recent trend
+        # REAL monthly price history (IMF PCOPPUSDM via FRED); replaces the synthetic copper_commodity_price (ACC-ML-COMMODITY-REAL)
         q_recent = f"""
-            SELECT price_date, region,
-                   CAST(copper_lme_price_usd_ton AS DOUBLE) AS copper_lme_usd_ton,
-                   CAST(copper_comex_price_usd_lb AS DOUBLE) AS copper_comex_usd_lb
-            FROM {CATALOG}.{SCHEMA}.copper_commodity_price
-            ORDER BY price_date DESC LIMIT 10
+            SELECT price_month, copper_price_usd_ton, copper_price_usd_lb, price_source, source_url
+            FROM {CATALOG}.{SCHEMA}.copper_commodity_price_official
+            WHERE is_synthetic = false
+            ORDER BY price_month DESC LIMIT 6
         """
         recent = _ser([r.asDict() for r in spark.sql(q_recent).collect()])
-        
-        # Forecast if available
+        errors = {}
+
+        # Forecast: the column is forecast_month (the old forecast_date ORDER BY failed and was hidden by a bare except)
         try:
-            q_fc = f"SELECT * FROM {CATALOG}.{SCHEMA}.gold_commodity_price_forecast ORDER BY forecast_date DESC LIMIT 5"
+            q_fc = f"""SELECT forecast_month, copper_lme_forecast_usd_ton, copper_comex_forecast_usd_lb, model_version,
+                              forecast_generated_date, is_synthetic, source_url
+                       FROM {CATALOG}.{SCHEMA}.gold_commodity_price_forecast
+                       WHERE region = 'CO' ORDER BY forecast_month LIMIT 6"""
             forecast = _ser([r.asDict() for r in spark.sql(q_fc).collect()])
-        except:
-            forecast = []
-        
-        # Sell/hold signal if available
+        except Exception as e:
+            forecast, errors["forecast"] = [], str(e)[:300]
+
+        # Sell/hold signal (metric view; still DERIVED FROM SYNTHETIC daily prices until it is rebased on official prices)
         try:
             q_sig = f"SELECT * FROM {CATALOG}.{SCHEMA}.copper_commodity_sell_hold_signal LIMIT 1"
             signal = _ser([r.asDict() for r in spark.sql(q_sig).collect()])
-        except:
-            signal = []
-        
-        return json.dumps({"agent": "commodity", "recent_prices": recent, "forecasts": forecast, "sell_hold_signal": signal}, default=str)
+        except Exception as e:
+            signal, errors["sell_hold_signal"] = [], str(e)[:300]
+
+        return json.dumps({"agent": "commodity", "recent_prices": recent, "forecasts": forecast, "sell_hold_signal": signal,
+                           "sell_hold_signal_is_synthetic": True, "errors": errors,
+                           "instruction": "Cite source_url for any price. Label the sell/hold signal as synthetic demo data."}, default=str)
     except Exception as e:
         return json.dumps({"agent": "commodity", "error": str(e)})
 
@@ -1014,6 +1080,7 @@ print("Usage: evaluate_gate(results, 'triage'), print_gate_report([...])")
 # MAGIC * **Flag-gap question** (REG-V3-37, AZ ACC R14-2-1107) covers a source that is registered but not indexed. The chain must answer `INSUFFICIENT SOURCES` and must not answer from memory.
 # MAGIC * **Retrieval chain:** VS index -> UC TVF `search_regulatory_chunks` (bge-large, 1,598 real chunks) -> Delta TF-IDF. Citation allowlist = register `official_url` + chunk-level official `source_url` of registered sources.
 # MAGIC * **Runs 2026-10-25 (ACC-ML-REG-EVAL-DELTA-SEARCH):** TVF on old labels 26/38 -> TVF on new labels 30/38. TF-IDF on new labels 31/38, hybrid RRF 30/38 (one uncited answer). Citation URL validity, jurisdiction correctness and gap abstention were 100% for TVF and TF-IDF. The remaining failures come from the generator (over-abstaining, plus one unsupported 47 CFR 51.333 cite), not from retrieval.
+# MAGIC * **Citation guardrail + prompt tune (2026-10-25, COO-Q-20261025-0549-2 / ACC-ML-REG-PROMPT-TUNE):** every rule number in an answer (CFR/USC section incl. subsection, state statute, FCC/DA order) must appear in the retrieved chunks. If not, the chain regenerates once; if it still fails, the answer is withheld (`guardrail='blocked'`). URL scoring is strict: exact case-insensitive match to a *verified* register row, and the URL must belong to a source retrieved for that question. top_k 6 -> 8; judge context 14k -> 32k chars. Final code, 3 consecutive runs: T1144 33/38, T1146 31/38, T1147 32/38 (all gates pass, URL validity, jurisdiction and gap abstention 100%). Runs T1133-T1141 used intermediate guardrail versions; ignore them. Residual failures are over-abstentions (V3-10/13/18) and judge-flagged extra claims (V3-11/26/35); none cites a URL or rule number missing from the sources.
 # MAGIC * **Gate:** overall pass >= 80%, citation URL validity = 100%, jurisdiction correctness = 100%, flag-gap abstention = 100%. An answer with no citation fails.
 
 # COMMAND ----------
@@ -1026,17 +1093,32 @@ _ABSTAIN_RE = re.compile(r"INSUFFICIENT SOURCES|do(es)? not (contain|include|pro
 
 def _urls(text): return {u.rstrip(".,;:").rstrip("/") for u in _URL_RE.findall(text or "")}
 
+# Strict allowlist (ACC-QA-DEF-RAG-ALLOWLIST, 2026-10-25): exact, case-insensitive match against register official_url or
+# chunk source_url of a VERIFIED, non-synthetic register row, AND the URL must belong to a source retrieved for this question.
+_norm = lambda u: (u or "").strip().rstrip("/").lower()
+_VERIFIED = {k for k, v in _REGISTER.items() if str(v.get("verification_status") or "").startswith("verified") and not v.get("is_synthetic")}
+SOURCE_URLS = {}
+for _k, _v in _REGISTER.items():
+    if _k in _VERIFIED and _v.get("official_url"): SOURCE_URLS.setdefault(_k, set()).add(_norm(_v["official_url"]))
+for _r in spark.sql(f"SELECT DISTINCT source_id, source_url FROM {CATALOG}.{SCHEMA}.regulatory_doc_chunks WHERE is_synthetic = false AND source_url IS NOT NULL").collect():
+    if _r.source_id in _VERIFIED: SOURCE_URLS.setdefault(_r.source_id, set()).add(_norm(_r.source_url))
+OFFICIAL_URLS_CI = {_norm(k): v for k, v in OFFICIAL_URLS.items() if v["source_id"] in _VERIFIED}
+
 def score_citation_present(ans, row):            # every answerable response must cite >=1 URL
     return len(_urls(ans)) > 0
 
-def score_citation_url_valid(ans, row):          # every cited URL must be an official URL in the register
-    u = _urls(ans); return bool(u) and all(x in OFFICIAL_URLS for x in u)
+def score_citation_url_valid(ans, row, retrieved_ids=None):   # registered + verified + retrieved for this question
+    u = {_norm(x) for x in _urls(ans)}
+    if not u or not all(x in OFFICIAL_URLS_CI for x in u): return False
+    if retrieved_ids is None: return True
+    allowed = set().union(*[SOURCE_URLS.get(s, set()) for s in retrieved_ids]) if retrieved_ids else set()
+    return u <= allowed
 
 def score_expected_citation(ans, row):           # cites at least one expected official source
     return bool(_urls(ans) & {x.rstrip("/") for x in row["expected_citation_urls"]})
 
 def score_jurisdiction(ans, row):                # cited sources are federal or the asked state; federal Qs cite only federal
-    j = {OFFICIAL_URLS[x]["jurisdiction"] for x in _urls(ans) if x in OFFICIAL_URLS}
+    j = {OFFICIAL_URLS_CI[_norm(x)]["jurisdiction"] for x in _urls(ans) if _norm(x) in OFFICIAL_URLS_CI}
     if not j: return False
     allowed = {"US"} if row["jurisdiction"] == "US" else {"US", row["jurisdiction"]}
     ok = j <= allowed
@@ -1055,7 +1137,7 @@ Return JSON {"grounded": true|false, "reason": "<short>"}. grounded=true only if
 def score_groundedness(ans, ctx):
     r = llm_client.chat.completions.create(model=JUDGE_ENDPOINT, temperature=0, max_tokens=2500,
         messages=[{"role": "system", "content": JUDGE_PROMPT},
-                  {"role": "user", "content": f"SOURCES:\n{ctx[:14000]}\n\nANSWER:\n{ans}"}])
+                  {"role": "user", "content": f"SOURCES:\n{ctx[:32000]}\n\nANSWER:\n{ans}"}])
     c = r.choices[0].message.content
     if isinstance(c, list): c = " ".join(p.get("text", "") for p in c if isinstance(p, dict))
     m = re.search(r"\{.*\}", c or "", re.S)
@@ -1069,14 +1151,15 @@ def evaluate_row(row):
     s = dict(eval_id=row["eval_id"], category=row["category"], jurisdiction=row["jurisdiction"], answerable=bool(row["answerable"]),
              answer=a, retrieval_mode=out["retrieval_mode"], retrieved_source_ids=[x["source_id"] for x in out["sources"]],
              cited_urls=sorted(_urls(a)), groundedness=g, groundedness_reason=why,
+             guardrail=out.get("guardrail"), unsupported_rule_refs=out.get("unsupported_rule_refs") or [],
              retrieval_hit=bool(set(row["expected_source_ids"]) & {x["source_id"] for x in out["sources"]}))
     if row["answerable"]:
-        s.update(citation_present=score_citation_present(a,row), citation_url_valid=score_citation_url_valid(a,row),
+        s.update(citation_present=score_citation_present(a,row), citation_url_valid=score_citation_url_valid(a,row,s["retrieved_source_ids"]),
                  expected_citation=score_expected_citation(a,row), jurisdiction_correct=score_jurisdiction(a,row),
                  facts_correct=score_facts(a,row), abstained=score_abstain(a,row))
         s["passed"] = all([s["citation_present"], s["citation_url_valid"], s["jurisdiction_correct"], s["groundedness"], s["facts_correct"]])
     else:
-        ab = score_abstain(a,row); urls_ok = all(x in OFFICIAL_URLS for x in _urls(a))
+        ab = score_abstain(a,row); urls_ok = all(_norm(x) in OFFICIAL_URLS_CI for x in _urls(a))
         s.update(citation_present=len(_urls(a))>0, citation_url_valid=urls_ok, expected_citation=None,
                  jurisdiction_correct=None, facts_correct=None, abstained=ab)
         s["passed"] = ab and urls_ok and g
@@ -1126,3 +1209,103 @@ for q, j in [("What are the FCC notice requirements and timelines for retiring c
              ("What is the Section 214 discontinuance process and when is an application automatically granted?", None)]:
     r = regulatory_rag_query(q, jurisdiction=j)
     print(f"\nQ: {q}\n[{r['retrieval_mode']}] {[s['source_id'] for s in r['sources']]}\n{r['answer']}\n" + "-" * 80)
+
+# COMMAND ----------
+
+# DBTITLE 1,Part 5 — Commodity forecaster retrain on real IMF prices
+# MAGIC %md
+# MAGIC ## Part 5: Commodity forecaster — retrain on REAL copper prices (ACC-ML-COMMODITY-REAL, DEC-COMMODITY-REAL-RETRAIN)
+# MAGIC Trains the monthly copper price forecaster on `copper_commodity_price_official` (IMF PCOPPUSDM via FRED, https://fred.stlouisfed.org/series/PCOPPUSDM, `is_synthetic = false`). It writes the result to the **existing** `gold_commodity_price_forecast` table, so no new tables or endpoints are created.
+# MAGIC
+# MAGIC * **Candidates:** naive (random walk), log-drift over 36 and 60 months, and damped Holt on log price. The champion is the lowest 12-month-ahead MAPE on the last 12 real months; a 9-origin rolling backtest is a secondary check.
+# MAGIC * **Real columns:** only `copper_lme_forecast_usd_ton` and `copper_comex_forecast_usd_lb` are real-data forecasts. The USD/lb value is derived as USD/ton ÷ 2204.62262. It is an IMF benchmark, not an LME settlement or COMEX quote.
+# MAGIC * **Synthetic columns:** `fiber_cable_*`, `labor_cost_index_*` and `material_cost_index_*` stay **SYNTHETIC**. They are carried over from the prior forecast and labeled in the column comments. A partner replaces them with customer contract rates during discovery.
+# MAGIC * **Caveat:** monthly copper prices are close to a random walk. No candidate beats naive by a material margin, so partners should treat the forecast as a planning baseline and not a trading signal.
+
+# COMMAND ----------
+
+# DBTITLE 1,Commodity forecaster — backtest, MLflow log, write gold_commodity_price_forecast
+import numpy as np, pandas as pd, datetime, mlflow
+CATALOG = dbutils.widgets.get("catalog") if "CATALOG" not in globals() else CATALOG
+SCHEMA = dbutils.widgets.get("schema") if "SCHEMA" not in globals() else SCHEMA
+SRC = f"{CATALOG}.{SCHEMA}.copper_commodity_price_official"
+FC_TABLE = f"{CATALOG}.{SCHEMA}.gold_commodity_price_forecast"
+SOURCE_URL = "https://fred.stlouisfed.org/series/PCOPPUSDM"
+H, LB_PER_TON = 12, 2204.62262
+
+pdf = spark.sql(f"SELECT price_month, copper_price_usd_ton FROM {SRC} WHERE is_synthetic = false ORDER BY price_month").toPandas()
+y = np.log(pdf.copper_price_usd_ton.values)
+
+def f_naive(tr, h): return np.repeat(tr[-1], h)
+def f_drift(win):
+    def f(tr, h):
+        t = tr[-win:]; d = (t[-1] - t[0]) / (len(t) - 1); return tr[-1] + d * np.arange(1, h + 1)
+    return f
+def f_holt(tr, h):
+    best = None
+    for a in np.linspace(0.5, 1.0, 11):
+        for b in [0.01, 0.05, 0.1, 0.2, 0.3]:
+            for phi in [0.8, 0.9, 0.95, 0.98]:
+                l, bt, sse = tr[0], tr[1] - tr[0], 0.0
+                for x in tr[1:]:
+                    sse += (x - (l + phi * bt)) ** 2
+                    ln = a * x + (1 - a) * (l + phi * bt); bt = b * (ln - l) + (1 - b) * phi * bt; l = ln
+                if best is None or sse < best[0]: best = (sse, phi, l, bt)
+    _, phi, l, bt = best
+    return l + np.array([bt * sum(phi ** j for j in range(1, k + 1)) for k in range(1, h + 1)])
+def mape(a, f): return float(np.mean(np.abs(np.exp(a) - np.exp(f)) / np.exp(a)) * 100)
+
+CANDS = {"naive": f_naive, "logdrift36": f_drift(36), "logdrift60": f_drift(60), "holt_damped_log": f_holt}
+holdout = {k: mape(y[-H:], f(y[:-H], H)) for k, f in CANDS.items()}
+origins = list(range(len(y) - H - 48, len(y) - H + 1, 6))
+rolling = {k: float(np.mean([mape(y[o:o + H], f(y[:o], H)) for o in origins])) for k, f in CANDS.items()}
+champion = min(holdout, key=holdout.get)
+MODEL_VERSION = f"{champion}_imf_pcoppusdm_v2"
+print("Holdout MAPE (last 12 real months):", {k: round(v, 2) for k, v in holdout.items()})
+print("Rolling 9-origin 12-step MAPE:", {k: round(v, 2) for k, v in rolling.items()}, "| champion:", champion)
+
+# Refit on the full real series and forecast the next 12 months
+last_month = pd.Timestamp(pdf.price_month.max())
+months = [(last_month + pd.DateOffset(months=k)).strftime("%Y-%m-%d") for k in range(1, H + 1)]
+ton = np.round(np.exp(CANDS[champion](y, H)), 2)
+
+# Carry over the SYNTHETIC non-copper columns from the prior forecast (last known value is carried forward for new months)
+prior = spark.table(FC_TABLE).select("forecast_month", "region", "fiber_cable_forecast_usd_km", "labor_cost_index_forecast", "material_cost_index_forecast").toPandas()
+regions = sorted(prior.region.unique()) or ["AZ", "CO", "ID", "MN", "OR", "WA"]
+grid = pd.DataFrame([(m, r, t) for m, t in zip(months, ton) for r in regions], columns=["forecast_month", "region", "copper_lme_forecast_usd_ton"])
+out = grid.merge(prior, on=["forecast_month", "region"], how="outer").sort_values(["region", "forecast_month"])
+syn_cols = ["fiber_cable_forecast_usd_km", "labor_cost_index_forecast", "material_cost_index_forecast"]
+out[syn_cols] = out.groupby("region")[syn_cols].ffill()
+out = out[out.forecast_month.isin(months)].copy()
+out["copper_comex_forecast_usd_lb"] = np.round(out.copper_lme_forecast_usd_ton / LB_PER_TON, 4)
+out["model_version"] = MODEL_VERSION
+out["forecast_generated_date"] = datetime.date.today().isoformat()
+out["is_synthetic"] = False
+out["source_url"] = SOURCE_URL
+assert len(out) == H * len(regions) and out.copper_lme_forecast_usd_ton.notna().all()
+
+mlflow.set_experiment("/Users/stephen.hage@databricks.com/copper-retirement/experiments/copper_commodity_forecast")
+with mlflow.start_run(run_name=f"retrain-real-{MODEL_VERSION}") as run:
+    mlflow.log_params({"champion": champion, "train_rows": len(y), "train_start": str(pdf.price_month.min()), "train_end": str(pdf.price_month.max()), "horizon_months": H, "source_url": SOURCE_URL, "is_synthetic": False})
+    mlflow.log_metrics({**{f"holdout12_mape_{k}": v for k, v in holdout.items()}, **{f"rolling9_mape_{k}": v for k, v in rolling.items()}})
+    mlflow.set_tags({"telco_project": "copper-retirement", "task": "ACC-ML-COMMODITY-REAL"})
+    RUN_ID = run.info.run_id
+
+# Write to the EXISTING table (adds is_synthetic/source_url if missing; the INSERT OVERWRITE keeps table and column metadata)
+existing = [c.name for c in spark.table(FC_TABLE).schema]
+if "is_synthetic" not in existing:
+    spark.sql(f"ALTER TABLE {FC_TABLE} ADD COLUMNS (is_synthetic BOOLEAN COMMENT 'FALSE = copper price columns forecast from REAL IMF PCOPPUSDM data. Fiber/labor/material columns remain SYNTHETIC (see column comments).', source_url STRING COMMENT 'Official citation URL of the training series')")
+cols = existing + [c for c in ["is_synthetic", "source_url"] if c not in existing]
+spark.createDataFrame(out[cols]).createOrReplaceTempView("_fc_new")
+spark.sql(f"INSERT OVERWRITE TABLE {FC_TABLE} SELECT {', '.join(cols)} FROM _fc_new")
+
+spark.sql(f"""COMMENT ON TABLE {FC_TABLE} IS 'Gold layer: 12-month copper price forecast by region. Copper columns are forecast from REAL data: IMF PCOPPUSDM monthly global copper price via FRED ({SOURCE_URL}), model {MODEL_VERSION}, MLflow run {RUN_ID}, holdout MAPE on the last 12 real months {holdout[champion]:.1f}%. The USD/lb value is derived from USD/ton and is not a COMEX quote. Fiber cable, labor index and material index columns are SYNTHETIC placeholders for partner discovery inputs.'""")
+for c, txt in [("copper_lme_forecast_usd_ton", "REAL-data forecast of the global copper price in USD per metric ton (IMF PCOPPUSDM benchmark, not an LME settlement)."),
+               ("copper_comex_forecast_usd_lb", "Derived: copper_lme_forecast_usd_ton / 2204.62262 (USD per pound). Not a COMEX quote."),
+               ("fiber_cable_forecast_usd_km", "SYNTHETIC placeholder: fiber cable cost in USD per km. Replace with customer contract rates."),
+               ("labor_cost_index_forecast", "SYNTHETIC placeholder: regional labor cost index (base 100). Replace with customer data."),
+               ("material_cost_index_forecast", "SYNTHETIC placeholder: material cost index (base 100). Replace with customer data.")]:
+    spark.sql(f"ALTER TABLE {FC_TABLE} ALTER COLUMN {c} COMMENT '{txt}'")
+
+chk = spark.sql(f"SELECT count(*) n, min(forecast_month) lo, max(forecast_month) hi, count_if(is_synthetic) syn, any_value(model_version) mv FROM {FC_TABLE}").first()
+print(f"✅ {FC_TABLE}: {chk.n} rows {chk.lo}..{chk.hi}, synthetic rows={chk.syn}, model={chk.mv}, mlflow run={RUN_ID}")
