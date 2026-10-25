@@ -1,4 +1,5 @@
 -- wave_schedule.sql
+-- Partner portability (ACC-QA-DEF-APP-CATALOG): catalog is the :catalog parameter (app env CATALOG <- bundle var catalog_name).
 -- Wire-center retirement wave schedule for the Gantt timeline.
 -- TODO: Replace with copper_retirement.migration_tracking + P4-SEQ optimizer output
 --       once those tables exist.
@@ -22,8 +23,8 @@ SELECT
   count(DISTINCT CASE WHEN m.status = 'achieved' THEN m.milestone_id END) AS milestones_achieved,
   count(DISTINCT CASE WHEN m.critical_path_flag = true THEN m.milestone_id END) AS critical_milestones,
   count(DISTINCT CASE WHEN m.regulatory_requirement_flag = true THEN m.milestone_id END) AS regulatory_milestones
-FROM cdm_tmforum.tmf_enterprise.project p
-LEFT JOIN cdm_tmforum.tmf_enterprise.milestone m ON m.project_id = p.project_id
+FROM IDENTIFIER(:catalog || '.tmf_enterprise.project') p
+LEFT JOIN IDENTIFIER(:catalog || '.tmf_enterprise.milestone') m ON m.project_id = p.project_id
 WHERE p.type IN ('infrastructure_upgrade', 'network_rollout')
 GROUP BY
   p.project_id, p.name, p.status, p.priority, p.risk_level,

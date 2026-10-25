@@ -3,20 +3,47 @@
  * Data layer for querying gold_wave_schedule and gold_contractor_assignment_plan
  * via the Databricks SQL Statement Execution API.
  *
- * Auth: Uses DATABRICKS_TOKEN (auto-injected by Databricks Apps runtime).
- * Requires: DATABRICKS_HOST, DATABRICKS_WAREHOUSE_ID env vars.
+ * Auth (2026-10-24 fix, ACC-APP-PORT-REG): Databricks Apps inject the app service principal's
+ * DATABRICKS_CLIENT_ID / DATABRICKS_CLIENT_SECRET (not DATABRICKS_TOKEN). We mint an OAuth M2M token
+ * from ${host}/oidc/v1/token and cache it until shortly before expiry. DATABRICKS_TOKEN (local dev) still wins.
+ * Requires: DATABRICKS_HOST and DATABRICKS_WAREHOUSE_ID (app.yaml valueFrom: sql-warehouse resource).
  */
 
-const DATABRICKS_HOST = process.env.DATABRICKS_HOST;
+const RAW_HOST = process.env.DATABRICKS_HOST || '';
+const DATABRICKS_HOST = RAW_HOST && !/^https?:\/\//.test(RAW_HOST) ? `https://${RAW_HOST}` : RAW_HOST.replace(/\/$/, '');
 const WAREHOUSE_ID = process.env.DATABRICKS_WAREHOUSE_ID;
+// ACC-QA-DEF-APP-CATALOG: data location comes from app env (app.yaml CATALOG/SCHEMA <- bundle vars catalog_name/schema_name).
+// Identifier-safe check so a bad env value can never inject SQL.
+const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const CATALOG = IDENT.test(process.env.CATALOG || '') ? process.env.CATALOG : 'cdm_tmforum';
+const SCHEMA = IDENT.test(process.env.SCHEMA || '') ? process.env.SCHEMA : 'copper_retirement';
+export const FQ = `${CATALOG}.${SCHEMA}`;
+
+let cachedToken = null; // { token, exp }
+export async function getToken() {
+  if (process.env.DATABRICKS_TOKEN) return process.env.DATABRICKS_TOKEN;
+  const id = process.env.DATABRICKS_CLIENT_ID, secret = process.env.DATABRICKS_CLIENT_SECRET;
+  if (!id || !secret) throw new Error('No DATABRICKS_TOKEN or DATABRICKS_CLIENT_ID/SECRET available');
+  if (cachedToken && cachedToken.exp > Date.now() + 60_000) return cachedToken.token;
+  const res = await fetch(`${DATABRICKS_HOST}/oidc/v1/token`, {
+    method: 'POST',
+    headers: { Authorization: `Basic ${Buffer.from(`${id}:${secret}`).toString('base64')}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=client_credentials&scope=all-apis',
+  });
+  if (!res.ok) throw new Error(`OAuth token error ${res.status}: ${await res.text()}`);
+  const j = await res.json();
+  cachedToken = { token: j.access_token, exp: Date.now() + (j.expires_in || 3600) * 1000 };
+  return cachedToken.token;
+}
+export const liveAuthConfigured = () => !!(process.env.DATABRICKS_TOKEN || (process.env.DATABRICKS_CLIENT_ID && process.env.DATABRICKS_CLIENT_SECRET));
 
 // Exported so every tab router (server/routes/*.js) shares ONE SQL-warehouse helper (PORT-MAP §1).
-export async function executeSQL(statement) {
+// Optional `parameters` = [{ name, value, type? }] -> Statement API named params (:name). Use for any user input.
+export async function executeSQL(statement, parameters) {
   if (!DATABRICKS_HOST) throw new Error('DATABRICKS_HOST env var not set');
   if (!WAREHOUSE_ID) throw new Error('DATABRICKS_WAREHOUSE_ID env var not set');
 
-  const token = process.env.DATABRICKS_TOKEN;
-  if (!token) throw new Error('DATABRICKS_TOKEN not set');
+  const token = await getToken();
 
   const url = `${DATABRICKS_HOST}/api/2.0/sql/statements`;
   const body = {
@@ -26,6 +53,7 @@ export async function executeSQL(statement) {
     on_wait_timeout: 'CANCEL',
     format: 'JSON_ARRAY',
   };
+  if (Array.isArray(parameters) && parameters.length) body.parameters = parameters;
 
   const res = await fetch(url, {
     method: 'POST',
@@ -83,7 +111,7 @@ export async function fetchWaveSchedule() {
       w.annual_revenue_at_risk,
       w.optimizer_version,
       w.solved_date
-    FROM cdm_tmforum.copper_retirement.gold_wave_schedule w
+    FROM ${FQ}.gold_wave_schedule w
     ORDER BY w.wave_year, w.wave_quarter, w.retirement_priority_rank
   `);
   return rows;
@@ -105,7 +133,7 @@ export async function fetchWaveSummary() {
       SUM(affected_customer_count) as total_customers,
       ROUND(SUM(annual_revenue_at_risk), 0) as total_revenue_at_risk,
       ROUND(AVG(retirement_readiness_score), 1) as avg_readiness
-    FROM cdm_tmforum.copper_retirement.gold_wave_schedule
+    FROM ${FQ}.gold_wave_schedule
     GROUP BY assigned_wave, wave_year, wave_quarter, state_code
     ORDER BY wave_year, wave_quarter, state_code
   `);
@@ -136,7 +164,7 @@ export async function fetchContractorAssignments() {
       devices_in_wave,
       optimizer_version,
       assignment_date
-    FROM cdm_tmforum.copper_retirement.gold_contractor_assignment_plan
+    FROM ${FQ}.gold_contractor_assignment_plan
     ORDER BY wave, state_code, composite_score DESC
   `);
   return rows;
@@ -162,7 +190,7 @@ export async function fetchPlanKPIs() {
       MAX(assigned_wave) as last_wave,
       SUM(critical_risk_devices) as total_critical_devices,
       SUM(high_risk_devices) as total_high_risk_devices
-    FROM cdm_tmforum.copper_retirement.gold_wave_schedule
+    FROM ${FQ}.gold_wave_schedule
   `);
   return rows.length > 0 ? rows[0] : null;
 }

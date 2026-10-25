@@ -3,10 +3,10 @@
  * DEC-ACCEL-UNIFIED-APP / ACC-APP-UNIFY-SHELL. Evolved in place from retirement-plan.
  *
  * IA (BRAND_GUIDE §0, demo order), URL hash routing:
- *   #map         Map & Risk        <- copper-map           (ACC-APP-PORT-MAP)
+ *   #map         Map & Risk        <- copper-map           (ACC-APP-PORT-MAP, PORTED 2026-10-25: tabs/map/MapTab.tsx, server/routes/map.js; default route)
  *   #plan[/sub]  Plan              <- retirement-plan      (this app; sub = timeline|table|budget|regulatory|scenarios)
  *   #triage      Dig Triage        <- dig-triage           (ACC-APP-PORT-TRIAGE, PORTED 2026-10-24: tabs/triage/, server/routes/triage.js)
- *   #regulatory  Regulatory        <- regulatory-assistant (ACC-APP-PORT-REG; every answer/row carries source title + official URL)
+ *   #regulatory  Regulatory        <- regulatory-assistant (ACC-APP-PORT-REG, PORTED 2026-10-24: tabs/regulatory/, server/routes/regulatory.js; every answer/row carries source title + official URL)
  *   #commodity   Commodity & Value <- commodity-dashboard  (ACC-APP-PORT-COMMODITY)
  *
  * Styling: styles/tokens.css only (ACC-APP-TOKENS-WIRE). Partner rebrand = edit the BRAND LAYER there.
@@ -16,6 +16,8 @@ import { LakeLinkHeader, TabBar, ErrorBoundary, panelId, tabId } from './compone
 import { PlanTab, isPlanSub, type PlanSub } from './tabs/PlanTab';
 import { PendingPortTab } from './tabs/PendingPortTab';
 import { TriageTab } from './tabs/triage/App';
+import { RegulatoryTab } from './tabs/regulatory/RegulatoryTab';
+import { MapTab } from './tabs/map/MapTab';
 
 export interface PlanFilters {
   wave: string;       // 'all' | '1' | '2' | ... | '8'
@@ -35,8 +37,8 @@ type TopTab = (typeof TOP_TABS)[number]['id'];
 
 interface Route { tab: TopTab; planSub: PlanSub }
 
-// Land on Plan (the live tab) until ACC-APP-PORT-MAP lands; then switch default to 'map' (demo order).
-const DEFAULT_ROUTE: Route = { tab: 'plan', planSub: 'timeline' };
+// Demo order: land on Map & Risk (ACC-APP-PORT-MAP landed 2026-10-25).
+const DEFAULT_ROUTE: Route = { tab: 'map', planSub: 'timeline' };
 
 function parseHash(hash: string): Route {
   const [tab, sub] = hash.replace(/^#\/?/, '').split('/');
@@ -86,28 +88,12 @@ export default function App() {
         className="px-4 md:px-6 py-4"
       >
         <ErrorBoundary name={label} key={route.tab}>
-          {route.tab === 'map' && (
-            <PendingPortTab
-              title="Map & Risk"
-              question="Where is our copper, and which plant is most at risk?"
-              taskCode="ACC-APP-PORT-MAP"
-              sourceApp="copper-map"
-              dataNote="copper_retirement.gold_wire_center_scorecard, Lakebase copper_app.device_risk_map / wire_center_boundaries, and serving endpoint copper-retirement-risk."
-            />
-          )}
+          {route.tab === 'map' && <MapTab />}
           {route.tab === 'plan' && (
             <PlanTab sub={route.planSub} onSubChange={(planSub) => navigate({ tab: 'plan', planSub })} />
           )}
           {route.tab === 'triage' && <TriageTab />}
-          {route.tab === 'regulatory' && (
-            <PendingPortTab
-              title="Regulatory"
-              question="Are we clear on notice, 811 and permit rules in every jurisdiction?"
-              taskCode="ACC-APP-PORT-REG"
-              sourceApp="regulatory-assistant"
-              dataNote="real official sources in copper_retirement.regulatory_source_register via regulatory_doc_chunks_vs_index. Every answer and jurisdiction row will show the source title and official URL."
-            />
-          )}
+          {route.tab === 'regulatory' && <RegulatoryTab />}
           {route.tab === 'commodity' && (
             <PendingPortTab
               title="Commodity & Value"

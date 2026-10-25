@@ -1,4 +1,5 @@
 -- milestone_timeline.sql
+-- Partner portability (ACC-QA-DEF-APP-CATALOG): catalog is the :catalog parameter (app env CATALOG <- bundle var catalog_name).
 -- Milestones for wire-center detail panel with regulatory/critical path flags.
 -- Parameterized by project_id (wire_center_id).
 
@@ -21,6 +22,6 @@ SELECT
   m.risk_description,
   m.variance_days,
   m.project_phase
-FROM cdm_tmforum.tmf_enterprise.milestone m
+FROM IDENTIFIER(:catalog || '.tmf_enterprise.milestone') m
 WHERE m.project_id = :wire_center_id
 ORDER BY m.planned_date

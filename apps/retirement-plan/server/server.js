@@ -22,6 +22,8 @@ import {
   healthCheck,
 } from './databricksSQL.js';
 import triageRouter from './routes/triage.js'; // ACC-APP-PORT-TRIAGE (ported from dig-triage)
+import regulatoryRouter from './routes/regulatory.js'; // ACC-APP-PORT-REG (ported from regulatory-assistant)
+import mapRouter from './routes/map.js'; // ACC-APP-PORT-MAP (ported from copper-map Dash app)
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -238,13 +240,15 @@ app.get('/api/plan/health', async (req, res) => {
     env: {
       host_set: !!process.env.DATABRICKS_HOST,
       warehouse_set: !!process.env.DATABRICKS_WAREHOUSE_ID,
-      token_set: !!process.env.DATABRICKS_TOKEN,
+      token_set: !!(process.env.DATABRICKS_TOKEN || process.env.DATABRICKS_CLIENT_ID), // PAT or app SP OAuth
     },
   });
 });
 
 // --- Unified accelerator tab routers (DEC-ACCEL-UNIFIED-APP) ---
 app.use('/api/triage', triageRouter);
+app.use('/api/regulatory', regulatoryRouter);
+app.use('/api/map', mapRouter);
 
 // SPA fallback
 app.get('*', (req, res) => {
@@ -254,6 +258,6 @@ app.get('*', (req, res) => {
 const port = parseInt(process.env.DATABRICKS_APP_PORT || '8000', 10);
 app.listen(port, '0.0.0.0', () => {
   console.log(`[retirement-plan] Server listening on 0.0.0.0:${port}`);
-  console.log(`[retirement-plan] Live data: ${process.env.DATABRICKS_TOKEN ? 'ENABLED' : 'DISABLED'}`);
+  console.log(`[retirement-plan] Live data: ${process.env.DATABRICKS_TOKEN || process.env.DATABRICKS_CLIENT_ID ? 'ENABLED' : 'DISABLED'}`);
   console.log(`[retirement-plan] SQL warehouse: ${process.env.DATABRICKS_WAREHOUSE_ID || 'NOT SET'}`);
 });

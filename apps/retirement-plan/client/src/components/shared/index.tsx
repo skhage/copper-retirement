@@ -26,19 +26,45 @@ export function KpiCard({ label, value, sub, valueClass = 'text-secondary' }: { 
 }
 
 /**
- * Citation contract (charter hard rule): every regulatory fact shows the source title + official URL.
- * Renders an UNVERIFIED badge when verification_status !== 'verified'. Never renders without a URL.
+ * Verification mapping (BRAND_GUIDE §0.2, ACC-APP-CITATION-STATUS-MAP): any status starting with
+ * 'verified_' (register: verified_url_200, verified_statute_text; matrix: VERIFIED_STATUTE_TEXT,
+ * VERIFIED_OFFICIAL_PAGE) is verified. Everything else (unverified_detail, UNVERIFIED_CONFLICT,
+ * NOT_FOUND, STATE_GAP, ...) is UNVERIFIED. Never test for the literal string 'verified'.
  */
-export function CitationLink({ title, url, verificationStatus }: { title: string; url: string; verificationStatus?: string }) {
-  const unverified = verificationStatus && verificationStatus.toLowerCase() !== 'verified';
+export function isVerifiedStatus(status?: string | null): boolean {
+  return !!status && status.trim().toLowerCase().startsWith('verified_');
+}
+
+/**
+ * Citation contract (charter hard rule): every regulatory fact shows the source title + official URL.
+ * Secondary line = citation + last_verified (BRAND_GUIDE §0.2). Never renders a link without a URL.
+ * ACC-APP-JUR-CITATION-URL: optional `citationUrl` = section-level page containing the cited value. When set,
+ * the title links there and the official source URL (`url`) is still shown as "Official source".
+ */
+export function CitationLink({ title, url, verificationStatus, citation, lastVerified, citationUrl }: {
+  title: string; url?: string | null; verificationStatus?: string | null; citation?: string | null; lastVerified?: string | null; citationUrl?: string | null;
+}) {
+  if (!url) return <span className="ll-badge-synthetic">Source not yet verified</span>;
+  const unverified = verificationStatus != null && verificationStatus !== '' && !isVerifiedStatus(verificationStatus);
+  const secondary = [citation, lastVerified ? `verified ${lastVerified}` : null].filter(Boolean).join(' · ');
+  const href = citationUrl || url;
+  const showSource = !!citationUrl && citationUrl !== url;
   return (
-    <span className="inline-flex items-center gap-1 text-xs">
-      <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary-strong underline underline-offset-2 hover:no-underline">
-        {title}
-        <ExternalLink size={12} strokeWidth={1.5} className="inline ml-0.5" aria-hidden="true" />
-        <span className="sr-only"> (opens official source in new tab)</span>
-      </a>
-      {unverified && <span className="ll-badge-synthetic">UNVERIFIED</span>}
+    <span className="inline-flex flex-col text-xs">
+      <span className="inline-flex items-center gap-1">
+        <a href={href} target="_blank" rel="noopener noreferrer" title={secondary || href} className="text-primary-strong underline underline-offset-2 hover:no-underline">
+          {title}
+          <ExternalLink size={12} strokeWidth={1.5} className="inline ml-0.5" aria-hidden="true" />
+          <span className="sr-only"> (opens official source in new tab)</span>
+        </a>
+        {unverified && <span className="ll-badge-synthetic">UNVERIFIED</span>}
+      </span>
+      {secondary && <span className="text-muted-foreground">{secondary}</span>}
+      {showSource && (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground underline underline-offset-2 hover:no-underline">
+          Official source<span className="sr-only"> for {title} (opens in new tab)</span>
+        </a>
+      )}
     </span>
   );
 }

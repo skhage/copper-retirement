@@ -1,4 +1,5 @@
 -- cost_benefit.sql
+-- Partner portability (ACC-QA-DEF-APP-CATALOG): catalog is the :catalog parameter (app env CATALOG <- bundle var catalog_name).
 -- Per-wire-center cost/benefit analysis.
 -- Sources: tmf_enterprise.project (budget), tmf_enterprise.budget (detail),
 --          tmf_enterprise.work (decommission labor costs).
@@ -20,12 +21,12 @@ SELECT
   -- Decommission work orders for this project
   (
     SELECT count(*)
-    FROM cdm_tmforum.tmf_enterprise.work w
+    FROM IDENTIFIER(:catalog || '.tmf_enterprise.work') w
     WHERE w.type = 'decommission'
       AND w.party_id = p.party_id
   ) AS decommission_work_count
-FROM cdm_tmforum.tmf_enterprise.project p
-LEFT JOIN cdm_tmforum.tmf_enterprise.budget b ON b.project_id = p.project_id
+FROM IDENTIFIER(:catalog || '.tmf_enterprise.project') p
+LEFT JOIN IDENTIFIER(:catalog || '.tmf_enterprise.budget') b ON b.project_id = p.project_id
 WHERE p.project_id = :wire_center_id
 GROUP BY
   p.project_id, p.name, p.approved_budget_amount, p.actual_cost_amount,

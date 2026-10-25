@@ -1,4 +1,5 @@
 -- plan_kpis.sql
+-- Partner portability (ACC-QA-DEF-APP-CATALOG): catalog is the :catalog parameter (app env CATALOG <- bundle var catalog_name).
 -- Summary KPIs for the Retirement Plan Tracker.
 -- Sources: tmf_enterprise.project (10K), tmf_enterprise.milestone (10K),
 --          tmf_enterprise.budget (100K), tmf_enterprise.work (100K, decommission type).
@@ -26,10 +27,10 @@ SELECT
   -- Decommission work orders
   (
     SELECT count(*)
-    FROM cdm_tmforum.tmf_enterprise.work w
+    FROM IDENTIFIER(:catalog || '.tmf_enterprise.work') w
     WHERE w.type = 'decommission'
   ) AS decommission_work_orders
 
-FROM cdm_tmforum.tmf_enterprise.project p
-LEFT JOIN cdm_tmforum.tmf_enterprise.milestone m ON m.project_id = p.project_id
+FROM IDENTIFIER(:catalog || '.tmf_enterprise.project') p
+LEFT JOIN IDENTIFIER(:catalog || '.tmf_enterprise.milestone') m ON m.project_id = p.project_id
 WHERE p.type IN ('infrastructure_upgrade', 'network_rollout')
