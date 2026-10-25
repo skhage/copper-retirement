@@ -1,0 +1,59 @@
+# Copper Retirement — Seed SYNTHETIC source tables, then refresh the pipeline (ACC-DE-SEED-JOB)
+#
+# Fresh partner workspace bootstrap. Run once after `bundle deploy -t partner`:
+#   databricks bundle run -t partner seed_synthetic_sources_job
+#
+# Task 1 seeds every upstream table the pipeline and the accelerator app read
+# (tmf_enterprise/resource/service/shared/customer, oracle_erp_source,
+# ironclad_clm_source, salesforce_source, mdm_source,
+# provable_resilience_intelligence.stg_811_dig_ticket and the
+# ${var.schema_name} inputs) into ${var.catalog_name}, FK-consistent and labeled
+# SYNTHETIC (table + column comments, copper.seed.synthetic=true, telco_project tag).
+# Task 2 full-refreshes the pipeline so bronze/silver/gold build on the seed.
+#
+# Safety: the seeder refuses to overwrite any existing table that it did not
+# write, so running this against the reference workspace (dev/prod targets)
+# fails safely without touching curated tables. Add --dry-run to preview.
+
+resources:
+  jobs:
+    seed_synthetic_sources_job:
+      name: 'copper-retirement-seed-synthetic-${bundle.target}'
+      description: >-
+        Seeds SYNTHETIC, FK-consistent upstream source tables into ${var.catalog_name}
+        for a fresh partner deployment, then full-refreshes the copper retirement pipeline.
+
+      tasks:
+        - task_key: 'seed_synthetic_sources'
+          environment_key: 'seed_env'
+          spark_python_task:
+            python_file: ../../scripts/generate_synthetic_sources.py
+            parameters:
+              - '--mode'
+              - 'tables'
+              - '--catalog'
+              - '${var.catalog_name}'
+              - '--schema'
+              - '${var.schema_name}'
+              - '--max-rows'
+              - '2000'
+
+        - task_key: 'refresh_pipeline'
+          depends_on:
+            - task_key: 'seed_synthetic_sources'
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.copper_retirement_pipeline.id}
+            full_refresh: true
+
+      environments:
+        - environment_key: 'seed_env'
+          spec:
+            environment_version: '2'
+
+      tags:
+        telco_project: copper-retirement
+        data_class: synthetic
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: 'users'
