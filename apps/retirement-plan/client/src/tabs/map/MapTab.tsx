@@ -9,7 +9,7 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { MapPin, Radio } from 'lucide-react';
-import { TabHeader, KpiCard, EmptyState, SyntheticBadge } from '../../components/shared';
+import { TabHeader, KpiCard, EmptyState, SyntheticBadge, getFootprintLabel } from '../../components/shared';
 
 interface Kpis {
   footprint_devices: number; wire_centers: number; customers_affected: number; fiber_ready_pct: number;
@@ -250,7 +250,7 @@ export function MapTab() {
           State
           <select value={state} onChange={(e) => setState(e.target.value)} className="rounded border border-input bg-card px-2 py-1.5 text-sm text-foreground">
             <option value="ALL">All states</option>
-            <optgroup label="LakeLink footprint">{footprint.map((s) => <option key={s} value={s}>{s}</option>)}</optgroup>
+            <optgroup label={getFootprintLabel()}>{footprint.map((s) => <option key={s} value={s}>{s}</option>)}</optgroup>
             <optgroup label="Other states">{allStates.filter((s) => !footprint.includes(s)).map((s) => <option key={s} value={s}>{s}</option>)}</optgroup>
           </select>
         </label>
@@ -306,7 +306,7 @@ export function MapTab() {
             </tbody>
           </table>
           {wcs.data && wcs.data.length > 25 && <p className="text-xs text-muted-foreground p-2">Top 25 of {wcs.data.length}. Full sequencing is in the Plan tab.</p>}
-          {wcs.data && !wcs.data.length && <p className="text-xs text-muted-foreground p-3">No wire centers in this state (outside the LakeLink footprint).</p>}
+          {wcs.data && !wcs.data.length && <p className="text-xs text-muted-foreground p-3">No wire centers in this state (outside the {getFootprintLabel().toLowerCase()}).</p>}
         </div>
 
         <div className="overflow-x-auto rounded-lg border border-border bg-card">

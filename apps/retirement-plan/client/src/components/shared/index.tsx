@@ -5,7 +5,7 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react';
 import { ExternalLink, Inbox } from 'lucide-react';
 
-export { LakeLinkHeader, BRAND_NAME } from '../LakeLinkHeader';
+export { LakeLinkHeader, LakeLinkHeader as BrandHeader, getBrandName, getFootprintLabel } from '../LakeLinkHeader';
 export { TabBar, tabId, panelId } from './TabBar';
 export type { TabDef } from './TabBar';
 

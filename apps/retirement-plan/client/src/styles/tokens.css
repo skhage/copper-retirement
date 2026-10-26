@@ -17,7 +17,11 @@
 
 :root {
   /* ---------- BRAND LAYER (swap for partner white-label) ---------- */
+  /* Partner identity: the ONLY edit point (ACC-DES-DEF-WHITELABEL-NAME). Read at runtime by
+   * components/LakeLinkHeader.tsx getBrandName() / getFootprintLabel(): header wordmark,
+   * document title and Map tab footprint copy. Keep the values quoted. */
   --brand-name: "Lakelink Fiber";
+  --brand-footprint-label: "Service footprint";
   --color-primary:        255 54 33;   /* #FF3621 brand red. Fills, underline, icons, large text only (3.39:1 on bg) */
   --color-primary-strong: 200 32 12;   /* #C8200C red for TEXT + button bg w/ white text (5.35:1 on bg, white-on 5.73:1) */
   --color-secondary:      27 49 57;    /* #1B3139 dark navy. Headings, dark surfaces */
