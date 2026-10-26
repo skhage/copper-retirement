@@ -16,7 +16,7 @@
 # search_regulatory_chunks over regulatory_doc_chunks; set vs_endpoint/vs_index only to
 # enable the VS path. The partner target needs no VS vars.
 #
-# Managed resources: 1 pipeline, 1 refresh job, 1 seed job, 2 apps (unified accelerator + copper-task-board).
+# Managed resources: 1 pipeline, 1 refresh job, 1 seed job, 1 weekly risk scoring job, 2 apps (unified accelerator + copper-task-board).
 # Fresh partner workspace: after deploy, run `databricks bundle run -t partner seed_synthetic_sources_job`
 # to create the SYNTHETIC upstream source tables and build the pipeline (ACC-DE-SEED-JOB).
 #
@@ -38,6 +38,7 @@ include:
   - bundle/resources/copper_retirement_pipeline.pipeline.yml
   - bundle/resources/pipeline_refresh.job.yml
   - bundle/resources/seed_synthetic_sources.job.yml
+  - bundle/resources/risk_scoring.job.yml
   - bundle/resources/retirement_plan.app.yml
   - bundle/resources/copper_task_board.app.yml
 
@@ -61,6 +62,9 @@ variables:
       OPTIONAL (DEC-VS-OPTIONAL). Vector Search index (short name, in catalog_name.schema_name)
       for regulatory chunks. Empty = VS disabled.
     default: ""
+  model_schema:
+    description: UC schema (in catalog_name) holding the registered model copper_retirement_risk@champion used by the weekly scoring job.
+    default: ml_models
   serving_endpoint:
     description: Model serving endpoint for the copper retirement risk model.
     default: copper-retirement-risk

@@ -1,0 +1,47 @@
+# Copper Retirement — Weekly Risk Batch Scoring (ACC-DEVOPS-RISK-SCORE-JOB)
+#
+# Scores every copper device with the @champion risk model and writes
+# ${var.catalog_name}.${var.schema_name}.copper_risk_predictions (Beat 1 Map/Risk tab).
+# Root cause of stale risk tiers (predictions frozen at 2026-09-13): the reference
+# workspace job copper-retirement-weekly-batch-scoring (218377582606212) had 0 tasks
+# and no schedule. This resource is the managed replacement.
+#
+# Prerequisite: a registered model ${var.catalog_name}.${var.model_schema}.copper_retirement_risk
+# with alias @champion (train it with the beat1_risk_model_walkthrough retrain template).
+# Serverless compute; the notebook pins lightgbm==4.7.0 itself.
+# development-mode targets (dev/staging) deploy the schedule PAUSED automatically.
+#
+# Run on demand:  databricks bundle run -t <target> risk_scoring_job
+
+resources:
+  jobs:
+    risk_scoring_job:
+      name: 'copper-retirement-weekly-batch-scoring-${bundle.target}'
+      description: >-
+        Weekly batch scoring of copper retirement risk (champion model) into
+        ${var.catalog_name}.${var.schema_name}.copper_risk_predictions. Features are SYNTHETIC.
+      max_concurrent_runs: 1
+
+      tasks:
+        - task_key: 'batch_score_copper_risk'
+          notebook_task:
+            notebook_path: ../../scripts/batch_score_copper_risk.py
+            base_parameters:
+              catalog: ${var.catalog_name}
+              schema: ${var.schema_name}
+              model_schema: ${var.model_schema}
+              serving_endpoint: ${var.serving_endpoint}
+              run_inference_demo: 'false'
+          timeout_seconds: 3600
+
+      schedule:
+        quartz_cron_expression: '0 0 5 ? * MON'
+        timezone_id: 'America/New_York'
+
+      tags:
+        telco_project: copper-retirement
+        beat: '1'
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: 'users'
