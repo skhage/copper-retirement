@@ -1,14 +1,15 @@
 # Model Card — Copper Device Retirement Risk Classifier (Partner Template)
 
-> **Synthetic-data disclosure.** The shipped model (V5) was trained on SYNTHETIC TMF SID demo data for the fictional operator Lakelink Fiber. Metrics below demonstrate the pipeline, not real-world accuracy. Partners MUST retrain on customer data (Section 6) before any production use.
+> **Synthetic-data disclosure.** The shipped model (V6) was trained on SYNTHETIC TMF SID demo data for the fictional operator Lakelink Fiber. Metrics below demonstrate the pipeline, not real-world accuracy. Partners MUST retrain on customer data (Section 6) before any production use.
 
 | Item | Value |
 | --- | --- |
 | UC model | `cdm_tmforum.ml_models.copper_retirement_risk` (parameterize as `${catalog}.ml_models.copper_retirement_risk`) |
-| Aliases | `@champion` = v5 (LightGBM, 39 features), `@challenger` = v4 |
-| Serving endpoint | `copper-retirement-risk` (CPU Small, scale-to-zero, 100% traffic to v5; health-checked 2026-10-24: READY, 2-row query returned tiers [2, 3]) |
-| Inference table | `copper_retirement.risk_model_inference_payload` / unpacked view `risk_inference_unpacked` (99 rows, last request 2026-09-17) |
-| Training run | MLflow `0d308b43371249eeb017867da6acf327`, experiment `copper-retirement/experiments/copper_risk_classifier` (3064056660647801) |
+| Aliases | `@champion` = v6 (LightGBM, 39 features, promoted 2026-10-26), `@challenger` = v5 (rollback only; chance-level on current labels) |
+| Serving endpoint | `copper-retirement-risk` (CPU Small, scale-to-zero). **As of 2026-10-26 the endpoint still pins v5 by version number**; switching the served entity to v6 needs a human (agent config updates are blocked by the safety gate). Batch scoring uses `@champion` = v6. |
+| Inference table | `copper_retirement.risk_model_inference_payload` / unpacked view `risk_inference_unpacked` (99 rows, last request 2026-09-17). Endpoint `auto_capture_config` is not set, so live traffic is not captured. |
+| Training run | MLflow `09db5f470eed4d65be526bc8c4d9c63f` (run name `copper_risk_v6_lgbm_balanced_quartiles`), experiment 3064056660647801. Superseded v5 run: `0d308b43371249eeb017867da6acf327` |
+| Label | `risk_tier` = balanced quartiles (668 devices per tier) of `composite_risk_score` in `copper_risk_target`. The table was replaced on 2026-09-15 (Delta v23); earlier labels used fixed thresholds. |
 | Retrain template | `copper-retirement/beat1_risk_model_walkthrough`, Section 5 (parameterized widgets) |
 | Tags | `telco_project=copper-retirement`, `developer=copper-ml` |
 
@@ -36,42 +37,42 @@ The serving signature enforces these columns, in this order. A partner feature t
 | Physical plant | `plant_pair_count, avg_loop_length_ft, avg_splice_count, avg_cable_vintage_year, avg_db_loss, moisture_rate` | `copper_retirement.copper_loop_plant` (aggregated to device) |
 | Device metadata | `device_type_encoded` | category code of `device_type` (cpe/olt/ont/patch_panel) |
 
-Top-5 split importance (v5): `problem_count` 1354, `recurring_problem_rate` 1229, `alarm_count` 1147, `complaint_avg_resolution_hours` 655, `device_age_days` 618. Zero importance: `is_support_expired`, `is_past_eol`, `has_software_data` (candidates to drop).
+Top-5 split importance (v6): `problem_count` 3809, `recurring_problem_rate` 3324, `alarm_count` 3011, `test_fail_rate` 2684, `service_affecting_rate` 2532. All five are inputs to the label formula (see 6.2). Zero importance: `is_support_expired`, `is_past_eol`, `has_software_data` (candidates to drop).
 
-## 4. Performance (v5, holdout 535 devices, 80/20 stratified, seed 42)
-| Metric | Value |
-| --- | --- |
-| AUC-ROC (OvR) | 0.9864 |
-| Accuracy | 0.8953 |
-| Weighted F1 | 0.8954 |
-| 5-fold CV AUC | 0.9789 +/- 0.0046 |
-| F1 low / medium / high / critical | 0.901 / 0.907 / 0.894 / 0.841 |
-| Recall critical | 0.833 |
-| Train AUC | 1.000 (memorization; see limitations) |
+## 4. Performance (v6, holdout 535 devices, 80/20 stratified, seed 42, current labels)
+| Metric | v6 (champion) | v5 on the same holdout |
+| --- | --- | --- |
+| Accuracy | 0.899 | 0.329 (chance) |
+| Weighted F1 | 0.900 | 0.245 |
+| AUC-ROC (OvR) | 0.985 | 0.693 |
+| 5-fold CV accuracy (train split) | 0.873 +/- 0.013 | n/a |
+| F1 low / medium / high / critical | 0.947 / 0.856 / 0.854 / 0.943 | n/a |
+| Recall critical | 0.918 | n/a |
+| Train AUC | 1.000 (memorization; see limitations) | n/a |
 
-Hyperparameters (Optuna, 50 trials): `learning_rate=0.243, max_depth=3, num_leaves=80, n_estimators=489, min_child_samples=22, subsample=0.643, colsample_bytree=0.720`.
+Hyperparameters (v6, fixed, not tuned): `n_estimators=400, learning_rate=0.05, num_leaves=31, min_child_samples=20, subsample=0.8, colsample_bytree=0.8, reg_lambda=1.0`. Re-tune with Optuna on partner data.
 
-**Correction:** `beat1_risk_model_walkthrough` previously quoted 97.9% accuracy; that figure is in-sample over all 2,672 devices (incl. training rows). The holdout accuracy is 0.895.
+**Why v5 was retired:** v5 was trained on 2026-09-13 against the earlier threshold-based labels. On 2026-09-15, `copper_risk_target` was CREATE OR REPLACE'd with balanced-quartile labels, and only 33.2% of stored tiers match the new ones. v5's published metrics described the old labels and are no longer valid. Nothing re-validated the champion after the label change (see 6.6).
 
 ## 5. Fairness slices
 Gate metric: recall on high+critical (`recall_high_crit`) per slice. Flag rules: GREEN >= 0.85, YELLOW 0.75-0.85 or n < 50, RED < 0.75 (blocks promotion).
 
-**Holdout (authoritative, MLflow artifact `fairness_report_v5.json`, 21 slices, 0 red / 0 yellow):**
+**v6 holdout (authoritative; MLflow artifact `fairness_report_v6.json` on run 09db5f47..., 72 slices; 0 RED / 0 YELLOW among slices with n >= 30; slices with n < 30 are marked INSUFFICIENT_N):**
 
-| Slice | n | AUC | recall_high_crit |
+| Slice | n | accuracy | recall_high_crit |
 | --- | --- | --- | --- |
-| device_type=cpe | 132 | 0.994 | 1.000 |
-| device_type=olt | 133 | 0.973 | 0.958 |
-| device_type=ont | 123 | 0.986 | 0.932 |
-| device_type=patch_panel | 147 | 0.992 | 1.000 |
-| service_type (14 slices, n 28-48 each) | 28-48 | 0.950-0.999 | 0.857-1.000 (lowest: messaging 0.857) |
-| revenue=high_value | 343 | 0.986 | 0.976 |
-| revenue=unknown | 192 | 0.985 | 0.978 |
-| state=other | 153 | 0.994 | 0.986 |
+| device_type=cpe | 138 | 0.891 | 0.984 |
+| device_type=olt | 142 | 0.880 | 0.918 |
+| device_type=ont | 130 | 0.908 | 0.984 |
+| device_type=patch_panel | 125 | 0.920 | 0.925 |
+| region (Midwest/Northeast/Southeast/Southwest/West) | 52-135 | 0.885-0.906 | 0.898-1.000 |
+| service_type=voice | 45 | 0.911 | 1.000 |
+| service_type=broadband / fixed_line | 17 / 19 | 0.941 / 0.895 | 0.909 / 0.900 (INSUFFICIENT_N) |
+| service_type=unknown (no service allocation) | 454 | 0.896 | 0.951 |
+| state (50 states, n 3-19 each) | 3-19 | 0.70-1.00 | 0.625-1.000 (all INSUFFICIENT_N; lowest MA 0.625, FL/NY 0.667) |
+| customer_segment (8 named segments, n 1-17) | 1-17 | 0.80-1.00 | 0.80-1.00 (INSUFFICIENT_N) |
 
-All 14 service_type slices are small-sample (n < 50) and should be treated as YELLOW for decisions.
-
-**In-sample (UC table `copper_retirement.v5_fairness_report`, 20 slices, 19 GREEN / 1 YELLOW):** `customer_segment=residential` n=32 recall 0.933, flagged YELLOW_RECALL + YELLOW_SMALL_N. This table scores all 2,672 devices including training rows, so AUCs near 1.0 are inflated; use it for coverage of region/customer_segment only, not for promotion decisions.
+State, customer_segment and most service_type slices are too small to support fairness claims on the 2,672-device demo. Partners with real fleets should gate on state and service_type slices with n >= 30. The legacy `copper_retirement.v5_fairness_report` table is in-sample and v5-only. Do not use it.
 
 ## 6. Retraining on customer data (partner procedure)
 1. **Build the feature table** `${catalog}.${schema}.copper_risk_features` with `physical_device_id`, the 39 contract columns, label column `risk_tier` (`low/medium/high/critical`), and slice columns `device_type`, `region`, `customer_segment`.
@@ -79,13 +80,14 @@ All 14 service_type slices are small-sample (n < 50) and should be treated as YE
 3. **Run** `beat1_risk_model_walkthrough` Section 5 with widgets `catalog`, `schema`, `feature_table`, `model_name`, `experiment_path`, `register=true`. It validates the contract, trains LightGBM with v5 hyperparameters (re-tune with Optuna on real data), logs metrics + per-slice fairness to MLflow, and registers a new version with alias `@challenger`.
 4. **Promotion gate** (challenger -> champion): holdout AUC >= champion AUC - 0.01, critical-tier recall >= 0.80, no RED fairness slice, and a human sign-off recorded in the copper-task-board `decisions` table.
 5. **Promote:** `MlflowClient().set_registered_model_alias(model_name, "champion", <version>)`, then update the existing serving endpoint `copper-retirement-risk` served entity to the new version (do not create a new endpoint). Keep the previous champion as `@challenger` for rollback.
-6. **Monitor:** inference table logging is on; compare weekly tier distribution vs training distribution and retrain on drift or quarterly.
+6. **Monitor and guard against label changes:** (a) Schedule `scripts/batch_score_copper_risk` weekly. Its job `copper-retirement-weekly-batch-scoring` (218377582606212) exists, but it has no tasks, no schedule and no runs. (b) Before every scoring run, compare `@champion` holdout accuracy on the current `copper_risk_target` against the value logged on its MLflow run. Block and alert if it drops by more than 0.05, and also when `DESCRIBE HISTORY copper_risk_target` shows a CREATE OR REPLACE / WRITE newer than the champion's creation time. (c) Enable the endpoint's inference table and put a Lakehouse Monitor (InferenceLog, label_col=risk_tier) on `risk_inference_unpacked`. No monitor exists on any copper risk table today. Retrain on drift or quarterly.
 
 ## 7. Known limitations
 * Synthetic training data (uniform/random distributions); not production-representative.
 * Label circularity (Section 6.2) inflates all reported metrics.
 * 37% of devices lack software lifecycle data; zero-imputation may under-score firmware risk.
-* No reproducible feature-build job in the repo: v5 features were assembled in an interactive session (source tag points to a conversation notebook). Follow-up ACC-DE-RISK-FEATURE-TABLE materializes the contract table.
-* Region and customer_segment fairness are only available in-sample.
+* The contract feature table `copper_risk_features` is now materialized by `scripts/batch_score_copper_risk` (ACC-DE-RISK-FEATURE-TABLE). v6 was trained on it.
+* State and customer_segment slices are too small in the demo (n < 30) for fairness conclusions.
+* The feature and label share inputs, so v6's 0.899 accuracy measures how well it re-learns the composite formula. It is not a predictive-validity result.
 
-_Maintainer: @ml-engineer. Last updated 2026-10-24 (ACC-ML-MODEL-CARD)._
+_Maintainer: @ml-engineer. Last updated 2026-10-26 (ACC-ML-RISK-RETRAIN-V6 / COO-Q-20261026-0550-1)._

@@ -19,6 +19,13 @@
 
 # COMMAND ----------
 
+# DBTITLE 1,Install model dependencies
+# The champion is a native LightGBM model (lgb_version 4.7.0). Pin it so the native predict_proba load works on fresh/serverless compute.
+%pip install -q lightgbm==4.7.0
+dbutils.library.restartPython()
+
+# COMMAND ----------
+
 # DBTITLE 1,Configuration
 # Configuration — parameterized (ACC-DE-PARAMETERIZE); defaults mirror databricks.yml bundle variables
 dbutils.widgets.text("catalog", "cdm_tmforum")
@@ -222,7 +229,10 @@ try:
 except Exception:
     native_model = mlflow.lightgbm.load_model(model_uri)
 
-input_pdf = features_df.select(*FEATURE_COLS).toPandas()
+# ACC-ML-RISK-RETRAIN-V6 fix: materialize ids + features in ONE toPandas() so rows stay aligned
+# (previously two separate toPandas() calls on an unordered joined DataFrame could misalign rows).
+score_pdf = features_df.select("physical_device_id", "device_type", "device_status", "risk_tier", *FEATURE_COLS).toPandas()
+input_pdf = score_pdf[FEATURE_COLS].astype("float64")
 proba = native_model.predict_proba(input_pdf)
 
 proba_df = pd.DataFrame(proba, columns=[f"prob_{t}" for t in RISK_TIERS])
@@ -231,7 +241,7 @@ proba_df["predicted_risk_tier"] = proba_df["predicted_class"].map(dict(enumerate
 proba_df["max_confidence"] = proba_df[[f"prob_{t}" for t in RISK_TIERS]].max(axis=1)
 
 # Combine with device identifiers
-id_cols = features_df.select("physical_device_id", "device_type", "device_status", "risk_tier").toPandas()
+id_cols = score_pdf[["physical_device_id", "device_type", "device_status", "risk_tier"]]
 result_pdf = pd.concat([id_cols.reset_index(drop=True), proba_df.reset_index(drop=True)], axis=1)
 result_pdf["model_version"] = int(model_version.version)
 result_pdf["model_run_id"] = model_version.run_id
