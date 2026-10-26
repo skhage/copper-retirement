@@ -1,4 +1,6 @@
-"""Provision the UC objects the unified accelerator app's Dig Triage tab reads (ACC-QA-DEF-FRESH-PROVISION).
+"""Provision the UC objects the unified accelerator app reads (Dig Triage, Plan, Map, Commodity tabs).
+
+ACC-QA-DEF-FRESH-PROVISION (Dig Triage objects) + ACC-DE-FRESH-APP-GOLD (Plan/Map/Commodity objects).
 
 Runs as task 3 of seed_synthetic_sources_job, AFTER refresh_pipeline, because it reads pipeline outputs:
   inputs : <schema>.dig_safe_incident, <schema>.copper_plant_wire_center_jurisdiction   (seeded, task 1)
@@ -10,13 +12,25 @@ Runs as task 3 of seed_synthetic_sources_job, AFTER refresh_pipeline, because it
 The 811 table <catalog>.provable_resilience_intelligence.stg_811_dig_ticket is created by task 1 (seed);
 it is not touched here.
 
+Plan/Map/Commodity objects (ACC-DE-FRESH-APP-GOLD). Their original producers were interactive notebooks that
+no longer exist, so they ship as lossless snapshots in --snapshot-dir (<name>.ddl.sql with {fq} placeholder +
+<name>.jsonl, see manifest.json for row counts and sha256). Reference export (2026-10-26):
+  /Volumes/cdm_tmforum/copper_retirement/regulatory_source_docs/_app_gold_export/  (repo copy: data/app_gold/)
+  SYNTHETIC: gold_copper_recovery_schedule, retirement_cost_per_wire_center, copper_risk_predictions,
+             gold_wave_schedule, gold_contractor_assignment_plan, retirement_milestones,
+             silver_budget_allocation, gold_commodity_price_forecast
+  REAL     : copper_commodity_price_official (IMF PCOPPUSDM, https://fred.stlouisfed.org/series/PCOPPUSDM),
+             roi_calculator_assumptions (cited ratios + labeled synthetic partner inputs)
+  VIEW     : v_partner_value_wire_center (created last; reads the snapshots + seeded/pipeline inputs)
+
 Definitions are copied from the reference workspace (cdm_tmforum.copper_retirement, 2026-10-25) with the
 catalog/schema parameterized. Safety: existing objects are skipped unless --replace is passed, so running
 this against the reference workspace does not rewrite curated objects.
 
-Usage: python provision_app_objects.py --catalog <catalog> --schema <schema> [--replace] [--dry-run]
+Usage: python provision_app_objects.py --catalog <catalog> --schema <schema> [--snapshot-dir <dir>] [--replace] [--dry-run]
 """
 import argparse
+import os
 import re
 
 IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -198,6 +212,51 @@ OBJECTS = [
 
 REQUIRED_INPUTS = ["dig_safe_incident", "copper_plant_wire_center_jurisdiction", "bronze_copper_devices", "silver_device_service_impact"]
 
+# Snapshot-loaded tables (ACC-DE-FRESH-APP-GOLD), dependency order. View inputs first.
+SNAPSHOT_TABLES = [
+    "gold_copper_recovery_schedule", "retirement_cost_per_wire_center", "copper_commodity_price_official",
+    "roi_calculator_assumptions", "retirement_milestones", "copper_risk_predictions", "gold_wave_schedule",
+    "gold_contractor_assignment_plan", "silver_budget_allocation", "gold_commodity_price_forecast",
+]
+SNAPSHOT_VIEWS = ["v_partner_value_wire_center"]
+DEFAULT_SNAPSHOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "app_gold")
+
+
+def provision_snapshots(spark, a, fq):
+    d = a.snapshot_dir
+    if not os.path.isdir(d):
+        raise SystemExit(f"Snapshot dir not found: {d}. Pass --snapshot-dir (see module docstring).")
+    for name in SNAPSHOT_TABLES:
+        target = f"{a.catalog}.{a.schema}.{name}"
+        if spark.catalog.tableExists(target) and not a.replace:
+            print(f"SKIP   table    {target} (exists; pass --replace to rebuild)")
+            continue
+        print(f"{'PLAN ' if a.dry_run else 'LOAD  '} table    {target} <- {name}.jsonl")
+        if a.dry_run:
+            continue
+        with open(os.path.join(d, f"{name}.ddl.sql")) as f:
+            ddl = f.read().format(fq=fq)
+        if a.replace:
+            spark.sql(f"DROP TABLE IF EXISTS {fq}.`{name}`")
+        spark.sql(ddl)
+        schema = spark.table(target).schema
+        df = (spark.read.schema(schema)
+              .option("timestampFormat", "yyyy-MM-dd HH:mm:ss[.SSSSSS][XXX]")
+              .json(os.path.join(d, f"{name}.jsonl")))
+        df.write.mode("overwrite").insertInto(target)
+        spark.sql(f"ALTER TABLE {fq}.`{name}` SET TAGS ('telco_project' = 'copper-retirement')")
+        print(f"       rows: {spark.table(target).count()}")
+    for name in SNAPSHOT_VIEWS:
+        target = f"{a.catalog}.{a.schema}.{name}"
+        if spark.catalog.tableExists(target) and not a.replace:
+            print(f"SKIP   view     {target} (exists; pass --replace to rebuild)")
+            continue
+        print(f"{'PLAN ' if a.dry_run else 'CREATE'} view     {target}")
+        if not a.dry_run:
+            with open(os.path.join(d, f"{name}.ddl.sql")) as f:
+                spark.sql(f.read().format(fq=fq))
+            spark.sql(f"ALTER VIEW {fq}.`{name}` SET TAGS ('telco_project' = 'copper-retirement')")
+
 
 def exists(spark, catalog, schema, name, kind):
     if kind == "table":
@@ -211,6 +270,8 @@ def main():
     p.add_argument("--schema", default="copper_retirement")
     p.add_argument("--replace", action="store_true", help="Rebuild objects that already exist.")
     p.add_argument("--dry-run", action="store_true", help="Print the plan; create nothing.")
+    p.add_argument("--snapshot-dir", default=DEFAULT_SNAPSHOT_DIR,
+                   help="Dir with <name>.ddl.sql + <name>.jsonl snapshots (default: repo data/app_gold).")
     a = p.parse_args()
     for v in (a.catalog, a.schema):
         if not IDENT.match(v):
@@ -233,6 +294,8 @@ def main():
             spark.sql(ddl.format(fq=fq))
             if kind == "table":
                 spark.sql(f"ALTER TABLE {fq}.{name} SET TAGS ('telco_project' = 'copper-retirement')")
+
+    provision_snapshots(spark, a, fq)
 
     if not a.dry_run:
         n = spark.table(f"{a.catalog}.{a.schema}.silver_dig_incident_enriched").count()
