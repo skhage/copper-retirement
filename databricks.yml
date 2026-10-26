@@ -3,15 +3,18 @@
 # ONE-COMMAND DEPLOY (any workspace; host comes from your CLI profile / env auth):
 #   databricks bundle deploy -t <dev|staging|prod|partner> --var warehouse_id=<WAREHOUSE_ID>
 # Optional overrides: --var catalog_name=... --var schema_name=... --var vs_endpoint=...
-#   --var vs_index=... --var serving_endpoint=... --var llm_endpoint=... --var lakebase_project=... --var lakebase_branch=...
+#   --var vs_index=... (both OPTIONAL, DEC-VS-OPTIONAL) --var serving_endpoint=... --var llm_endpoint=... --var lakebase_project=... --var lakebase_branch=...
 # Or export BUNDLE_VAR_<name>=<value> instead of --var flags.
 #
 # Targets:
 #   dev / staging / prod -> REUSE existing infra (catalog + schema already exist).
 #   partner              -> fresh workspace: also creates the ${var.schema_name} schema.
 # Prerequisites (not created by this bundle): the catalog, a SQL warehouse,
-# a Lakebase project, a Vector Search endpoint, and the risk serving endpoint
-# (created by beat1_risk_model_walkthrough retrain template). See PARTNER-PLAYBOOK.md.
+# a Lakebase project, and the risk serving endpoint (created by beat1_risk_model_walkthrough
+# retrain template). See PARTNER-PLAYBOOK.md.
+# A Vector Search endpoint is OPTIONAL (DEC-VS-OPTIONAL): default retrieval is the UC TVF
+# search_regulatory_chunks over regulatory_doc_chunks; set vs_endpoint/vs_index only to
+# enable the VS path. The partner target needs no VS vars.
 #
 # Managed resources: 1 pipeline, 1 refresh job, 1 seed job, 2 apps (unified accelerator + copper-task-board).
 # Fresh partner workspace: after deploy, run `databricks bundle run -t partner seed_synthetic_sources_job`
@@ -48,11 +51,16 @@ variables:
   warehouse_id:
     description: REQUIRED. SQL warehouse ID used by the apps. Find it with `databricks warehouses list`.
   vs_endpoint:
-    description: Vector Search endpoint hosting the regulatory RAG index (DEC-VS-ENDPOINT-ACTUAL).
-    default: cmeg-demos-vs
+    description: >-
+      OPTIONAL (DEC-VS-OPTIONAL). Vector Search endpoint hosting the regulatory RAG index.
+      Empty = VS disabled; retrieval uses the UC TVF search_regulatory_chunks.
+      dev/staging/prod set the reference endpoint (DEC-VS-ENDPOINT-ACTUAL).
+    default: ""
   vs_index:
-    description: Vector Search index (short name, in catalog_name.schema_name) for regulatory chunks.
-    default: regulatory_doc_chunks_vs_index
+    description: >-
+      OPTIONAL (DEC-VS-OPTIONAL). Vector Search index (short name, in catalog_name.schema_name)
+      for regulatory chunks. Empty = VS disabled.
+    default: ""
   serving_endpoint:
     description: Model serving endpoint for the copper retirement risk model.
     default: copper-retirement-risk
@@ -70,12 +78,21 @@ targets:
   dev:
     mode: development
     default: true
+    variables:
+      vs_endpoint: cmeg-demos-vs
+      vs_index: regulatory_doc_chunks_vs_index
 
   staging:
     mode: development
+    variables:
+      vs_endpoint: cmeg-demos-vs
+      vs_index: regulatory_doc_chunks_vs_index
 
   prod:
     mode: production
+    variables:
+      vs_endpoint: cmeg-demos-vs
+      vs_index: regulatory_doc_chunks_vs_index
     workspace:
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
 

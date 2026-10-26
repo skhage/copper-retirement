@@ -266,14 +266,25 @@ def check_lakebase(w: WorkspaceClient) -> Status:
 
 
 # ===================================================================
-# 5. VECTOR SEARCH — regulatory index ONLINE with rows
+# 5. VECTOR SEARCH — OPTIONAL (DEC-VS-OPTIONAL). Never FAILs the healthcheck:
+#    problems are WARN (YELLOW) because default retrieval is the UC TVF
+#    search_regulatory_chunks. Unset COPPER_VS_ENDPOINT ("") to skip entirely.
 # ===================================================================
-VS_ENDPOINT = os.environ.get("COPPER_VS_ENDPOINT", "cmeg-demos-vs")
-VS_INDEX = f"{FQ}.regulatory_doc_chunks_vs_index"
+VS_ENDPOINT = os.environ.get("COPPER_VS_ENDPOINT", "cmeg-demos-vs").strip()
+VS_INDEX = f"{FQ}." + (os.environ.get("COPPER_VS_INDEX", "").strip() or "regulatory_doc_chunks_vs_index")
 
 
 def check_vector_search(w: WorkspaceClient) -> Status:
-    _banner("5/8  VECTOR SEARCH")
+    _banner("5/8  VECTOR SEARCH (optional)")
+    if not VS_ENDPOINT:
+        _row("Vector Search", Status.GREEN, "disabled (optional); TVF retrieval in use")
+        return Status.GREEN
+    worst = _check_vector_search_inner(w)
+    # DEC-VS-OPTIONAL: downgrade RED to WARN so a missing/offline VS never fails the run.
+    return Status.YELLOW if worst == Status.RED else worst
+
+
+def _check_vector_search_inner(w: WorkspaceClient) -> Status:
     worst = Status.GREEN
 
     # Endpoint
