@@ -16,8 +16,9 @@ eggs/
 .eggs/
 lib/
 # Re-include front-end source lib folders (ACC-DEVOPS-GITIGNORE-TRIAGE-LIB):
-# the Python 'lib/' rule above must not hide TypeScript sources under apps/*/client/src.
-!apps/*/client/src/**/lib/
+# the Python 'lib/' rule above must not hide TypeScript sources of the unified app.
+# Scoped to retirement-plan only: commodity-dashboard / copper-map are retired (merged as tabs).
+!apps/retirement-plan/client/src/**/lib/
 lib64/
 parts/
 sdist/
