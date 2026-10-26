@@ -11,7 +11,10 @@
  *
  * Citation contract: every row/answer carries source title + official URL. Answers that cite no [S#]
  * are replaced with "No official source found for this question." (BRAND_GUIDE §0.2).
- * Interim retrieval = keyword scoring over real chunks (pending ACC-REG-VS-RESYNC of the VS index).
+ * Retrieval (ACC-ML-REG-ASK-51D-RECALL, 2026-10-26) = hybrid over real chunks, no VS dependency (DEC-VS-OPTIONAL):
+ *   bge-large cosine (same embedding as search_regulatory_chunks TVF) + keyword rank, fused by RRF, with a small
+ *   boost for codified rules (CFR/USC) and verbatim section-number hits, max 2 chunks per source for diversity.
+ *   Falls back to keyword-only scoring if the embedding call fails.
  * All user input is passed as named SQL parameters (no string interpolation).
  */
 import express from 'express';
@@ -83,7 +86,52 @@ async function fetchKpis() {
     sources: n(s.sources), verified_sources: n(s.verified_sources), real_chunks: n(c.real_chunks) };
 }
 
+// Section numbers like 51.333 or 63.71 in the question (matched verbatim in chunk text).
+function sections(q) {
+  return [...new Set(String(q || '').match(/\b\d{1,3}\.\d{2,4}\b/g) || [])].slice(0, 3);
+}
+
+async function retrieveHybrid(question, jur) {
+  const ks = keywords(question);
+  const ss = sections(question);
+  const kw = ks.map((_, i) => `CASE WHEN ch.embedding_text ILIKE '%' || :k${i} || '%' THEN 1 ELSE 0 END`).join(' + ') || '0';
+  const sec = ss.map((_, i) => `CASE WHEN ch.embedding_text LIKE '%' || :s${i} || '%' THEN 1 ELSE 0 END`).join(' + ') || '0';
+  return executeSQL(`
+    WITH qv AS (SELECT ai_query('databricks-bge-large-en', :q, returnType => 'ARRAY<FLOAT>') AS v),
+    base AS (
+      SELECT ch.chunk_id, ch.source_id, ch.title, ch.citation, ch.source_url, ch.jurisdiction,
+        substr(ch.embedding_text, 1, 1600) AS excerpt,
+        aggregate(zip_with(ch.embedding, qv.v, (a, b) -> CAST(a AS DOUBLE) * b), 0D, (acc, x) -> acc + x)
+          / (sqrt(aggregate(ch.embedding, 0D, (acc, x) -> acc + CAST(x AS DOUBLE) * x))
+             * sqrt(aggregate(qv.v, 0D, (acc, x) -> acc + CAST(x AS DOUBLE) * x))) AS sem,
+        (${kw}) AS kw, (${sec}) AS sec_hit,
+        CASE WHEN ch.citation ILIKE '%CFR%' OR ch.citation ILIKE '%U.S.C%' THEN 1 ELSE 0 END AS codified
+      FROM ${FQ}.regulatory_doc_chunks ch CROSS JOIN qv
+      WHERE ch.is_synthetic = false AND ch.source_url IS NOT NULL AND ch.embedding IS NOT NULL
+        AND (:jur = 'ALL' OR ch.jurisdiction IN ('US', :jur))),
+    r AS (SELECT *, row_number() OVER (ORDER BY sem DESC) AS rs, row_number() OVER (ORDER BY kw DESC, sem DESC) AS rk FROM base),
+    f AS (SELECT *, 1.0 / (60 + rs) + 1.0 / (60 + rk) + 0.004 * codified + 0.01 * sec_hit
+            + CASE WHEN :jur <> 'ALL' AND jurisdiction = :jur THEN 0.004 ELSE 0 END AS score FROM r),
+    d AS (SELECT *, row_number() OVER (PARTITION BY source_id ORDER BY score DESC) AS per_src FROM f)
+    SELECT d.chunk_id, d.source_id, d.title, d.citation, d.source_url, d.jurisdiction, d.excerpt, d.score,
+      rg.verification_status, CAST(rg.last_verified AS STRING) AS last_verified
+    FROM d LEFT JOIN ${FQ}.regulatory_source_register rg ON rg.source_id = d.source_id
+    WHERE d.per_src <= 2
+    ORDER BY d.score DESC, d.chunk_id LIMIT 6`,
+  [P('q', String(question).slice(0, 1000)), P('jur', jur), ...ks.map((k, i) => P(`k${i}`, k)), ...ss.map((s, i) => P(`s${i}`, s))]);
+}
+
 async function retrieve(question, jur) {
+  try {
+    const rows = await retrieveHybrid(question, jur);
+    if (rows.length) return rows;
+  } catch (err) {
+    console.error('[accelerator:regulatory] hybrid retrieval failed, falling back to keyword:', err.message);
+  }
+  return retrieveKeyword(question, jur);
+}
+
+async function retrieveKeyword(question, jur) {
   const ks = keywords(question);
   if (!ks.length) return [];
   const score = ks.map((_, i) => `CASE WHEN ch.embedding_text ILIKE '%' || :k${i} || '%' THEN 1 ELSE 0 END`).join(' + ');
