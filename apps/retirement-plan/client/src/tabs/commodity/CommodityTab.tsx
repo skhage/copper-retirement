@@ -8,6 +8,8 @@
  *   Value base    -> /api/commodity/value       v_partner_value_wire_center (NIST lb/kft x SYNTHETIC plant)
  *   Workforce     -> /api/commodity/contractors gold_contractor_scorecard (SYNTHETIC)
  * Regulatory filing cost is NOT in the ROI (DEC-ROI-FILING-COST); FCC fee bounds are shown only as a labeled reference.
+ * Payback follows DEC-ROI-PAYBACK-BASIS: months = max((decommission + migration - GROSS salvage) / (annual opex / 12), 0).
+ * Decommission already includes cable removal, so salvage_cost_usd_lb is per-unit economics only (not in payback / 5-year).
  * Colors from styles/tokens.css only.
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -38,6 +40,8 @@ const INPUTS: { code: string; label: string; fmt: (v: number) => string }[] = [
   { code: 'opex_reduction_pct_fiber_vs_copper', label: 'O&M avoided on fiber', fmt: (v) => `${Math.round(v * 100)}%` },
 ];
 
+/** Signed value + text cue so gain/loss is not conveyed by colour alone (WCAG 1.4.1). */
+const fmtSigned = (n: number) => `${fmtUsd(n)} ${n < 0 ? '(loss)' : '(gain)'}`;
 const fmtInt = (n: number | null | undefined) => (n == null ? '—' : Math.round(n).toLocaleString('en-US'));
 const fmtUsd = (n: number | null | undefined) => {
   if (n == null || !Number.isFinite(n)) return '—';
@@ -117,15 +121,21 @@ function PriceChart({ history, forecast }: { history: PricePoint[]; forecast: Fo
   );
 }
 
+/**
+ * Low/base/high selector as a group of aria-pressed toggle buttons (ACC-DES-DEF-COMM-ROI-A11Y option 'drop radio roles').
+ * Every enabled button is in the Tab order and toggles with Enter/Space (native button). Levels with no source value stay
+ * focusable but aria-disabled with an explanatory title, so screen-reader users learn why they cannot pick them.
+ */
 function LevelPicker({ name, value, onChange, a }: { name: string; value: Level; onChange: (l: Level) => void; a: Assumption }) {
   return (
-    <div role="radiogroup" aria-label={name} className="inline-flex rounded border border-input overflow-hidden">
+    <div role="group" aria-label={`${name} level`} className="inline-flex rounded border border-input overflow-hidden">
       {LEVELS.map((l) => {
         const v = a[l];
         const disabled = v == null;
         return (
-          <button key={l} type="button" role="radio" aria-checked={value === l} disabled={disabled}
-            onClick={() => onChange(l)}
+          <button key={l} type="button" aria-pressed={value === l} aria-disabled={disabled || undefined}
+            title={disabled ? `No source value for ${LEVEL_LABEL[l].toLowerCase()}` : undefined}
+            onClick={() => { if (!disabled) onChange(l); }}
             className={`px-2 py-1 text-xs ${value === l ? 'bg-secondary text-secondary-foreground' : 'bg-card text-foreground'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
             {LEVEL_LABEL[l]}
           </button>
@@ -168,17 +178,23 @@ export function CommodityTab() {
     const net = gross - salvageCost;
     const opex = t.working_lines * perLine! * red!;
     const oneTime = t.migration_cost + t.decommission_cost; // ex fiber build, ex regulatory filing (DEC-ROI-FILING-COST)
-    const payback = opex > 0 ? Math.max(0, (oneTime - net) / opex) : null;
-    return { recoverable, gross, salvageCost, net, opex, oneTime, payback, fiveYear: net + 5 * opex - oneTime };
+    // DEC-ROI-PAYBACK-BASIS: gross salvage, months, removal counted once (inside decommission).
+    const paybackMonths = opex > 0 ? Math.max(0, (oneTime - gross) / (opex / 12)) : null;
+    const marginPerLb = price! - cost!; // per-unit economics only
+    return { recoverable, gross, salvageCost, net, marginPerLb, opex, oneTime, paybackMonths, fiveYear: gross + 5 * opex - oneTime };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value.data, byCode, levels]);
 
   const latest = prices.data?.[prices.data.length - 1];
   const fcNext = forecast.data?.points.find((p) => latest && p.month > latest.month) ?? forecast.data?.points[0];
   const filing = (assumptions.data ?? []).find((a) => a.code === 'regulatory_filing_cost_per_wc');
+  const announce = roi
+    ? `5-year net value ${fmtSigned(roi.fiveYear)}, payback ex fiber ${roi.paybackMonths == null ? 'not available' : `${roi.paybackMonths.toFixed(1)} months`}, gross salvage ${fmtUsd(roi.gross)}, annual O&M savings ${fmtUsd(roi.opex)}.`
+    : '';
 
   return (
     <div>
+      <p className="sr-only" role="status" aria-live="polite">{announce}</p>
       <TabHeader title="Commodity & Value" question="What is the recovered copper worth, and when should we sell?"
         badges={<><span className="text-xs text-muted-foreground">Price: real IMF data</span><SyntheticBadge label="SYNTHETIC PLANT + WORKFORCE" /></>} />
 
@@ -193,14 +209,15 @@ export function CommodityTab() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-4">
-        <KpiCard label="Copper price (latest month)" value={latest?.usd_lb != null ? `$${latest.usd_lb.toFixed(2)}/lb` : prices.err ? '—' : '…'}
+        <KpiCard label="Copper price (latest month)" busy={!prices.data && !prices.err} value={latest?.usd_lb != null ? `$${latest.usd_lb.toFixed(2)}/lb` : prices.err ? '—' : '…'}
           sub={latest ? <CitationLink title={`IMF PCOPPUSDM ${latest.month.slice(0, 7)}`} url={latest.source_url} /> : undefined} />
-        <KpiCard label="Forecast next month" value={fcNext?.usd_lb != null ? `$${fcNext.usd_lb.toFixed(2)}/lb` : forecast.err ? '—' : '…'}
+        <KpiCard label="Forecast next month" busy={!forecast.data && !forecast.err} value={fcNext?.usd_lb != null ? `$${fcNext.usd_lb.toFixed(2)}/lb` : forecast.err ? '—' : '…'}
           sub={forecast.data ? (forecast.data.synthetic ? 'SYNTHETIC forecaster output' : `model ${forecast.data.model_version ?? ''}`) : undefined} />
-        <KpiCard label="Copper in place" value={value.data ? `${fmtInt(value.data.totals.copper_lbs)} lb` : '…'} sub={value.data ? `${value.data.totals.wire_centers} wire centers (synthetic plant)` : undefined} />
-        <KpiCard label="Net salvage value" value={roi ? fmtUsd(roi.net) : '…'} sub="at selected ROI inputs" valueClass={roi && roi.net < 0 ? 'text-danger' : 'text-success'} />
-        <KpiCard label="Annual O&M savings" value={roi ? fmtUsd(roi.opex) : '…'} sub={value.data ? `${fmtInt(value.data.totals.working_lines)} working copper lines` : undefined} valueClass="text-success" />
-        <KpiCard label="Customers to migrate" value={value.data ? fmtInt(value.data.totals.customers_impacted - value.data.totals.customers_migrated) : '…'} sub={value.data ? `${fmtInt(value.data.totals.customers_migrated)} migrated so far` : undefined} />
+        <KpiCard label="Copper in place" busy={!value.data && !value.err} value={value.data ? `${fmtInt(value.data.totals.copper_lbs)} lb` : value.err ? '—' : '…'} sub={value.data ? `${value.data.totals.wire_centers} wire centers (synthetic plant)` : value.err ? 'Data access pending' : undefined} />
+        <KpiCard label="Gross salvage value" busy={!roi && !value.err && !assumptions.err} value={roi ? fmtSigned(roi.gross) : value.err || assumptions.err ? '—' : '…'}
+          sub={roi ? `net margin ${roi.marginPerLb < 0 ? '-' : ''}$${Math.abs(roi.marginPerLb).toFixed(2)}/lb after salvage cost (per unit)` : 'at selected ROI inputs'} valueClass={roi && roi.gross < 0 ? 'text-danger' : 'text-success'} />
+        <KpiCard label="Annual O&M savings" busy={!roi && !value.err && !assumptions.err} value={roi ? fmtSigned(roi.opex) : value.err || assumptions.err ? '—' : '…'} sub={value.data ? `${fmtInt(value.data.totals.working_lines)} working copper lines` : undefined} valueClass="text-success" />
+        <KpiCard label="Customers to migrate" busy={!value.data && !value.err} value={value.data ? fmtInt(value.data.totals.customers_impacted - value.data.totals.customers_migrated) : value.err ? '—' : '…'} sub={value.data ? `${fmtInt(value.data.totals.customers_migrated)} migrated so far` : undefined} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-3 mb-4">
@@ -240,11 +257,18 @@ export function CommodityTab() {
                   <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm mt-4 border-t border-border pt-3">
                     <dt className="text-muted-foreground">Recoverable copper</dt><dd className="text-right">{fmtInt(roi.recoverable)} lb</dd>
                     <dt className="text-muted-foreground">Gross salvage</dt><dd className="text-right">{fmtUsd(roi.gross)}</dd>
-                    <dt className="text-muted-foreground">Salvage cost</dt><dd className="text-right">{fmtUsd(-roi.salvageCost)}</dd>
+                    <dt className="text-muted-foreground">Net salvage margin (per unit only)</dt><dd className="text-right">{`${roi.marginPerLb < 0 ? '-' : ''}$${Math.abs(roi.marginPerLb).toFixed(2)}/lb`}</dd>
                     <dt className="text-muted-foreground">One-time cost ex fiber build <SyntheticBadge /></dt><dd className="text-right">{fmtUsd(-roi.oneTime)}</dd>
-                    <dt className="text-muted-foreground">5-year net value</dt><dd className={`text-right font-semibold ${roi.fiveYear < 0 ? 'text-danger' : 'text-success'}`}>{fmtUsd(roi.fiveYear)}</dd>
-                    <dt className="text-muted-foreground">Simple payback</dt><dd className="text-right">{roi.payback == null ? '—' : `${roi.payback.toFixed(1)} yrs`}</dd>
+                    <dt className="text-muted-foreground">Annual O&M savings</dt><dd className="text-right">{fmtUsd(roi.opex)}</dd>
+                    <dt className="text-muted-foreground">5-year net value ex fiber</dt><dd className={`text-right font-semibold ${roi.fiveYear < 0 ? 'text-danger' : 'text-success'}`}>{fmtSigned(roi.fiveYear)}</dd>
+                    <dt className="text-muted-foreground">Payback ex fiber (months)</dt><dd className="text-right font-semibold">{roi.paybackMonths == null ? '—' : `${roi.paybackMonths.toFixed(1)} mo`}</dd>
                   </dl>
+                )}
+                {roi && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Payback basis DEC-ROI-PAYBACK-BASIS (same as copper_partner_value and v_roi_sensitivity): (decommission + customer migration − gross salvage) ÷ (annual O&amp;M savings ÷ 12). Removal is inside decommission, so salvage cost per lb is not subtracted again. Gross salvage uses the{' '}
+                    <CitationLink title="IMF copper price (FRED PCOPPUSDM)" url="https://fred.stlouisfed.org/series/PCOPPUSDM" />.
+                  </p>
                 )}
                 {filing && (
                   <p className="text-xs text-muted-foreground mt-3">
@@ -260,16 +284,17 @@ export function CommodityTab() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-4">
         <Card title="Recovery by retirement wave" badges={<SyntheticBadge />}>
-          {value.err ? <EmptyState title="Could not load value data"><p>{value.err}</p></EmptyState> : !value.data ? <p className="text-sm text-muted-foreground">Loading…</p> : (
+          {value.err ? <EmptyState title={/^Data access pending/i.test(value.err) ? 'Data access pending' : 'Could not load value data'}><p>{value.err}</p></EmptyState> : !value.data ? <p className="text-sm text-muted-foreground">Loading…</p> : (
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1">Wave</th><th className="text-right">Wire centers</th><th className="text-right">Copper lb</th><th className="text-right">Net salvage</th><th className="text-right">Customers</th></tr></thead>
+              <caption className="sr-only">Recovery by retirement wave: wire centers, copper pounds, gross salvage at selected inputs, and customers (synthetic plant)</caption>
+              <thead><tr className="text-left text-xs text-muted-foreground"><th scope="col" className="py-1">Wave</th><th scope="col" className="text-right">Wire centers</th><th scope="col" className="text-right">Copper lb</th><th scope="col" className="text-right">Gross salvage</th><th scope="col" className="text-right">Customers</th></tr></thead>
               <tbody>
                 {value.data.waves.map((w) => {
-                  const rec = pick('salvage_recovery_rate') ?? 0, p = pick('copper_price_usd_lb') ?? 0, c = pick('salvage_cost_usd_lb') ?? 0;
+                  const rec = pick('salvage_recovery_rate') ?? 0, p = pick('copper_price_usd_lb') ?? 0; // gross basis (DEC-ROI-PAYBACK-BASIS)
                   return (
                     <tr key={w.wave} className="border-t border-border">
                       <td className="py-1">{w.wave}</td><td className="text-right">{w.wcs}</td><td className="text-right">{fmtInt(w.copper_lbs)}</td>
-                      <td className="text-right">{fmtUsd(w.copper_lbs * rec * (p - c))}</td><td className="text-right">{w.customers}</td>
+                      <td className="text-right">{fmtUsd(w.copper_lbs * rec * p)}</td><td className="text-right">{w.customers}</td>
                     </tr>
                   );
                 })}
@@ -279,9 +304,12 @@ export function CommodityTab() {
           <p className="text-xs text-muted-foreground mt-2">Copper lb = pair length x 2 conductors x lb/kft by gauge. <CitationLink title="NIST Handbook 100 copper wire tables" url="https://nvlpubs.nist.gov/nistpubs/Legacy/hb/nbshandbook100.pdf" /></p>
         </Card>
         <Card title="Top wire centers by copper in place" badges={<SyntheticBadge />}>
-          {value.data && (
+          {value.err ? <EmptyState title={/^Data access pending/i.test(value.err) ? 'Data access pending' : 'Could not load value data'}><p>{value.err}</p></EmptyState>
+            : !value.data ? <p className="text-sm text-muted-foreground">Loading…</p>
+            : value.data.wire_centers.length === 0 ? <EmptyState title="No wire centers in this state" /> : (
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1">Wire center</th><th>State</th><th>Wave</th><th className="text-right">Copper lb</th><th className="text-right">Lines</th><th>Fiber</th></tr></thead>
+              <caption className="sr-only">Top wire centers by copper in place: state, wave, copper pounds, working lines and fiber readiness (synthetic plant)</caption>
+              <thead><tr className="text-left text-xs text-muted-foreground"><th scope="col" className="py-1">Wire center</th><th scope="col">State</th><th scope="col">Wave</th><th scope="col" className="text-right">Copper lb</th><th scope="col" className="text-right">Lines</th><th scope="col">Fiber</th></tr></thead>
               <tbody>
                 {value.data.wire_centers.map((w) => (
                   <tr key={w.id} className="border-t border-border">
@@ -299,7 +327,8 @@ export function CommodityTab() {
         {contractors.err ? <EmptyState title="Could not load contractors"><p>{contractors.err}</p></EmptyState> : !contractors.data ? <p className="text-sm text-muted-foreground">Loading…</p> : contractors.data.length === 0 ? <EmptyState title="No contractors in this state" /> : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1">Contractor</th><th>Type</th><th>State</th><th className="text-right">Rating</th><th className="text-right">Safety</th><th className="text-right">SLA %</th><th className="text-right">Incidents</th><th>Flags</th><th>Dispatch</th></tr></thead>
+              <caption className="sr-only">Top-rated contractors: type, state, rating, safety score, SLA percent, incidents, risk flags and dispatch status (synthetic workforce)</caption>
+              <thead><tr className="text-left text-xs text-muted-foreground"><th scope="col" className="py-1">Contractor</th><th scope="col">Type</th><th scope="col">State</th><th scope="col" className="text-right">Rating</th><th scope="col" className="text-right">Safety</th><th scope="col" className="text-right">SLA %</th><th scope="col" className="text-right">Incidents</th><th scope="col">Flags</th><th scope="col">Dispatch</th></tr></thead>
               <tbody>
                 {contractors.data.map((c) => (
                   <tr key={`${c.name}-${c.state}-${c.type}`} className="border-t border-border">

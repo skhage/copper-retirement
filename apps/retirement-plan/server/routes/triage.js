@@ -71,19 +71,47 @@ async function fetchIncidentList(limit = 100) {
   }));
 }
 
-async function fetchIncidentKPIs() {
+/**
+ * KPIs as an "as-of" point-in-time replay (COO-Q-20261026-0550-3).
+ * The synthetic incident table is fully resolved and ends 2026-09-01, so wall-clock windows
+ * (CURRENT_DATE) always return 0. Instead every KPI is anchored to as_of:
+ *   default = MAX(incident_timestamp) in the table; override with ?as_of=YYYY-MM-DD (end of that day).
+ *   open_incidents      = reported at/before as_of and not yet resolved at as_of (ts + resolution_time_hours > as_of)
+ *   incidents_this_week = reported in the 7 days ending at as_of
+ *   reroutes_pending    = reroute_required, reported in the 30 days ending at as_of
+ *   critical_incidents  = severity critical, reported in the 30 days ending at as_of
+ *   avg_resolution_hours= mean resolution of incidents in the 30-day window
+ * No data is re-dated; the UI labels the replay date and the SYNTHETIC source.
+ */
+const WINDOW_DAYS = 30;
+async function fetchIncidentKPIs(asOfParam) {
+  const asOf = asOfParam && /^\d{4}-\d{2}-\d{2}$/.test(asOfParam) ? asOfParam : null; // whitelisted, no injection
+  const asOfExpr = asOf
+    ? `CAST('${asOf} 23:59:59' AS TIMESTAMP)`
+    : `(SELECT MAX(COALESCE(incident_timestamp, CAST(incident_date AS TIMESTAMP))) FROM ${FQ}.silver_dig_incident_enriched)`;
   const [r = {}] = await executeSQL(`
-    SELECT COUNT(*) FILTER (WHERE resolution_time_hours IS NULL OR resolution_time_hours = 0) AS open_incidents,
-      ROUND(AVG(CASE WHEN resolution_time_hours > 0 THEN resolution_time_hours END), 1) AS avg_resolution_hours,
-      COUNT(*) FILTER (WHERE incident_date >= DATE_SUB(CURRENT_DATE(), 7)) AS incidents_this_week,
-      COUNT(*) FILTER (WHERE reroute_required = true AND (resolution_time_hours IS NULL OR resolution_time_hours = 0)) AS reroutes_pending,
-      COUNT(*) FILTER (WHERE severity = 'critical' AND (resolution_time_hours IS NULL OR resolution_time_hours = 0)) AS critical_incidents
-    FROM ${FQ}.silver_dig_incident_enriched`);
+    WITH p AS (SELECT ${asOfExpr} AS as_of),
+    d AS (SELECT i.severity, i.reroute_required, i.resolution_time_hours, p.as_of,
+                 COALESCE(i.incident_timestamp, CAST(i.incident_date AS TIMESTAMP)) AS ts
+          FROM ${FQ}.silver_dig_incident_enriched i CROSS JOIN p)
+    SELECT CAST(MAX(as_of) AS STRING) AS as_of,
+      COUNT_IF(ts <= as_of AND ts + make_interval(0,0,0,0,0,0, COALESCE(resolution_time_hours,0)*3600) > as_of) AS open_incidents,
+      ROUND(AVG(CASE WHEN ts > as_of - INTERVAL ${WINDOW_DAYS} DAYS AND ts <= as_of AND resolution_time_hours > 0 THEN resolution_time_hours END), 1) AS avg_resolution_hours,
+      COUNT_IF(ts > as_of - INTERVAL 7 DAYS AND ts <= as_of) AS incidents_this_week,
+      COUNT_IF(ts > as_of - INTERVAL ${WINDOW_DAYS} DAYS AND ts <= as_of AND reroute_required = true) AS reroutes_pending,
+      COUNT_IF(ts > as_of - INTERVAL ${WINDOW_DAYS} DAYS AND ts <= as_of AND severity = 'critical') AS critical_incidents,
+      COUNT_IF(ts > as_of - INTERVAL ${WINDOW_DAYS} DAYS AND ts <= as_of) AS window_incidents
+    FROM d`);
   return {
+    as_of: r.as_of || null,
+    window_days: WINDOW_DAYS,
+    synthetic: true,
+    source: `${FQ}.silver_dig_incident_enriched`,
     open_incidents: parseInt(r.open_incidents, 10) || 0,
     avg_resolution_hours: parseFloat(r.avg_resolution_hours) || 0,
     incidents_this_week: parseInt(r.incidents_this_week, 10) || 0,
     reroutes_pending: parseInt(r.reroutes_pending, 10) || 0,
+    window_incidents: parseInt(r.window_incidents, 10) || 0,
     active_contractors: 1254,
     critical_incidents: parseInt(r.critical_incidents, 10) || 0,
   };
@@ -139,7 +167,7 @@ router.get('/incidents', wrap(async (req, res) => {
   res.json({ success: true, count: data.length, data });
 }));
 
-router.get('/kpis', wrap(async (_req, res) => res.json({ success: true, data: await fetchIncidentKPIs() })));
+router.get('/kpis', wrap(async (req, res) => res.json({ success: true, data: await fetchIncidentKPIs(req.query.as_of) })));
 
 router.get('/811', wrap(async (req, res) => {
   const data = await fetch811Summary(req.query.state);

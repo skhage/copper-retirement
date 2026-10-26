@@ -15,9 +15,9 @@ export function SyntheticBadge({ label = 'SYNTHETIC' }: { label?: string }) {
 }
 
 /** One KPI card (label, value, sub). valueClass must be a text-safe token class. */
-export function KpiCard({ label, value, sub, valueClass = 'text-secondary' }: { label: string; value: ReactNode; sub?: ReactNode; valueClass?: string }) {
+export function KpiCard({ label, value, sub, valueClass = 'text-secondary', busy = false }: { label: string; value: ReactNode; sub?: ReactNode; valueClass?: string; busy?: boolean }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
+    <div className="rounded-lg border border-border bg-card p-3 shadow-sm" aria-busy={busy || undefined}>
       <p className="text-xs text-muted-foreground mb-1">{label}</p>
       <p className={`text-xl font-bold ${valueClass}`}>{value}</p>
       {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}

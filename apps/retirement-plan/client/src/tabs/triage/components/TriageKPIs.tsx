@@ -1,7 +1,8 @@
 /**
  * TriageKPIs.tsx
  * Top bar showing 6 KPI cards for the dig-safe triage console.
- * Uses mock data until dig_safe_incident table + P6-TRIAGE agent land.
+ * Live values are an as-of replay (COO-Q-20261026-0550-3): anchored to the latest incident in the
+ * SYNTHETIC table silver_dig_incident_enriched, not wall-clock today, so the cards are never all zero.
  */
 import { useState, useEffect } from 'react';
 import { USE_MOCK_DATA, getMockKPIs } from '../mock/mockData';
@@ -19,12 +20,16 @@ interface KPICard {
 export function TriageKPIs() {
   const [kpis, setKpis] = useState<TriageKPIsType>(getMockKPIs());
   const [isLive, setIsLive] = useState(false);
+  const [asOf, setAsOf] = useState<string | null>(null);
+  const [windowDays, setWindowDays] = useState(30);
 
   useEffect(() => {
     if (USE_MOCK_DATA) return;
     fetchKPIs()
       .then((data) => {
         setKpis(data);
+        setAsOf(data.as_of ? data.as_of.slice(0, 10) : null);
+        setWindowDays(data.window_days || 30);
         setIsLive(true);
       })
       .catch((err) => {
@@ -34,28 +39,28 @@ export function TriageKPIs() {
 
   const cards: KPICard[] = [
     {
-      label: 'Open Incidents',
+      label: 'Open at as-of',
       value: formatCount(kpis.open_incidents),
       color: 'text-primary-strong',
-      subtext: `${kpis.critical_incidents} critical`,
+      subtext: 'not yet resolved',
     },
     {
       label: 'Avg Resolution',
       value: `${kpis.avg_resolution_hours.toFixed(1)}h`,
       color: 'text-warning',
-      subtext: 'resolved incidents',
+      subtext: `last ${windowDays} days`,
     },
     {
-      label: 'This Week',
+      label: 'Last 7 Days',
       value: formatCount(kpis.incidents_this_week),
       color: 'text-secondary',
       subtext: 'new incidents',
     },
     {
-      label: 'Reroutes Pending',
+      label: 'Reroutes Required',
       value: formatCount(kpis.reroutes_pending),
       color: 'text-muted-foreground',
-      subtext: 'awaiting approval',
+      subtext: `last ${windowDays} days`,
     },
     {
       label: 'Active Contractors',
@@ -67,11 +72,17 @@ export function TriageKPIs() {
       label: 'Critical',
       value: formatCount(kpis.critical_incidents),
       color: 'text-primary-strong',
-      subtext: 'require immediate action',
+      subtext: `last ${windowDays} days`,
     },
   ];
 
   return (
+    <>
+    <p className="text-xs text-muted-foreground mb-2" role="note">
+      {isLive
+        ? `Replay as of ${asOf ?? 'latest incident'} (synthetic incident data; windows end at the as-of date, not today).`
+        : 'Sample data (live KPIs unavailable).'}
+    </p>
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
       {cards.map((card) => (
         <div
@@ -86,5 +97,6 @@ export function TriageKPIs() {
         </div>
       ))}
     </div>
+    </>
   );
 }
