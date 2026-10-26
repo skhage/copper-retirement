@@ -16,8 +16,14 @@
 #
 # ORDERING: run this job BEFORE opening the app. The app's DIG_811_TABLE
 # (${var.catalog_name}.provable_resilience_intelligence.stg_811_dig_ticket) is
-# created by task 1, and the Triage tab needs task 3. Regulatory tab reference
-# tables (real, cited) are NOT seeded here; see PARTNER-PLAYBOOK §6a.
+# created by task 1, and the Triage tab needs task 3.
+# Task 4 loads the REAL, cited Regulatory tab reference objects (NOT synthetic):
+# regulatory_source_register + jurisdiction_requirements_cited from
+# data/reference/regulatory/*.jsonl, re-downloads every official_url into volume
+# regulatory_source_docs, logs regulatory_source_files, parses/chunks/embeds into
+# regulatory_doc_chunks (is_synthetic=false) and creates search_regulatory_chunks
+# via scripts/load_regulatory_reference.py (ACC-DE-FRESH-REG-REFERENCE). Some
+# official sites return 403/bot challenges; those rows are logged as failed/stub.
 #
 # Safety: the seeder refuses to overwrite any existing table that it did not
 # write, so running this against the reference workspace (dev/prod targets)
@@ -59,6 +65,18 @@ resources:
           environment_key: 'seed_env'
           spark_python_task:
             python_file: ../../scripts/provision_app_objects.py
+            parameters:
+              - '--catalog'
+              - '${var.catalog_name}'
+              - '--schema'
+              - '${var.schema_name}'
+
+        - task_key: 'load_regulatory_reference'
+          depends_on:
+            - task_key: 'seed_synthetic_sources'
+          environment_key: 'seed_env'
+          spark_python_task:
+            python_file: ../../scripts/load_regulatory_reference.py
             parameters:
               - '--catalog'
               - '${var.catalog_name}'
