@@ -24,7 +24,7 @@
 # MAGIC ## Part 4: Regulatory RAG Eval (real sources)
 # MAGIC 38-question eval set (`reg_rag_eval_dataset` v3: FCC, 811/one-call, OSHA, EPA, state PUC, ROW; 30 answerable + 8 flag-gap) with citation scorers: citation present, citation URL valid (must be an official URL in `regulatory_source_register`), expected citation, jurisdiction correctness, fact regex, LLM-judge groundedness, and gap abstention. **Answers without citations fail.** Results append to `reg_rag_eval_results`.
 # MAGIC
-# MAGIC The regulatory RAG chain (cell *Regulatory RAG chain*) retrieves **only `is_synthetic = false` chunks**. It queries the VS index first and falls back to Delta TF-IDF over real chunks until ACC-REG-VS-RESYNC re-syncs the index.
+# MAGIC The regulatory RAG chain (cell *Regulatory RAG chain*) retrieves **only `is_synthetic = false` chunks**. Default retrieval is the UC TVF `search_regulatory_chunks` (bge-large cosine over real chunks), with Delta TF-IDF as fallback. Vector Search is optional (`REG_USE_VS = False`) and should be enabled only once the index serves real chunks with `is_synthetic`/`source_url` columns.
 # MAGIC
 # MAGIC **Architecture:** Supervisor LLM → tool-calling dispatch → sub-agent execution → response synthesis
 # MAGIC **LLM:** `databricks-meta-llama-3-3-70b-instruct`
@@ -63,6 +63,10 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 
 VS_INDEX_NAME = f"{CATALOG}.{SCHEMA}.regulatory_doc_chunks_vs_index"   # lives on VS endpoint cmeg-demos-vs (DEC-VS-ENDPOINT-ACTUAL)
+# COO-Q-20261025-1750-3 (2026-10-26): Vector Search is OPTIONAL. Default retrieval = UC TVF search_regulatory_chunks over real
+# chunks (1,885 chunks: TVF p50 2.0s vs VS 0.36s; LLM generation dominates end-to-end latency). Set True only after the index
+# is recreated with is_synthetic/source_url columns (today it serves 528 synthetic rows and rejects the is_synthetic filter).
+REG_USE_VS = False
 REG_TOP_K = 8   # ACC-ML-REG-PROMPT-TUNE (2026-10-25): 6 -> 8 to cut over-abstention on multi-subsection statutes
 # Llama-3.3-70B AI Gateway input guardrail flags statute text as "non-violent-crimes" (false positive, 2026-10-24) -> use Claude for RAG
 REG_LLM_ENDPOINT = "databricks-claude-sonnet-4-5"
@@ -109,12 +113,13 @@ def _retrieve_vs(query, top_k=REG_TOP_K, jurisdiction=None):
     return [dict(zip(cols, row)) for row in (r.result.data_array or [])]
 
 def retrieve_regulatory_chunks(query, top_k=REG_TOP_K, jurisdiction=None):
-    """VS first (real chunks only) -> UC TVF (bge-large over real chunks) -> Delta TF-IDF fallback."""
-    try:
-        hits = [h for h in _retrieve_vs(query, top_k, jurisdiction) if h.get("source_url")]
-        if hits: return hits, "vector_search"
-    except Exception:
-        pass   # index not yet recreated with is_synthetic/source_url columns (ACC-VS-INDEX-RECREATE / ACC-REG-VS-RESYNC)
+    """UC TVF (bge-large over real chunks) -> Delta TF-IDF fallback. VS is tried first only when REG_USE_VS=True."""
+    if REG_USE_VS:
+        try:
+            hits = [h for h in _retrieve_vs(query, top_k, jurisdiction) if h.get("source_url")]
+            if hits: return hits, "vector_search"
+        except Exception:
+            pass   # index not yet recreated with is_synthetic/source_url columns (ACC-VS-INDEX-RECREATE / ACC-REG-VS-RESYNC)
     try:
         hits = _retrieve_tvf(query, top_k, jurisdiction)
         if hits: return hits, "uc_tvf_bge"
