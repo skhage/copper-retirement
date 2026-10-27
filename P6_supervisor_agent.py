@@ -415,10 +415,15 @@ def _exec_commodity(request):
         recent = _ser([r.asDict() for r in spark.sql(q_recent).collect()])
         errors = {}
 
-        # Forecast: the column is forecast_month (the old forecast_date ORDER BY failed and was hidden by a bare except)
+        # Forecast: the column is forecast_month (the old forecast_date ORDER BY failed and was hidden by a bare except).
+        # ACC-ML-COMMODITY-REAL 2026-10-27: the table has no is_synthetic/source_url columns (selecting them raised
+        # UNRESOLVED_COLUMN and returned an empty forecast). Provenance is derived from model_version:
+        # imf_* = trained on real IMF PCOPPUSDM (FRED); anything else (lgbm_commodity_v1) = synthetic.
         try:
             q_fc = f"""SELECT forecast_month, copper_lme_forecast_usd_ton, copper_comex_forecast_usd_lb, model_version,
-                              forecast_generated_date, is_synthetic, source_url
+                              forecast_generated_date,
+                              NOT (model_version LIKE 'imf_%') AS is_synthetic,
+                              CASE WHEN model_version LIKE 'imf_%' THEN 'https://fred.stlouisfed.org/series/PCOPPUSDM' END AS source_url
                        FROM {CATALOG}.{SCHEMA}.gold_commodity_price_forecast
                        WHERE region = 'CO' ORDER BY forecast_month LIMIT 6"""
             forecast = _ser([r.asDict() for r in spark.sql(q_fc).collect()])
