@@ -4,6 +4,7 @@
 #   databricks bundle deploy -t <dev|staging|prod|partner> --var warehouse_id=<WAREHOUSE_ID>
 # Optional overrides: --var catalog_name=... --var schema_name=... --var vs_endpoint=...
 #   --var vs_index=... (both OPTIONAL, DEC-VS-OPTIONAL) --var serving_endpoint=... --var llm_endpoint=... --var lakebase_project=... --var lakebase_branch=...
+#   --var lakebase_host=... --var lakebase_database=... (copper-task-board app Lakebase connection)
 # Or export BUNDLE_VAR_<name>=<value> instead of --var flags.
 #
 # Targets:
@@ -78,6 +79,15 @@ variables:
   lakebase_branch:
     description: Lakebase branch used by apps.
     default: production
+  lakebase_host:
+    description: >-
+      Postgres host of the Lakebase primary endpoint (projects/<lakebase_project>/branches/<lakebase_branch>/endpoints/primary),
+      used by the copper-task-board app. Find it with `databricks postgres list-endpoints projects/<project>/branches/<branch>`.
+      Partners MUST override this for their own Lakebase project.
+    default: ep-rough-bar-d229503i.database.us-east-1.cloud.databricks.com
+  lakebase_database:
+    description: Lakebase Postgres database name used by the copper-task-board app.
+    default: databricks_postgres
 
 targets:
   dev:

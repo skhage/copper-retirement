@@ -1,7 +1,9 @@
 # Copper Retirement — Project Task Board App
 # Multi-agent coordination dashboard backed by Lakebase copper-task-board.
 # Flask/Dash app (Python) with Lakebase Postgres connection.
-# App environment variables are defined in the app's own app.yaml.
+# Under the bundle, `config` below supersedes apps/copper-task-board/app.yaml (which keeps the
+# reference values only for a standalone `databricks apps deploy`). Every Lakebase name is a
+# bundle variable (ACC-DEVOPS-TASKBOARD-LAKEBASE-VARS).
 
 resources:
   apps:
@@ -13,5 +15,18 @@ resources:
         from Lakebase copper-task-board Postgres project.
       # Repo copy is CANONICAL (WCAG tokens synced from copper-task-board-src 2026-10-27).
       # Live workspace app deploys from copper-task-board-src; next deploy uses this repo copy.
-      # Lakebase project/host are set in apps/copper-task-board/app.yaml (ACC-DE-PARAMETERIZE).
       source_code_path: ../../apps/copper-task-board
+      # ACC-DEVOPS-TASKBOARD-LAKEBASE-VARS: point at any Lakebase project with
+      #   --var lakebase_project=... --var lakebase_branch=... --var lakebase_host=...
+      # Find the host with: databricks postgres list-endpoints projects/<project>/branches/<branch>
+      config:
+        command: ['python', 'app.py']
+        env:
+          - name: LAKEBASE_ENDPOINT
+            value: projects/${var.lakebase_project}/branches/${var.lakebase_branch}/endpoints/primary
+          - name: PGHOST
+            value: ${var.lakebase_host}
+          - name: PGPORT
+            value: '5432'
+          - name: PGDATABASE
+            value: ${var.lakebase_database}
