@@ -77,7 +77,8 @@ def sync_table(spark, conn, catalog, schema, target, source, keys, renames, excl
     nonkey = [c for c in cols if c not in keys]
     touch = [c for c in TOUCH_COLS if c in tcols and c not in cols]
     tq = f"{_q(pg_schema)}.{_q(target)}"
-    on = " AND ".join(f"t.{_q(k)} = s.{_q(k)}" for k in keys)
+    # NULL-safe key match: aggregate targets (e.g. revenue_at_risk_summary) have NULL key parts (wire_center_id).
+    on = " AND ".join(f"t.{_q(k)} IS NOT DISTINCT FROM s.{_q(k)}" for k in keys)
     res = {"target": target, "source": f"{catalog}.{schema}.{source}", "source_rows": len(rows), "cols": len(cols)}
     with conn.cursor() as cur:
         cur.execute(f"CREATE TEMP TABLE _stg ON COMMIT DROP AS SELECT {', '.join(_q(c) for c in cols)} FROM {tq} WITH NO DATA")
