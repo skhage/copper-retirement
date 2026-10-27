@@ -496,6 +496,68 @@ def check_lakebase_sync(w: WorkspaceClient) -> Status:
 
 
 # ===================================================================
+# 9. CITATION PROVENANCE INVARIANT (ACC-QA-CHECKLIST-INVARIANT, @qa)
+#    is_synthetic = FALSE  =>  source/citation URL IS NOT NULL.
+#    Any violation is RED: a non-synthetic regulatory fact without an
+#    official URL breaks the charter citation rule.
+# ===================================================================
+UC_INVARIANTS = {
+    # table -> SQL expression for the URL column
+    f"{FQ}.regulatory_doc_chunks": "source_url",
+    f"{FQ}.jurisdiction_requirements_cited": "coalesce(citation_url, official_url)",
+}
+LB_INVARIANTS = {
+    "copper_app.regulatory_checklist_status": "source_url",
+}
+
+
+def check_citation_invariant(w: WorkspaceClient) -> Status:
+    _banner("9/9  CITATION PROVENANCE (is_synthetic=FALSE => URL)")
+    worst = Status.GREEN
+    try:
+        from pyspark.sql import SparkSession
+        spark = SparkSession.builder.getOrCreate()
+        for tbl, url_expr in UC_INVARIANTS.items():
+            try:
+                r = spark.sql(
+                    f"SELECT count(*) FILTER (WHERE NOT coalesce(is_synthetic, false)) AS real_rows, "
+                    f"count(*) FILTER (WHERE NOT coalesce(is_synthetic, false) "
+                    f"AND ({url_expr} IS NULL OR trim({url_expr}) = '')) AS bad FROM {tbl}"
+                ).collect()[0]
+                s = Status.GREEN if r.bad == 0 else Status.RED
+                _row(tbl.split(".")[-1], s, f"real={r.real_rows}  violations={r.bad}")
+            except Exception as exc:
+                s = Status.RED
+                _row(tbl.split(".")[-1], s, f"ERROR: {exc}")
+            if s == Status.RED:
+                worst = Status.RED
+    except Exception as exc:
+        _row("Spark session", Status.RED, f"ERROR: {exc}")
+        worst = Status.RED
+    try:
+        user = w.current_user.me().user_name
+        token = w.postgres.generate_database_credential(endpoint=LAKEBASE_ENDPOINT).token
+        with psycopg.connect(host=LAKEBASE_HOST, dbname="databricks_postgres", user=user,
+                             password=token, sslmode="require", autocommit=True) as c:
+            cur = c.cursor()
+            for tbl, url_col in LB_INVARIANTS.items():
+                cur.execute(
+                    f"SELECT count(*) FILTER (WHERE NOT coalesce(is_synthetic, false)), "
+                    f"count(*) FILTER (WHERE NOT coalesce(is_synthetic, false) "
+                    f"AND ({url_col} IS NULL OR trim({url_col}) = '')) FROM {tbl}"
+                )
+                real_rows, bad = cur.fetchone()
+                s = Status.GREEN if bad == 0 else Status.RED
+                _row(tbl, s, f"real={real_rows}  violations={bad}")
+                if s == Status.RED:
+                    worst = Status.RED
+    except Exception as exc:
+        _row("Lakebase invariant", Status.RED, f"ERROR: {exc}")
+        worst = Status.RED
+    return worst
+
+
+# ===================================================================
 # MAIN
 # ===================================================================
 def run_healthcheck():
@@ -514,6 +576,7 @@ def run_healthcheck():
     results["MV_Freshness"] = check_mv_freshness(w)
     results["InferenceTable"] = check_inference_table(w)
     results["LakebaseSync"] = check_lakebase_sync(w)
+    results["CitationInvariant"] = check_citation_invariant(w)
 
     # Summary
     print("\n" + "=" * 60)

@@ -260,6 +260,42 @@ print(result_pdf["predicted_risk_tier"].value_counts().to_string())
 
 # COMMAND ----------
 
+# DBTITLE 1,Champion-validity guard (label-change check before write)
+# ACC-ML-LABEL-CHANGE-GUARD (risk/MODEL_CARD.md s6.6(b)).
+# Stop the run BEFORE overwriting copper_risk_predictions when both are true:
+#   (1) DESCRIBE HISTORY on copper_risk_target shows a data write newer than the champion version's creation time, and
+#   (2) the champion's accuracy on the current labels is more than LABEL_GUARD_TOL below its MLflow-logged holdout accuracy.
+# Context: v5 went to chance level (0.333) after the 2026-09-15 relabel, and the old job kept publishing its scores.
+from datetime import timezone
+
+LABEL_TABLE = f"{CATALOG}.{SCHEMA}.copper_risk_target"
+LABEL_GUARD_TOL = 0.05
+DATA_OPS = {"WRITE", "CREATE TABLE AS SELECT", "CREATE OR REPLACE TABLE AS SELECT", "REPLACE TABLE AS SELECT",
+            "MERGE", "UPDATE", "DELETE", "TRUNCATE", "RESTORE", "STREAMING UPDATE", "COPY INTO"}  # metadata-only ops (SET TBLPROPERTIES, CHANGE COLUMN, OPTIMIZE) are ignored
+
+hist = spark.sql(f"DESCRIBE HISTORY {LABEL_TABLE}").select("version", "timestamp", "operation").toPandas()
+data_writes = hist[hist["operation"].isin(DATA_OPS)]
+last_label_write = data_writes["timestamp"].max() if len(data_writes) else None
+champion_created = datetime.fromtimestamp(model_version.creation_timestamp / 1000, tz=timezone.utc).replace(tzinfo=None)
+
+run_metrics = client.get_run(model_version.run_id).data.metrics
+logged_acc = next((run_metrics[k] for k in ("holdout_accuracy", "test_accuracy") if k in run_metrics), None)  # v6+ logs holdout_accuracy; v5 logged test_accuracy
+labeled = result_pdf[result_pdf["risk_tier"].notna()]
+current_acc = float((labeled["predicted_risk_tier"] == labeled["risk_tier"]).mean()) if len(labeled) else None
+
+labels_newer = last_label_write is not None and last_label_write > champion_created
+degraded = logged_acc is not None and current_acc is not None and current_acc < logged_acc - LABEL_GUARD_TOL
+print(f"Label guard: last label write={last_label_write}, champion v{model_version.version} created={champion_created}")
+print(f"  logged holdout acc={logged_acc}, acc on current labels={current_acc} (n={len(labeled)}), tol={LABEL_GUARD_TOL}")
+if labels_newer and degraded:
+    raise RuntimeError(
+        f"LABEL-CHANGE GUARD FAILED: {LABEL_TABLE} was rewritten at {last_label_write}, after champion v{model_version.version} "
+        f"was registered ({champion_created}). Accuracy on current labels is {current_acc:.3f}, logged holdout accuracy is {logged_acc:.3f}. "
+        "Predictions NOT written. Retrain the model and promote a new @champion (risk/MODEL_CARD.md s6) before scoring.")
+print("  PASS: labels unchanged since champion registration" if not labels_newer else "  PASS: labels changed but champion accuracy holds")
+
+# COMMAND ----------
+
 # DBTITLE 1,Write predictions to Unity Catalog
 # Overwrite predictions table with latest scores
 result_spark = spark.createDataFrame(result_pdf)
