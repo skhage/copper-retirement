@@ -8,9 +8,13 @@ Run from any Databricks notebook cell or terminal:
 
 Config (env vars, default to bundle variables catalog_name/schema_name):
     COPPER_CATALOG, COPPER_SCHEMA, COPPER_VS_ENDPOINT
+    COPPER_CORE_APPS     comma list, default "retirement-plan" (bundle deploys: retirement-plan-<target>)
+    COPPER_SUPPORT_APPS  comma list, default "copper-task-board" (bundle deploys: copper-task-board-<target>)
+    COPPER_PIPELINE_ID   pipeline id; if unset, looked up by COPPER_PIPELINE_NAME
+    COPPER_PIPELINE_NAME default "copper-retirement-pipeline" (bundle deploys: copper-retirement-pipeline-<target>)
 
 Outputs GREEN / YELLOW / RED per component:
-  1. Apps        — 5 core demo apps are ACTIVE
+  1. Apps        — unified accelerator app (core) is ACTIVE; copper-task-board (support)
   2. Endpoints   — Serving endpoints are READY
   3. Pipeline    — DLP pipeline last successful run < 48h
   4. Lakebase    — Task-board tables are accessible
@@ -76,19 +80,17 @@ def _row(name: str, status: Status, detail: str = ""):
 
 
 # ===================================================================
-# 1. APPS — 5 core demo apps must be ACTIVE
+# 1. APPS — 2-app end state (DEC-ACCEL-UNIFIED-APP): unified accelerator app
+#    (tabs Map/Risk, Plan, Dig Triage, Regulatory, Commodity) + ops task board.
+#    Retired apps (copper-map, dig-triage, regulatory-assistant,
+#    commodity-dashboard, lakelink-ra-review) are no longer checked.
 # ===================================================================
-CORE_APPS = [
-    "copper-map",            # Beat 1: Prioritization Map
-    "retirement-plan",       # Beat 2: Plan Tracker
-    "dig-triage",            # Beat 3: Dig-Safe Console
-    "regulatory-assistant",  # Beat 4: Regulatory RAG
-    "commodity-dashboard",   # Beat 5: Commodity Prices
-]
-SUPPORT_APPS = [
-    "copper-task-board",     # Ops: Agent task board
-    "lakelink-ra-review",    # Regulatory review app
-]
+def _env_list(var: str, default: str) -> list:
+    return [x.strip() for x in os.environ.get(var, default).split(",") if x.strip()]
+
+
+CORE_APPS = _env_list("COPPER_CORE_APPS", "retirement-plan")          # unified accelerator app
+SUPPORT_APPS = _env_list("COPPER_SUPPORT_APPS", "copper-task-board")  # ops: agent task board
 
 
 def check_apps(w: WorkspaceClient) -> Status:
@@ -161,18 +163,28 @@ def check_endpoints(w: WorkspaceClient) -> Status:
 # ===================================================================
 # 3. DLP PIPELINE — last successful run < 48 hours
 # ===================================================================
-PIPELINE_ID = "b52532a2-6398-44ed-b239-9e95cafb745c"  # copper-retirement-pipeline
-PIPELINE_NAME = "copper-retirement-pipeline"
-DLP_PIPELINE_ID = "3d0576c0-5881-4c79-bd54-cdf2e57ad207"  # copper-retirement-dlp
-DLP_PIPELINE_NAME = "copper-retirement-dlp"
+# Legacy copper-retirement-dlp (3d0576c0) is deprecated and no longer checked
+# (ACC-DEVOPS-LEGACY-DLP-DELETE). Only the bundle-managed pipeline is checked.
+PIPELINE_NAME = os.environ.get("COPPER_PIPELINE_NAME", "copper-retirement-pipeline")
+PIPELINE_ID = os.environ.get("COPPER_PIPELINE_ID", "")
 MAX_AGE_HOURS = 48
+
+
+def _resolve_pipeline_id(w: WorkspaceClient) -> str:
+    if PIPELINE_ID:
+        return PIPELINE_ID
+    for p in w.pipelines.list_pipelines(filter=f"name LIKE '{PIPELINE_NAME}'"):
+        if p.name == PIPELINE_NAME:
+            return p.pipeline_id
+    raise LookupError(f"pipeline '{PIPELINE_NAME}' not found; set COPPER_PIPELINE_ID or COPPER_PIPELINE_NAME")
 
 
 def check_pipelines(w: WorkspaceClient) -> Status:
     _banner("3/8  DLP PIPELINES")
     worst = Status.GREEN
-    for pid, pname in [(PIPELINE_ID, PIPELINE_NAME), (DLP_PIPELINE_ID, DLP_PIPELINE_NAME)]:
+    for pname in [PIPELINE_NAME]:
         try:
+            pid = _resolve_pipeline_id(w)
             updates = w.pipelines.list_updates(pipeline_id=pid)
             if updates and updates.updates:
                 latest = updates.updates[0]
