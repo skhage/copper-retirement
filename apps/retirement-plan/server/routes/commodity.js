@@ -132,7 +132,7 @@ const wrap = (fn) => (req, res) => fn(req, res).catch((err) => {
   console.error(`[accelerator:commodity] ${req.method} ${req.path}:`, err.message);
   const msg = String(err.message || '');
   const status = err.status || (/PERMISSION_DENIED|INSUFFICIENT_PERMISSIONS|does not have .*privilege/i.test(msg) ? 403 : 500);
-  res.status(status).json({ error: status === 403 ? `Data access pending: ${msg}` : msg });
+  res.status(status).json({ error: status === 403 && !msg.startsWith('Data access pending') ? `Data access pending: ${msg}` : msg });
 });
 
 router.get('/prices', wrap(async (req, res) => {

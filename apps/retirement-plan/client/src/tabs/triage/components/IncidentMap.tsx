@@ -15,7 +15,7 @@ import { useState, useEffect } from 'react';
 import { USE_MOCK_DATA, getMockIncidents, SEVERITY_COLORS, NEUTRAL_FILL } from '../mock/mockData';
 import type { Incident } from '../mock/mockData';
 import type { TriageFilters } from '../App';
-import { fetchIncidents } from '../lib/triageApi';
+import { fetchIncidents, describeApiError } from '../lib/triageApi';
 
 interface IncidentMapProps {
   filters: TriageFilters;
@@ -46,6 +46,7 @@ export function IncidentMap({ filters, onIncidentSelect, selectedIncident }: Inc
     USE_MOCK_DATA ? getMockIncidents() : []
   );
   const [isLoading, setIsLoading] = useState(!USE_MOCK_DATA);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (USE_MOCK_DATA) return;
@@ -56,8 +57,10 @@ export function IncidentMap({ filters, onIncidentSelect, selectedIncident }: Inc
         setIsLoading(false);
       })
       .catch((err) => {
-        console.warn('[IncidentMap] Live fetch failed, falling back to mock:', err);
-        setAllIncidents(getMockIncidents());
+        // COO-Q-20261027-0550-2: never fall back to mock incidents on a live failure.
+        console.warn('[IncidentMap] Live fetch failed:', err);
+        setAllIncidents([]);
+        setLoadError(describeApiError(err));
         setIsLoading(false);
       });
   }, []);
@@ -78,8 +81,9 @@ export function IncidentMap({ filters, onIncidentSelect, selectedIncident }: Inc
       <div className="flex items-center justify-between p-3 border-b">
         <h2 className="text-sm font-semibold">Incident Map</h2>
         <span className="text-xs text-muted-foreground">
-          {isLoading ? 'Loading live data...' : `${incidents.length} incidents shown`}
-          {!USE_MOCK_DATA && !isLoading && (
+          {isLoading ? 'Loading live data...' : loadError ? loadError : `${incidents.length} incidents shown`}
+          {USE_MOCK_DATA && <span className="ml-1 ll-badge-synthetic">MOCK</span>}
+          {!USE_MOCK_DATA && !isLoading && !loadError && (
             <span className="ml-1 text-accent-strong">● LIVE</span>
           )}
         </span>

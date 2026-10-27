@@ -152,9 +152,16 @@ app.get('/api/plan/waves', async (req, res) => {
     res.json({ success: true, count: wireCenterPlans.length, data: wireCenterPlans });
   } catch (err) {
     console.error('[retirement-plan] waves error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch wave schedule', detail: err.message });
+    planFail(res, 'Failed to fetch wave schedule', err);
   }
 });
+
+// COO-Q-20261027-0550-2: UC permission failures (err.status 403, tagged in executeSQL) surface as 403
+// 'Data access pending' so the Plan tab shows the pending state, never mock or 'no data'.
+function planFail(res, label, err) {
+  const status = err.status || 500;
+  res.status(status).json({ error: status === 403 ? err.message : label, detail: err.message });
+}
 
 // --- GET /api/plan/waves/summary ---
 // Regional rollup: aggregated by quarter and state.
@@ -164,7 +171,7 @@ app.get('/api/plan/waves/summary', async (req, res) => {
     res.json({ success: true, count: rows.length, data: rows });
   } catch (err) {
     console.error('[retirement-plan] waves/summary error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch wave summary', detail: err.message });
+    planFail(res, 'Failed to fetch wave summary', err);
   }
 });
 
@@ -176,7 +183,7 @@ app.get('/api/plan/contractors', async (req, res) => {
     res.json({ success: true, count: rows.length, data: rows });
   } catch (err) {
     console.error('[retirement-plan] contractors error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch contractors', detail: err.message });
+    planFail(res, 'Failed to fetch contractors', err);
   }
 });
 
@@ -189,7 +196,7 @@ app.get('/api/plan/kpis', async (req, res) => {
     res.json({ success: true, data: kpis });
   } catch (err) {
     console.error('[retirement-plan] kpis error:', err.message);
-    res.status(500).json({ error: 'Failed to compute KPIs', detail: err.message });
+    planFail(res, 'Failed to compute KPIs', err);
   }
 });
 
@@ -201,7 +208,7 @@ app.get('/api/plan/budget', async (req, res) => {
     res.json({ success: true, count: rows.length, data: rows });
   } catch (err) {
     console.error('[retirement-plan] budget error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch budget data', detail: err.message });
+    planFail(res, 'Failed to fetch budget data', err);
   }
 });
 
@@ -214,7 +221,7 @@ app.get('/api/plan/regulatory', async (req, res) => {
     res.json({ success: true, count: rows.length, data: rows });
   } catch (err) {
     console.error('[retirement-plan] regulatory error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch regulatory checklist', detail: err.message });
+    planFail(res, 'Failed to fetch regulatory checklist', err);
   }
 });
 
@@ -227,7 +234,7 @@ app.get('/api/plan/milestones', async (req, res) => {
     res.json({ success: true, count: rows.length, data: rows });
   } catch (err) {
     console.error('[retirement-plan] milestones error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch milestones', detail: err.message });
+    planFail(res, 'Failed to fetch milestones', err);
   }
 });
 

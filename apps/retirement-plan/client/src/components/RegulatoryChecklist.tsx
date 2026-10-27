@@ -9,11 +9,12 @@
  * Filterable by state.
  */
 import { useState, useEffect, useMemo } from 'react';
-import { fetchLiveRegulatory } from '../lib/planApi';
+import { fetchLiveRegulatory, errorState } from '../lib/planApi';
+import type { LoadState } from '../lib/planApi';
 import { formatDate } from '../lib/formatters';
 import { CheckCircle2, Circle, AlertTriangle, Clock, FileText } from 'lucide-react';
 import type { RegulatoryItem } from '../lib/planApi';
-import { CitationLink } from './shared';
+import { CitationLink, EmptyState, isVerifiedStatus } from './shared';
 import type { PlanFilters } from '../App';
 
 interface Props {
@@ -25,7 +26,7 @@ const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; color: string; 
   in_progress: { icon: Clock, color: 'text-warning', label: 'In Progress' },
   pending: { icon: Circle, color: 'text-muted-foreground', label: 'Pending' },
   overdue: { icon: AlertTriangle, color: 'text-danger', label: 'Overdue' },
-  not_applicable: { icon: Circle, color: 'text-muted-foreground/50', label: 'N/A' },
+  not_applicable: { icon: Circle, color: 'text-muted-foreground', label: 'N/A' },
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -50,14 +51,15 @@ interface WireCenterGroup {
 
 export function RegulatoryChecklist({ filters }: Props) {
   const [data, setData] = useState<RegulatoryItem[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loadState, setLoadState] = useState<LoadState>('loading');
+  const isLoading = loadState === 'loading';
   const [expandedWC, setExpandedWC] = useState<Set<string>>(new Set());
 
+  // ACC-DES-DEF-PLAN-CHECKLIST-A11Y (4): a failed load is never shown as 'no data' (empty result != absence).
   useEffect(() => {
-    fetchLiveRegulatory().then((rows) => {
-      setData(rows);
-      setIsLoading(false);
-    });
+    fetchLiveRegulatory()
+      .then((rows) => { setData(rows); setLoadState('live'); })
+      .catch((err) => { console.warn('[RegulatoryChecklist] Live fetch failed:', err); setData(null); setLoadState(errorState(err)); });
   }, []);
 
   const groups = useMemo(() => {
@@ -122,7 +124,19 @@ export function RegulatoryChecklist({ filters }: Props) {
       </div>
 
       {/* Summary bar */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
+      {loadState === 'denied' && (
+        <EmptyState title="Data access pending">
+          <p>The app service principal lacks SELECT on jurisdiction_requirements_cited. The checklist will load once grants are applied.</p>
+        </EmptyState>
+      )}
+      {loadState === 'error' && (
+        <EmptyState title="Could not load the regulatory checklist">
+          <p>The data service did not respond. This is a load failure, not an absence of requirements.</p>
+        </EmptyState>
+      )}
+
+      {loadState === 'live' && (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div className="rounded border p-2">
           <p className="text-xs text-muted-foreground">Wire Centers</p>
           <p className="text-lg font-bold text-secondary">{groups.length}</p>
@@ -142,6 +156,7 @@ export function RegulatoryChecklist({ filters }: Props) {
           </p>
         </div>
       </div>
+      )}
 
       {/* Wire center accordion */}
       <div className="space-y-2">
@@ -196,9 +211,10 @@ export function RegulatoryChecklist({ filters }: Props) {
                         key={item.checklist_id}
                         className="flex items-start gap-2 px-3 py-2 text-xs"
                       >
-                        <Icon size={14} strokeWidth={1.5} className={`${cfg.color} mt-0.5 flex-shrink-0`} />
+                        <Icon size={14} strokeWidth={1.5} className={`${cfg.color} mt-0.5 flex-shrink-0`} aria-hidden="true" />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`font-medium ${cfg.color}`}>{cfg.label}</span>
                             <span className="font-medium">{item.checklist_item}</span>
                             <span className={`text-xs px-1 py-0 rounded ${catClass}`}>
                               {(item.item_category || '').replace(/_/g, ' ')}
@@ -210,7 +226,7 @@ export function RegulatoryChecklist({ filters }: Props) {
                           {item.description && (
                             <p className="text-muted-foreground mt-0.5">{item.description}</p>
                           )}
-                          {item.verification_status && !String(item.verification_status).startsWith('VERIFIED') && (
+                          {item.verification_status && !isVerifiedStatus(item.verification_status) && (
                             <span className="ll-badge-synthetic">Flagged gap - not a verified fact ({item.verification_status})</span>
                           )}
                           <div className="mt-0.5">
@@ -245,7 +261,7 @@ export function RegulatoryChecklist({ filters }: Props) {
         })}
       </div>
 
-      {groups.length === 0 && !isLoading && (
+      {groups.length === 0 && loadState === 'live' && (
         <p className="text-sm text-muted-foreground text-center py-8">
           No regulatory checklist data available for the selected filters.
         </p>

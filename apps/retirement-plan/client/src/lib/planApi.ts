@@ -5,8 +5,31 @@
  * and gold_contractor_assignment_plan via Databricks SQL.
  *
  * V2 (2026-09-20): Live data from gold tables.
+ * ACC-DES-DEF-PLAN-KPI-FALLBACK / COO-Q-20261027-0550-2 (2026-10-27): every fetchLive* now THROWS ApiError
+ * (status 403 = data access pending). Callers must render an honest error state; there is no mock fallback.
  */
-import type { WireCenterPlan, PlanKPIData } from '../mock/mockData';
+import type { WireCenterPlan } from '../mock/mockData';
+
+/** HTTP error with status, so callers can tell 'Data access pending' (403) from other failures. */
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/** Shared load-state model for every Plan panel (same contract as TriageKPIs, 483fe87). */
+export type LoadState = 'loading' | 'live' | 'mock' | 'denied' | 'error';
+
+export function errorState(err: unknown): 'denied' | 'error' {
+  return err instanceof ApiError && err.status === 403 ? 'denied' : 'error';
+}
+
+/** Short user-facing text for a failed load. */
+export function failText(state: LoadState): string | undefined {
+  return state === 'denied' ? 'Data access pending' : state === 'error' ? 'Could not load' : undefined;
+}
 
 // --- Types for API responses ---
 
@@ -67,70 +90,41 @@ async function apiFetch<T>(url: string): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(body.error || `HTTP ${res.status}`);
+    throw new ApiError(res.status, body.error || `HTTP ${res.status}`);
   }
   return res.json();
 }
 
 /**
- * Fetch wave schedule data mapped to WireCenterPlan format.
- * Falls back to null on error (caller should use mock data).
+ * Fetch wave schedule data mapped to WireCenterPlan format. Throws ApiError on failure.
  */
-export async function fetchLiveWaves(): Promise<WireCenterPlan[] | null> {
-  try {
-    const { data } = await apiFetch<{ success: boolean; data: WireCenterPlan[] }>(
-      '/api/plan/waves'
-    );
-    return data;
-  } catch (err) {
-    console.warn('[planApi] Failed to fetch live waves:', err);
-    return null;
-  }
+export async function fetchLiveWaves(): Promise<WireCenterPlan[]> {
+  const { data } = await apiFetch<{ success: boolean; data: WireCenterPlan[] }>('/api/plan/waves');
+  return data;
 }
 
 /**
  * Fetch wave summary (regional rollup by quarter/state).
  */
-export async function fetchLiveWaveSummary(): Promise<WaveSummaryRow[] | null> {
-  try {
-    const { data } = await apiFetch<{ success: boolean; data: WaveSummaryRow[] }>(
-      '/api/plan/waves/summary'
-    );
-    return data;
-  } catch (err) {
-    console.warn('[planApi] Failed to fetch wave summary:', err);
-    return null;
-  }
+export async function fetchLiveWaveSummary(): Promise<WaveSummaryRow[]> {
+  const { data } = await apiFetch<{ success: boolean; data: WaveSummaryRow[] }>('/api/plan/waves/summary');
+  return data;
 }
 
 /**
  * Fetch contractor assignment plan.
  */
-export async function fetchLiveContractors(): Promise<ContractorAssignment[] | null> {
-  try {
-    const { data } = await apiFetch<{ success: boolean; data: ContractorAssignment[] }>(
-      '/api/plan/contractors'
-    );
-    return data;
-  } catch (err) {
-    console.warn('[planApi] Failed to fetch contractors:', err);
-    return null;
-  }
+export async function fetchLiveContractors(): Promise<ContractorAssignment[]> {
+  const { data } = await apiFetch<{ success: boolean; data: ContractorAssignment[] }>('/api/plan/contractors');
+  return data;
 }
 
 /**
  * Fetch computed KPIs from gold_wave_schedule.
  */
-export async function fetchLiveKPIs(): Promise<LiveKPIs | null> {
-  try {
-    const { data } = await apiFetch<{ success: boolean; data: LiveKPIs }>(
-      '/api/plan/kpis'
-    );
-    return data;
-  } catch (err) {
-    console.warn('[planApi] Failed to fetch KPIs:', err);
-    return null;
-  }
+export async function fetchLiveKPIs(): Promise<LiveKPIs> {
+  const { data } = await apiFetch<{ success: boolean; data: LiveKPIs }>('/api/plan/kpis');
+  return data;
 }
 
 // --- Budget data ---
@@ -148,16 +142,9 @@ export interface BudgetRow {
   avg_completion_pct: string;
 }
 
-export async function fetchLiveBudget(): Promise<BudgetRow[] | null> {
-  try {
-    const { data } = await apiFetch<{ success: boolean; data: BudgetRow[] }>(
-      '/api/plan/budget'
-    );
-    return data;
-  } catch (err) {
-    console.warn('[planApi] Failed to fetch budget:', err);
-    return null;
-  }
+export async function fetchLiveBudget(): Promise<BudgetRow[]> {
+  const { data } = await apiFetch<{ success: boolean; data: BudgetRow[] }>('/api/plan/budget');
+  return data;
 }
 
 // --- Regulatory checklist ---
@@ -187,17 +174,12 @@ export interface RegulatoryItem {
   last_verified?: string | null;
 }
 
-export async function fetchLiveRegulatory(wireCenterId?: string): Promise<RegulatoryItem[] | null> {
-  try {
-    const url = wireCenterId
-      ? `/api/plan/regulatory?wire_center_id=${encodeURIComponent(wireCenterId)}`
-      : '/api/plan/regulatory';
-    const { data } = await apiFetch<{ success: boolean; data: RegulatoryItem[] }>(url);
-    return data;
-  } catch (err) {
-    console.warn('[planApi] Failed to fetch regulatory:', err);
-    return null;
-  }
+export async function fetchLiveRegulatory(wireCenterId?: string): Promise<RegulatoryItem[]> {
+  const url = wireCenterId
+    ? `/api/plan/regulatory?wire_center_id=${encodeURIComponent(wireCenterId)}`
+    : '/api/plan/regulatory';
+  const { data } = await apiFetch<{ success: boolean; data: RegulatoryItem[] }>(url);
+  return data;
 }
 
 // --- Milestones ---
@@ -219,15 +201,10 @@ export interface MilestoneRow {
   risk_description: string;
 }
 
-export async function fetchLiveMilestones(wireCenterId?: string): Promise<MilestoneRow[] | null> {
-  try {
-    const url = wireCenterId
-      ? `/api/plan/milestones?wire_center_id=${encodeURIComponent(wireCenterId)}`
-      : '/api/plan/milestones';
-    const { data } = await apiFetch<{ success: boolean; data: MilestoneRow[] }>(url);
-    return data;
-  } catch (err) {
-    console.warn('[planApi] Failed to fetch milestones:', err);
-    return null;
-  }
+export async function fetchLiveMilestones(wireCenterId?: string): Promise<MilestoneRow[]> {
+  const url = wireCenterId
+    ? `/api/plan/milestones?wire_center_id=${encodeURIComponent(wireCenterId)}`
+    : '/api/plan/milestones';
+  const { data } = await apiFetch<{ success: boolean; data: MilestoneRow[] }>(url);
+  return data;
 }

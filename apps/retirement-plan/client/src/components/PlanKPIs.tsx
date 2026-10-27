@@ -2,24 +2,40 @@
  * PlanKPIs.tsx
  * Top bar with 6 KPI cards for the Retirement Plan Tracker.
  * V2 (2026-09-20): Fetches live KPIs from gold_wave_schedule.
- * Falls back to mock computeKPIs() if live data unavailable.
+ * ACC-DES-DEF-PLAN-KPI-FALLBACK (2026-10-27): no mock fallback. States: loading = '…' + aria-busy;
+ * 403 = '—' + 'Data access pending'; other errors = '—' + 'Could not load'. computeKPIs() mock values are
+ * reachable ONLY when USE_MOCK_DATA === true (false in the build), and then carry a MOCK badge.
  */
 import { useState, useEffect } from 'react';
 import { computeKPIs, USE_MOCK_DATA } from '../mock/mockData';
-import { fetchLiveKPIs } from '../lib/planApi';
-import type { LiveKPIs } from '../lib/planApi';
+import { fetchLiveKPIs, errorState, failText } from '../lib/planApi';
+import type { LiveKPIs, LoadState } from '../lib/planApi';
 import { formatCount, formatCurrency, formatPercent } from '../lib/formatters';
+import { KpiCard, SyntheticBadge } from './shared';
+
+const LABELS = ['Wire Centers', 'Copper Devices', 'Avg Readiness', 'Crew-Days', 'Revenue at Risk', 'Customers Affected'];
 
 export function PlanKPIs() {
   const [liveKPIs, setLiveKPIs] = useState<LiveKPIs | null>(null);
+  const [state, setState] = useState<LoadState>(USE_MOCK_DATA ? 'mock' : 'loading');
 
   useEffect(() => {
-    fetchLiveKPIs().then(setLiveKPIs);
+    if (USE_MOCK_DATA) return;
+    let cancelled = false;
+    fetchLiveKPIs()
+      .then((k) => { if (!cancelled) { setLiveKPIs(k); setState('live'); } })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn('[PlanKPIs] Live fetch failed:', err);
+        setLiveKPIs(null);
+        setState(errorState(err));
+      });
+    return () => { cancelled = true; };
   }, []);
 
-  const mockKPIs = computeKPIs();
+  const busy = state === 'loading';
+  const mockKPIs = USE_MOCK_DATA ? computeKPIs() : null;
 
-  // Build card data from live or mock KPIs
   const cards = liveKPIs
     ? [
         {
@@ -59,7 +75,8 @@ export function PlanKPIs() {
           color: 'text-primary-strong',
         },
       ]
-    : [
+    : mockKPIs
+    ? [
         {
           label: 'Wire Centers',
           value: formatCount(mockKPIs.total_wire_centers),
@@ -96,20 +113,27 @@ export function PlanKPIs() {
           sub: `${formatCount(mockKPIs.customers_migrated)} migrated`,
           color: 'text-primary-strong',
         },
-      ];
+      ]
+    : LABELS.map((label) => ({ label, value: busy ? '…' : '—', sub: failText(state), color: 'text-muted-foreground' }));
+
+  const note =
+    state === 'live' ? 'Live from gold_wave_schedule (synthetic plan data).'
+    : state === 'mock' ? 'Mock data mode (USE_MOCK_DATA): values are illustrative, not from any table.'
+    : state === 'denied' ? 'Data access pending: the app service principal lacks SELECT on the plan tables.'
+    : state === 'error' ? 'Could not load live plan KPIs.'
+    : 'Loading plan KPIs…';
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="rounded-lg border bg-card p-3 shadow-sm"
-        >
-          <p className="text-xs text-muted-foreground mb-1">{card.label}</p>
-          <p className={`text-xl font-bold ${card.color}`}>{card.value}</p>
-          <p className="text-xs text-muted-foreground mt-1">{card.sub}</p>
-        </div>
-      ))}
-    </div>
+    <>
+      <p className="text-xs text-muted-foreground mb-2 flex items-center gap-2" role="note" aria-live="polite">
+        {state === 'mock' && <SyntheticBadge label="MOCK" />}
+        <span>{note}</span>
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4" aria-busy={busy || undefined}>
+        {cards.map((card) => (
+          <KpiCard key={card.label} label={card.label} value={card.value} sub={card.sub} valueClass={card.color} busy={busy} />
+        ))}
+      </div>
+    </>
   );
 }

@@ -18,6 +18,7 @@ import { TriageTab } from './tabs/triage/App';
 import { RegulatoryTab } from './tabs/regulatory/RegulatoryTab';
 import { MapTab } from './tabs/map/MapTab';
 import { CommodityTab } from './tabs/commodity/CommodityTab';
+import { USE_MOCK_DATA } from './mock/mockData';
 
 export interface PlanFilters {
   wave: string;       // 'all' | '1' | '2' | ... | '8'
@@ -70,7 +71,7 @@ export default function App() {
       <LakeLinkHeader
         subtitle="Copper Retirement Accelerator"
         tagline="Find the copper, plan the path, dig safely, stay compliant, monetize the scrap"
-        dataSource="MOCK"
+        dataSource={USE_MOCK_DATA ? 'MOCK' : 'LIVE'}
       />
 
       <TabBar

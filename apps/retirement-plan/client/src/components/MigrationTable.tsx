@@ -5,7 +5,8 @@
  */
 import { useMemo, useState, useEffect } from 'react';
 import { mockWireCenters, USE_MOCK_DATA } from '../mock/mockData';
-import { fetchLiveWaves } from '../lib/planApi';
+import { fetchLiveWaves, errorState, failText } from '../lib/planApi';
+import type { LoadState } from '../lib/planApi';
 import { ConstraintFlags } from './ConstraintFlags';
 import { formatCurrency, formatCount, formatPercent } from '../lib/formatters';
 import type { WireCenterPlan } from '../mock/mockData';
@@ -21,9 +22,17 @@ type SortKey = 'wave' | 'wire_center_name' | 'state' | 'customers_affected' |
   'migration_cost_usd' | 'scheduled_start' | 'priority_score' | 'completion_pct';
 
 export function MigrationTable({ filters, onFilterChange, onWireCenterSelect }: Props) {
+  // COO-Q-20261027-0550-2: no mock fallback. mockWireCenters only under USE_MOCK_DATA (false in the build).
   const [liveData, setLiveData] = useState<WireCenterPlan[] | null>(null);
-  useEffect(() => { fetchLiveWaves().then(setLiveData); }, []);
-  const data = liveData || mockWireCenters;
+  const [loadState, setLoadState] = useState<LoadState>(USE_MOCK_DATA ? 'mock' : 'loading');
+  useEffect(() => {
+    if (USE_MOCK_DATA) return;
+    fetchLiveWaves()
+      .then((d) => { setLiveData(d); setLoadState('live'); })
+      .catch((err) => { console.warn('[MigrationTable] Live fetch failed:', err); setLoadState(errorState(err)); });
+  }, []);
+  const data = liveData ?? (USE_MOCK_DATA ? mockWireCenters : []);
+  const statusText = loadState === 'loading' ? 'Loading wire centers…' : failText(loadState);
   const [sortKey, setSortKey] = useState<SortKey>('wave');
   const [sortAsc, setSortAsc] = useState(true);
 
@@ -53,7 +62,13 @@ export function MigrationTable({ filters, onFilterChange, onWireCenterSelect }: 
     sortKey === key ? (sortAsc ? ' \u25B2' : ' \u25BC') : '';
 
   return (
-    <div className="rounded-lg border bg-card shadow-sm overflow-auto">
+    <div className="rounded-lg border bg-card shadow-sm overflow-auto" aria-busy={loadState === 'loading' || undefined}>
+      {loadState === 'mock' && <p className="p-2 text-xs"><span className="ll-badge-synthetic">MOCK DATA</span></p>}
+      {statusText && (
+        <p className="p-3 text-xs text-muted-foreground" role="status">
+          {statusText}{loadState === 'denied' && ': the app service principal lacks SELECT on gold_wave_schedule.'}
+        </p>
+      )}
       <table className="w-full text-xs">
         <thead>
           <tr className="border-b bg-muted/30">

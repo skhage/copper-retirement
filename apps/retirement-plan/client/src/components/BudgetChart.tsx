@@ -5,7 +5,8 @@
  * Fetches live data via /api/plan/budget (UC gold_wave_schedule + silver_budget_allocation; spend actuals not tracked yet).
  */
 import { useState, useEffect, useMemo } from 'react';
-import { fetchLiveBudget } from '../lib/planApi';
+import { fetchLiveBudget, errorState, failText } from '../lib/planApi';
+import type { LoadState } from '../lib/planApi';
 import { formatCurrency, formatCount, formatPercent } from '../lib/formatters';
 import type { BudgetRow } from '../lib/planApi';
 
@@ -18,16 +19,19 @@ const WAVE_COLORS = [
 
 export function BudgetChart() {
   const [data, setData] = useState<BudgetRow[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [state, setState] = useState<LoadState>('loading');
+  const isLoading = state === 'loading';
 
   useEffect(() => {
-    fetchLiveBudget().then((rows) => {
-      setData(rows);
-      setIsLoading(false);
-    });
+    fetchLiveBudget()
+      .then((rows) => { setData(rows); setState('live'); })
+      .catch((err) => { console.warn('[BudgetChart] Live fetch failed:', err); setState(errorState(err)); });
   }, []);
 
   const rows = data || [];
+  // COO-Q-20261027-0550-2: no spend actuals exist (total_spent is NULL), so never show $0 spent / full remaining as fact.
+  const hasSpent = rows.some((r) => r.total_spent != null && String(r.total_spent) !== '');
+  const money = (v: number) => (data ? formatCurrency(v) : isLoading ? '…' : '—');
 
   const maxAllocated = useMemo(
     () => Math.max(...rows.map((r) => Number(r.total_allocated) || 0), 1),
@@ -60,29 +64,28 @@ export function BudgetChart() {
           </span>
         )}
         {!isLoading && !data && (
-          <span className="ll-badge-synthetic">
-            NO DATA
-          </span>
+          <span className="ll-badge-synthetic" role="status">{failText(state)}</span>
         )}
       </div>
 
       {/* Summary KPIs */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5" aria-busy={isLoading || undefined}>
         <div className="rounded border p-2">
           <p className="text-xs text-muted-foreground">Total Allocated</p>
-          <p className="text-lg font-bold text-secondary">{formatCurrency(totalAllocated)}</p>
+          <p className="text-lg font-bold text-secondary">{money(totalAllocated)}</p>
         </div>
         <div className="rounded border p-2">
           <p className="text-xs text-muted-foreground">Total Spent</p>
-          <p className="text-lg font-bold text-primary-strong">{formatCurrency(totalSpent)}</p>
+          <p className="text-lg font-bold text-primary-strong">{hasSpent ? money(totalSpent) : '—'}</p>
+          {data && !hasSpent && <p className="text-xs text-muted-foreground">Spend actuals not tracked</p>}
         </div>
         <div className="rounded border p-2">
           <p className="text-xs text-muted-foreground">Remaining</p>
-          <p className="text-lg font-bold text-accent-strong">{formatCurrency(totalAllocated - totalSpent)}</p>
+          <p className="text-lg font-bold text-accent-strong">{hasSpent ? money(totalAllocated - totalSpent) : '—'}</p>
         </div>
         <div className="rounded border p-2">
           <p className="text-xs text-muted-foreground">Revenue at Risk (Annual)</p>
-          <p className="text-lg font-bold text-warning">{formatCurrency(totalRevAtRisk)}</p>
+          <p className="text-lg font-bold text-warning">{money(totalRevAtRisk)}</p>
         </div>
       </div>
 
@@ -173,7 +176,7 @@ export function BudgetChart() {
         </div>
       </div>
 
-      {rows.length === 0 && !isLoading && (
+      {state === 'live' && rows.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-8">
           No budget data available. Retirement plan table may not be populated.
         </p>

@@ -4,7 +4,10 @@
  * Shows: migration cost, revenue at risk, scrap recovery value,
  * net savings, constraint details, milestones.
  */
-import { mockMilestones } from '../mock/mockData';
+import { useEffect, useState } from 'react';
+import { mockMilestones, USE_MOCK_DATA } from '../mock/mockData';
+import { fetchLiveMilestones, errorState, failText } from '../lib/planApi';
+import type { LoadState } from '../lib/planApi';
 import { formatCurrency, formatCount, formatPercent } from '../lib/formatters';
 import { X } from 'lucide-react';
 import { ConstraintFlags } from './ConstraintFlags';
@@ -17,9 +20,32 @@ interface Props {
 
 export function CostBenefitPanel({ wireCenter, onClose }: Props) {
   const wc = wireCenter;
-  const milestones = mockMilestones.filter(
-    (m) => m.wire_center_id === wc.wire_center_id
-  );
+  // COO-Q-20261027-0550-2: milestones were ALWAYS mockMilestones (incl. invented regulatory notice periods).
+  // Now live from UC retirement_milestones via /api/plan/milestones; mock only under USE_MOCK_DATA.
+  type Ms = { milestone_id: string; name: string; status: string; date: string; critical: boolean };
+  const [milestones, setMilestones] = useState<Ms[]>([]);
+  const [msState, setMsState] = useState<LoadState>(USE_MOCK_DATA ? 'mock' : 'loading');
+  useEffect(() => {
+    if (USE_MOCK_DATA) {
+      setMilestones(mockMilestones.filter((m) => m.wire_center_id === wc.wire_center_id)
+        .map((m) => ({ milestone_id: m.milestone_id, name: m.name, status: m.status, date: m.actual_date || m.planned_date, critical: m.critical_path })));
+      return;
+    }
+    let cancelled = false;
+    setMsState('loading');
+    fetchLiveMilestones(wc.wire_center_id)
+      .then((rows) => {
+        if (cancelled) return;
+        setMilestones(rows.map((m) => ({
+          milestone_id: m.milestone_id, name: m.name, status: String(m.status || '').toLowerCase(),
+          date: m.actual_date || m.forecast_date || m.planned_date,
+          critical: String(m.critical_path_flag).toLowerCase() === 'true',
+        })));
+        setMsState('live');
+      })
+      .catch((err) => { if (!cancelled) { console.warn('[CostBenefitPanel] milestones failed:', err); setMilestones([]); setMsState(errorState(err)); } });
+    return () => { cancelled = true; };
+  }, [wc.wire_center_id]);
 
   return (
     <div className="rounded-lg border bg-card p-4 shadow-sm">
@@ -104,9 +130,17 @@ export function CostBenefitPanel({ wireCenter, onClose }: Props) {
       )}
 
       {/* Milestones */}
+      {msState !== 'live' && msState !== 'mock' && (
+        <p className="text-xs text-muted-foreground" role="status">
+          Milestones: {msState === 'loading' ? 'Loading…' : failText(msState)}
+        </p>
+      )}
+      {msState === 'live' && milestones.length === 0 && (
+        <p className="text-xs text-muted-foreground">No milestones recorded for this wire center in retirement_milestones.</p>
+      )}
       {milestones.length > 0 && (
         <div>
-          <h4 className="text-xs font-semibold mb-2">Milestones</h4>
+          <h4 className="text-xs font-semibold mb-2 flex items-center gap-2">Milestones{msState === 'mock' && <span className="ll-badge-synthetic">MOCK</span>}</h4>
           <div className="space-y-1">
             {milestones.map((m) => (
               <div
@@ -126,9 +160,10 @@ export function CostBenefitPanel({ wireCenter, onClose }: Props) {
                 />
                 <span className="font-medium">{m.name}</span>
                 <span className="text-muted-foreground">
-                  {m.actual_date || m.planned_date}
+                  {m.date}
                 </span>
-                {m.critical_path && (
+                <span className="text-muted-foreground">{m.status.replace(/_/g, ' ')}</span>
+                {m.critical && (
                   <span className="text-xs bg-danger/10 text-danger px-1 rounded">
                     CP
                   </span>

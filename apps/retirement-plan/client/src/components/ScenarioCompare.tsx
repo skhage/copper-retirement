@@ -29,7 +29,8 @@ export function ScenarioCompare() {
   return (
     <div className="rounded-lg border bg-card p-4 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold">Optimizer Scenarios</h2>
+        {/* COO-Q-20261027-0550-2: scenarios are illustrative mock (no optimizer deployed); labeled at the header, not just the footnote. */}
+        <h2 className="text-sm font-semibold flex items-center gap-2">Optimizer Scenarios <span className="ll-badge-synthetic" title="Illustrative example values; no scenario optimizer is deployed in this accelerator">MOCK — illustrative</span></h2>
         <button
           className="text-xs bg-primary-strong text-primary-foreground px-3 py-1.5 rounded hover:opacity-90 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
           onClick={() => {

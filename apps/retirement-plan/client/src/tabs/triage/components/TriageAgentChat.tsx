@@ -9,7 +9,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { USE_MOCK_DATA, getMockAgentResponse, SEVERITY_COLORS } from '../mock/mockData';
-import { sendChatMessage } from '../lib/triageApi';
+import { sendChatMessage, describeApiError } from '../lib/triageApi';
 import type { ChatResponse } from '../lib/triageApi';
 import type { Incident, AgentResponse, AgentAction, ActionDecision } from '../mock/mockData';
 import { formatHours, severityLabel } from '../lib/formatters';
@@ -63,7 +63,19 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
     // Simulate agent thinking delay
     await new Promise((resolve) => setTimeout(resolve, 1200));
 
-    const response = await fetchAgentResponse(incident);
+    let response: AgentResponse;
+    try {
+      response = await fetchAgentResponse(incident);
+    } catch (err) {
+      // COO-Q-20261027-0550-2: a failed live call is shown as an error, never replaced by a mock agent answer.
+      setMessages((prev) => [...prev, {
+        role: 'system',
+        content: `Triage agent unavailable: ${describeApiError(err)}. No recommendation was generated.`,
+        timestamp: new Date().toISOString(),
+      }]);
+      setIsLoading(false);
+      return;
+    }
 
     const agentMsg: ChatMessage = {
       role: 'agent',
@@ -76,6 +88,8 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
   }
 
   async function fetchAgentResponse(incident: Incident): Promise<AgentResponse> {
+    // Mock answers exist only in offline UI-dev mode (USE_MOCK_DATA, false in the build).
+    if (USE_MOCK_DATA) return { ...getMockAgentResponse(incident.incident_id), message: `[MOCK] ${getMockAgentResponse(incident.incident_id).message}` };
     try {
       const chatResp: ChatResponse = await sendChatMessage(
         incident.incident_id,
@@ -97,8 +111,8 @@ export function TriageAgentChat({ selectedIncident }: TriageAgentChatProps) {
         sources: chatResp.sources,
       };
     } catch (err) {
-      console.warn('[triage-chat] Live API failed, falling back to mock:', err);
-      return getMockAgentResponse(incident.incident_id);
+      console.warn('[triage-chat] Live API failed:', err);
+      throw err;
     }
   }
 

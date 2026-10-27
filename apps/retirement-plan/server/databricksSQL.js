@@ -39,6 +39,16 @@ export const liveAuthConfigured = () => !!(process.env.DATABRICKS_TOKEN || (proc
 
 // Exported so every tab router (server/routes/*.js) shares ONE SQL-warehouse helper (PORT-MAP §1).
 // Optional `parameters` = [{ name, value, type? }] -> Statement API named params (:name). Use for any user input.
+// COO-Q-20261027-0550-2: tag UC permission failures with status 403 so every route (plan, map, regulatory)
+// returns 'Data access pending' instead of a generic 500 and the client never mistakes it for absence of data.
+const PERM_RE = /PERMISSION_DENIED|INSUFFICIENT_PERMISSIONS|does not have .*(privilege|permission)|USE (CATALOG|SCHEMA)/i;
+function sqlError(message, httpStatus) {
+  const denied = httpStatus === 403 || PERM_RE.test(message);
+  const err = new Error(denied ? `Data access pending: ${message}` : message);
+  if (denied) err.status = 403;
+  return err;
+}
+
 export async function executeSQL(statement, parameters) {
   if (!DATABRICKS_HOST) throw new Error('DATABRICKS_HOST env var not set');
   if (!WAREHOUSE_ID) throw new Error('DATABRICKS_WAREHOUSE_ID env var not set');
@@ -66,12 +76,12 @@ export async function executeSQL(statement, parameters) {
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`SQL API error ${res.status}: ${errText}`);
+    throw sqlError(`SQL API error ${res.status}: ${errText}`, res.status);
   }
 
   const data = await res.json();
   if (data.status?.state === 'FAILED') {
-    throw new Error(`SQL failed: ${data.status.error?.message || 'unknown'}`);
+    throw sqlError(`SQL failed: ${data.status.error?.message || 'unknown'}`);
   }
 
   const columns = data.manifest?.schema?.columns || [];

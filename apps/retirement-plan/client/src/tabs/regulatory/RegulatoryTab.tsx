@@ -13,8 +13,8 @@ import { TabHeader, TabBar, KpiCard, EmptyState, CitationLink, isVerifiedStatus,
 interface MatrixRow {
   requirement_key: string; jurisdiction_code: string; jurisdiction_name: string; jurisdiction_level: string;
   requirement_type: string; requirement_summary: string; value_numeric: string | null; value_unit: string | null;
-  verification_status: string; source_id: string; citation: string; official_url: string; notes: string | null;
-  source_title: string; last_verified: string | null;
+  verification_status: string; source_id: string; citation: string; official_url: string | null; notes: string | null;
+  source_title: string | null; last_verified: string | null;
   citation_url?: string | null; citation_verified_on?: string | null; // ACC-APP-JUR-CITATION-URL
 }
 interface SourceRow {
@@ -48,7 +48,13 @@ async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
   return body.data as T;
 }
 
-function StatusCell({ status }: { status: string }) {
+/** A row is verified only if its status is verified_* AND it carries an official URL (charter citation rule). */
+const rowVerified = (r: { verification_status: string; official_url: string | null }) => isVerifiedStatus(r.verification_status) && !!r.official_url;
+
+function StatusCell({ status, hasUrl = true }: { status: string; hasUrl?: boolean }) {
+  if (!hasUrl) {
+    return <span className="inline-flex items-center gap-1 text-xs text-warning"><AlertTriangle size={14} strokeWidth={1.5} aria-hidden="true" />Flagged gap (no official source)</span>;
+  }
   return isVerifiedStatus(status) ? (
     <span className="inline-flex items-center gap-1 text-xs text-success"><CheckCircle2 size={14} strokeWidth={1.5} aria-hidden="true" />Verified</span>
   ) : (
@@ -59,15 +65,26 @@ function StatusCell({ status }: { status: string }) {
 function MatrixView({ jur }: { jur: string }) {
   const [rows, setRows] = useState<MatrixRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [gapsOnly, setGapsOnly] = useState(false);
   useEffect(() => {
     setRows(null); setErr(null);
     getJson<MatrixRow[]>(`/api/regulatory/matrix?jurisdiction=${encodeURIComponent(jur)}`).then(setRows).catch((e) => setErr(e.message));
   }, [jur]);
   if (err) return <EmptyState title="Could not load the jurisdiction matrix"><p>{err}</p></EmptyState>;
   if (!rows) return <p className="text-sm text-muted-foreground">Loading cited requirements…</p>;
-  const shown = rows.filter((r) => r.official_url);
-  if (!shown.length) return <EmptyState title="Source not yet verified" />;
+  // ACC-DES-DEF-REG-MATRIX-HIDDEN-GAPS: render EVERY row; rows without an official URL show as flagged gaps, never hidden.
+  const gapCount = rows.filter((r) => !rowVerified(r)).length;
+  const shown = gapsOnly ? rows.filter((r) => !rowVerified(r)) : rows;
+  if (!rows.length) return <EmptyState title="No requirements recorded for this jurisdiction" />;
   return (
+    <div>
+    <div className="flex flex-wrap items-center justify-between gap-2 mb-2 text-xs text-muted-foreground">
+      <span role="status">{rows.length} requirements · {rows.length - gapCount} verified · {gapCount} flagged gaps</span>
+      <label className="inline-flex items-center gap-2">
+        <input type="checkbox" checked={gapsOnly} onChange={(e) => setGapsOnly(e.target.checked)} className="accent-primary" />
+        Show gaps only
+      </label>
+    </div>
     <div className="overflow-x-auto rounded-lg border border-border bg-card">
       <table className="w-full text-sm">
         <caption className="sr-only">Copper retirement requirements by jurisdiction, each with its official source</caption>
@@ -76,7 +93,7 @@ function MatrixView({ jur }: { jur: string }) {
         </thead>
         <tbody>
           {shown.map((r) => {
-            const verified = isVerifiedStatus(r.verification_status);
+            const verified = rowVerified(r);
             return (
               <tr key={r.requirement_key} className="border-t border-border align-top">
                 <td className="p-2 whitespace-nowrap font-medium text-secondary">{r.jurisdiction_code === 'US' ? 'Federal' : r.jurisdiction_name}</td>
@@ -87,13 +104,14 @@ function MatrixView({ jur }: { jur: string }) {
                   {r.notes && <p className="text-xs text-muted-foreground mt-1">{r.notes}</p>}
                 </td>
                 <td className="p-2 whitespace-nowrap">{verified && r.value_numeric ? `${Number(r.value_numeric)} ${(r.value_unit || '').replace(/_/g, ' ')}` : '—'}</td>
-                <td className="p-2 whitespace-nowrap"><StatusCell status={r.verification_status} /></td>
-                <td className="p-2 min-w-[14rem]"><CitationLink title={r.source_title} url={r.official_url} citationUrl={r.citation_url} verificationStatus={r.verification_status} citation={r.citation} lastVerified={r.citation_verified_on || r.last_verified} /></td>
+                <td className="p-2 whitespace-nowrap"><StatusCell status={r.verification_status} hasUrl={!!r.official_url} /></td>
+                <td className="p-2 min-w-[14rem]"><CitationLink title={r.source_title || r.citation || r.source_id} url={r.official_url} citationUrl={r.citation_url} verificationStatus={r.verification_status} citation={r.citation} lastVerified={r.citation_verified_on || r.last_verified} /></td>
               </tr>
             );
           })}
         </tbody>
       </table>
+    </div>
     </div>
   );
 }

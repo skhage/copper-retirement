@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { USE_MOCK_DATA, getMockIncidents, getMockStates, SEVERITY_LEVELS, SEVERITY_COLORS, STATUS_COLORS, badgeStyle } from '../mock/mockData';
 import type { Incident } from '../mock/mockData';
 import type { TriageFilters } from '../App';
-import { fetchIncidents } from '../lib/triageApi';
+import { fetchIncidents, describeApiError } from '../lib/triageApi';
 import {
   formatCurrency,
   formatHours,
@@ -27,6 +27,7 @@ export function IncidentTable({ filters, onFilterChange, onIncidentSelect }: Inc
     USE_MOCK_DATA ? getMockIncidents() : []
   );
   const [isLoading, setIsLoading] = useState(!USE_MOCK_DATA);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (USE_MOCK_DATA) return;
@@ -37,8 +38,10 @@ export function IncidentTable({ filters, onFilterChange, onIncidentSelect }: Inc
         setIsLoading(false);
       })
       .catch((err) => {
-        console.warn('[IncidentTable] Live fetch failed, falling back to mock:', err);
-        setAllIncidents(getMockIncidents());
+        // COO-Q-20261027-0550-2: never fall back to mock incidents on a live failure.
+        console.warn('[IncidentTable] Live fetch failed:', err);
+        setAllIncidents([]);
+        setLoadError(describeApiError(err));
         setIsLoading(false);
       });
   }, []);
@@ -105,8 +108,9 @@ export function IncidentTable({ filters, onFilterChange, onIncidentSelect }: Inc
           </select>
         </div>
         <span className="text-xs text-muted-foreground ml-auto">
-          {isLoading ? 'Loading live data...' : `${incidents.length} incidents`}
-          {!USE_MOCK_DATA && !isLoading && (
+          {isLoading ? 'Loading live data...' : loadError ? loadError : `${incidents.length} incidents`}
+          {USE_MOCK_DATA && <span className="ml-1 ll-badge-synthetic">MOCK</span>}
+          {!USE_MOCK_DATA && !isLoading && !loadError && (
             <span className="ml-1 text-accent-strong">● LIVE</span>
           )}
         </span>

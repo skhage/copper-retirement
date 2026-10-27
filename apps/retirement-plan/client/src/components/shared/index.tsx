@@ -44,7 +44,8 @@ export function isVerifiedStatus(status?: string | null): boolean {
 export function CitationLink({ title, url, verificationStatus, citation, lastVerified, citationUrl }: {
   title: string; url?: string | null; verificationStatus?: string | null; citation?: string | null; lastVerified?: string | null; citationUrl?: string | null;
 }) {
-  if (!url) return <span className="ll-badge-synthetic">Source not yet verified</span>;
+  // ACC-DES-DEF-REG-MATRIX-HIDDEN-GAPS: no-URL state is distinct from UNVERIFIED-with-URL.
+  if (!url) return <span className="ll-badge-synthetic">No official source found</span>;
   const unverified = verificationStatus != null && verificationStatus !== '' && !isVerifiedStatus(verificationStatus);
   const secondary = [citation, lastVerified ? `verified ${lastVerified}` : null].filter(Boolean).join(' · ');
   const href = citationUrl || url;

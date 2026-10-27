@@ -55,7 +55,8 @@ async function fetchMatrix(jur) {
       CAST(COALESCE(m.citation_url_verified_on, r.last_verified) AS STRING) AS citation_verified_on
     FROM ${FQ}.jurisdiction_requirements_cited m
     LEFT JOIN ${FQ}.regulatory_source_register r ON r.source_id = m.source_id
-    WHERE m.is_synthetic = false AND m.official_url IS NOT NULL
+    -- ACC-DES-DEF-REG-MATRIX-HIDDEN-GAPS: rows without official_url are returned (shown as flagged gaps), never hidden.
+    WHERE m.is_synthetic = false
       AND (:jur = 'ALL' OR m.jurisdiction_code IN ('US', :jur))
     ORDER BY CASE m.jurisdiction_code WHEN 'US' THEN 0 ELSE 1 END, m.jurisdiction_code, m.requirement_type`,
   [P('jur', jur)]);
@@ -73,8 +74,9 @@ async function fetchSources() {
 async function fetchKpis() {
   const [m = {}] = await executeSQL(`
     SELECT COUNT(*) AS requirements,
-      COUNT_IF(upper(verification_status) LIKE 'VERIFIED\\_%') AS verified,
-      COUNT_IF(upper(verification_status) NOT LIKE 'VERIFIED\\_%') AS gaps,
+      -- verified = verified_* status AND an official URL; gaps = everything else (matches the matrix 'Flagged gap' cells)
+      COUNT_IF(upper(verification_status) LIKE 'VERIFIED\\_%' AND official_url IS NOT NULL) AS verified,
+      COUNT_IF(NOT (coalesce(upper(verification_status), '') LIKE 'VERIFIED\\_%' AND official_url IS NOT NULL)) AS gaps,
       COUNT(DISTINCT jurisdiction_code) AS jurisdictions
     FROM ${FQ}.jurisdiction_requirements_cited WHERE is_synthetic = false`);
   const [s = {}] = await executeSQL(`

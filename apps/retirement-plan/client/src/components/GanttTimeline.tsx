@@ -11,7 +11,8 @@
  */
 import { useMemo, useState, useEffect } from 'react';
 import { mockWireCenters, USE_MOCK_DATA } from '../mock/mockData';
-import { fetchLiveWaves } from '../lib/planApi';
+import { fetchLiveWaves, errorState } from '../lib/planApi';
+import type { LoadState } from '../lib/planApi';
 import { ConstraintFlags } from './ConstraintFlags';
 import type { WireCenterPlan } from '../mock/mockData';
 import type { PlanFilters } from '../App';
@@ -63,17 +64,19 @@ function toPercent(dateStr: string): number {
 }
 
 export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter }: Props) {
+  // COO-Q-20261027-0550-2: no mock fallback. mockWireCenters only under USE_MOCK_DATA (false in the build).
   const [liveData, setLiveData] = useState<WireCenterPlan[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [state, setState] = useState<LoadState>(USE_MOCK_DATA ? 'mock' : 'loading');
+  const isLoading = state === 'loading';
 
   useEffect(() => {
-    fetchLiveWaves().then((data) => {
-      setLiveData(data);
-      setIsLoading(false);
-    });
+    if (USE_MOCK_DATA) return;
+    fetchLiveWaves()
+      .then((d) => { setLiveData(d); setState('live'); })
+      .catch((err) => { console.warn('[GanttTimeline] Live fetch failed:', err); setState(errorState(err)); });
   }, []);
 
-  const data = liveData || mockWireCenters;
+  const data = liveData ?? (USE_MOCK_DATA ? mockWireCenters : []);
 
   const filtered = useMemo(() => {
     return data.filter((wc) => {
@@ -95,11 +98,9 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
             LIVE — {liveData.length} wire centers from optimizer
           </span>
         )}
-        {!isLoading && !liveData && (
-          <span className="ll-badge-synthetic">
-            MOCK DATA
-          </span>
-        )}
+        {state === 'mock' && <span className="ll-badge-synthetic">MOCK DATA</span>}
+        {state === 'denied' && <span className="ll-badge-synthetic" role="status">Data access pending</span>}
+        {state === 'error' && <span className="ll-badge-synthetic" role="status">Could not load</span>}
       </div>
 
       {/* Quarter header */}
@@ -191,9 +192,16 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
         ))}
       </div>
 
-      {filtered.length === 0 && (
+      {filtered.length === 0 && (state === 'live' || state === 'mock') && (
         <p className="text-sm text-muted-foreground text-center py-8">
           No wire centers match the current filters.
+        </p>
+      )}
+      {(state === 'denied' || state === 'error') && (
+        <p className="text-sm text-muted-foreground text-center py-8" role="status">
+          {state === 'denied'
+            ? 'Data access pending: the app service principal lacks SELECT on gold_wave_schedule.'
+            : 'Could not load the wave schedule. This is a load failure, not an empty plan.'}
         </p>
       )}
     </div>

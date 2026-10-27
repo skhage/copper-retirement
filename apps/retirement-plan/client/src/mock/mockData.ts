@@ -11,9 +11,12 @@
  * - Customer counts and device counts from real table distributions
  *
  * Feature flag: USE_MOCK_DATA=true toggles between mock and live SQL.
+ * DECIDED 2026-10-27 (ACC-DES-DEF-PLAN-KPI-FALLBACK): false in the build. Live SQL only; on failure the Plan
+ * panels show 'Data access pending' / 'Could not load', never these values. Set true only for offline UI dev,
+ * in which case every panel shows a MOCK badge.
  */
 
-export const USE_MOCK_DATA = true;
+export const USE_MOCK_DATA = false;
 
 // --- Types ---
 
