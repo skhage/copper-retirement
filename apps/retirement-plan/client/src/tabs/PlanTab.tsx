@@ -2,8 +2,9 @@
  * PlanTab.tsx — "Plan" tab of the unified Copper Retirement Accelerator (ACC-APP-UNIFY-SHELL).
  * Moved verbatim from the former retirement-plan App.tsx body; inner views become Plan sub-tabs
  * routed as #plan/<sub> (timeline | table | budget | regulatory | scenarios).
- * Data: /api/plan/* (Lakebase copper_app.retirement_plan, retirement_milestones, regulatory_checklist_status;
- * UC copper_retirement.gold_wave_schedule). Unchanged routes.
+ * Data: /api/plan/* over the SQL warehouse (UC copper_retirement.gold_wave_schedule, silver_budget_allocation,
+ * retirement_milestones). The regulatory checklist is built only from UC jurisdiction_requirements_cited x
+ * gold_wave_schedule (citation + official_url per item). No Lakebase checklist read (ACC-APP-CHECKLIST-LEGACY-PATH).
  */
 import { useState, useCallback } from 'react';
 import { PlanKPIs } from '../components/PlanKPIs';

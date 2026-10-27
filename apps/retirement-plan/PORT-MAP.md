@@ -72,8 +72,8 @@ Union of npm deps: express, react, react-dom, lucide-react, react-simple-maps (R
 * **Delete after verify:** App `commodity-dashboard` + folder `apps/commodity-dashboard` (25 files).
 
 ### 2.5 retirement-plan (host) -> Plan tab  (ACC-APP-UNIFY-SHELL)
-* Existing inner tabs (gantt/table/budget/regulatory/scenarios) become Plan sub-tabs. Plan's own `RegulatoryChecklist` stays (wave checklist from `copper_app.regulatory_checklist_status`, 2,200) but must link to the Regulatory tab citations.
-* Routes `/api/plan/*` (11) unchanged. Lakebase: `copper_app.retirement_plan` (200), `retirement_milestones` (927), `regulatory_checklist_status`, `plan_edit_audit_log` (50), `wave_schedule_versions` (5); UC `gold_wave_schedule` (103), `gold_contractor_assignment_plan` (35).
+* Existing inner tabs (gantt/table/budget/regulatory/scenarios) become Plan sub-tabs. Plan's own `RegulatoryChecklist` stays and links to the Regulatory tab citations. Since 2026-10-25 (ACC-APP-PLAN-LAKEBASE-READS) it is built only from UC `jurisdiction_requirements_cited` x `gold_wave_schedule`. Legacy Lakebase `copper_app.regulatory_checklist_status` is NOT read by any app code path (ACC-APP-CHECKLIST-LEGACY-PATH).
+* Routes `/api/plan/*` (11) unchanged. Reads go to UC over the SQL warehouse: `gold_wave_schedule` (103), `silver_budget_allocation`, `retirement_milestones`, `jurisdiction_requirements_cited`, `gold_contractor_assignment_plan` (35). Legacy Lakebase copies (`copper_app.retirement_plan`, `retirement_milestones`, `regulatory_checklist_status`, `plan_edit_audit_log`, `wave_schedule_versions`) are not read by the app.
 * app.yaml: `resources.sql-warehouse` id is a TODO; tag key `project` is deprecated -> `telco_project: copper-retirement` (directive 6). Header `dataSource="MOCK"` -> per-tab SyntheticBadge.
 
 ---
