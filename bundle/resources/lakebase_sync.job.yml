@@ -5,33 +5,33 @@
 # Schedule: daily after pipeline refresh (8 AM ET).
 # Per CEO TAG RENAME directive: use telco_project (not project).
 #
-# BLOCKED: scripts/sync_gold_to_lakebase.py does not exist yet.
-# Re-enable this resource block once @data-engineer creates the sync script.
-# Task filed: ACC-CREATE-LAKEBASE-SYNC-SCRIPT
-#
-# resources:
-#   jobs:
-#     lakebase_sync_job:
-#       name: 'copper-lakebase-sync-${bundle.target}'
-#       tasks:
-#         - task_key: 'sync_gold_to_lakebase'
-#           notebook_task:
-#             notebook_path: ../../scripts/sync_gold_to_lakebase.py
-#             base_parameters:
-#               catalog: ${var.catalog_name}
-#               schema: ${var.schema_name}
-#               lakebase_project: ${var.lakebase_project}
-#           libraries:
-#             - pypi:
-#                 package: 'psycopg[binary]'
-#             - pypi:
-#                 package: 'databricks-sdk>=0.118.0'
-#       schedule:
-#         quartz_cron_expression: '0 0 8 * * ?'
-#         timezone_id: 'America/New_York'
-#       tags:
-#         telco_project: copper-retirement
-#         sync_target: lakebase
-#       permissions:
-#         - level: CAN_MANAGE
-#           group_name: 'users'
+# Dependency resolved: scripts/sync_gold_to_lakebase.py created by @data-engineer
+# (ACC-CREATE-LAKEBASE-SYNC-SCRIPT completed). Re-enabled by @devops
+# (ACC-DEVOPS-LAKEBASE-SYNC-JOB, 2026-10-27).
+
+resources:
+  jobs:
+    lakebase_sync_job:
+      name: 'copper-lakebase-sync-${bundle.target}'
+      tasks:
+        - task_key: 'sync_gold_to_lakebase'
+          notebook_task:
+            notebook_path: ../../scripts/sync_gold_to_lakebase.py
+            base_parameters:
+              catalog: ${var.catalog_name}
+              schema: ${var.schema_name}
+              lakebase_project: ${var.lakebase_project}
+          libraries:
+            - pypi:
+                package: 'psycopg[binary]'
+            - pypi:
+                package: 'databricks-sdk>=0.118.0'
+      schedule:
+        quartz_cron_expression: '0 0 8 * * ?'
+        timezone_id: 'America/New_York'
+      tags:
+        telco_project: copper-retirement
+        sync_target: lakebase
+      permissions:
+        - level: CAN_MANAGE
+          group_name: 'users'
