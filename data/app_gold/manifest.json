@@ -1,0 +1,82 @@
+[
+ {
+  "table": "gold_copper_recovery_schedule",
+  "rows": 103,
+  "bytes": 93699,
+  "sha256": "47ab76aaab83193c4c7dc62dad37b06c390c8cc990b6f38059f3dd9c4277df9d",
+  "synthetic_label": true,
+  "uncommented": []
+ },
+ {
+  "table": "retirement_cost_per_wire_center",
+  "rows": 103,
+  "bytes": 55338,
+  "sha256": "e56bf59860a895fd50d266c6f2ff178b4439341fed242cd81f6be3f0dca8e5f9",
+  "synthetic_label": true,
+  "uncommented": []
+ },
+ {
+  "table": "copper_risk_predictions",
+  "rows": 2672,
+  "bytes": 1147071,
+  "sha256": "fb01f753a7bd62cbc140d73604d0fef22c0242c9d181f837f22811db983408aa",
+  "synthetic_label": true,
+  "uncommented": []
+ },
+ {
+  "table": "gold_wave_schedule",
+  "rows": 103,
+  "bytes": 62719,
+  "sha256": "8e3078a0bd84e42ca96fed9eab96c6fe9589d49f697026f1bb14fc803d2fe14d",
+  "synthetic_label": true,
+  "uncommented": []
+ },
+ {
+  "table": "gold_contractor_assignment_plan",
+  "rows": 35,
+  "bytes": 17742,
+  "sha256": "71a272373fce980f6267a0c83f6fae3c6e1271ec7091b511e78adb892f6b75b0",
+  "synthetic_label": true,
+  "uncommented": []
+ },
+ {
+  "table": "retirement_milestones",
+  "rows": 927,
+  "bytes": 449764,
+  "sha256": "c20ccce3670769149c925272729f57fd7f639345ba34a1577f7f764404ba6f50",
+  "synthetic_label": true,
+  "uncommented": []
+ },
+ {
+  "table": "silver_budget_allocation",
+  "rows": 103,
+  "bytes": 83533,
+  "sha256": "e2b56c15efe251534c9b03d306798b09c3edff9f31f21a51931563c0847410d3",
+  "synthetic_label": true,
+  "uncommented": []
+ },
+ {
+  "table": "copper_commodity_price_official",
+  "rows": 417,
+  "bytes": 255532,
+  "sha256": "5d235f46d2a7364681726cc60c83924b274b6b5f4d6ffbce36eace0ae5accc17",
+  "synthetic_label": true,
+  "uncommented": []
+ },
+ {
+  "table": "gold_commodity_price_forecast",
+  "rows": 72,
+  "bytes": 23400,
+  "sha256": "12ca5e94ab71b42631b92a744221a3bd81883130dfad03aa1c13ee4dcea3ef7f",
+  "synthetic_label": true,
+  "uncommented": []
+ },
+ {
+  "table": "roi_calculator_assumptions",
+  "rows": 27,
+  "bytes": 16002,
+  "sha256": "643662273fd3035fe82a305edce11fba0c4de0a5e570f468880d674f28430c91",
+  "synthetic_label": true,
+  "uncommented": []
+ }
+]

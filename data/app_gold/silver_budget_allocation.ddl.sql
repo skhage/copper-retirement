@@ -1,0 +1,27 @@
+CREATE TABLE IF NOT EXISTS {fq}.`silver_budget_allocation` (
+  `wire_center_id` STRING COMMENT 'PK. Unique wire center identifier from wire_center_boundary.',
+  `wire_center_name` STRING COMMENT 'Human-readable wire center name.',
+  `clli_code` STRING COMMENT 'CLLI code for inter-carrier facility identification.',
+  `state_code` STRING COMMENT 'US state abbreviation (legacy states: CO, MN, WA, OR, ID, AZ).',
+  `fiber_ready` BOOLEAN COMMENT 'TRUE if fiber infrastructure is deployed at this wire center.',
+  `copper_device_count` BIGINT COMMENT 'Count of copper devices at this wire center.',
+  `affected_customer_count` BIGINT COMMENT 'Count of customers impacted by copper retirement.',
+  `estimated_total_cost` DOUBLE COMMENT 'Estimated total retirement cost (fiber + equipment + migration + regulatory).',
+  `cost_per_device` DOUBLE COMMENT 'Total retirement cost / copper device count.',
+  `retirement_readiness_score` DECIMAL(27,1) COMMENT 'Composite 0-100 readiness score. Higher = more ready to retire.',
+  `retirement_priority_rank` INT COMMENT 'Priority rank for retirement sequencing (1=retire first).',
+  `cost_share_pct` DOUBLE COMMENT 'Wire centers proportional share of total copper retirement cost.',
+  `allocated_network_infra_budget` DOUBLE COMMENT 'Proportionally allocated network infrastructure budget.',
+  `allocated_regulatory_budget` DOUBLE COMMENT 'Proportionally allocated regulatory compliance budget.',
+  `allocated_workforce_budget` DOUBLE COMMENT 'Proportionally allocated workforce/labor budget.',
+  `allocated_customer_ops_budget` DOUBLE COMMENT 'Proportionally allocated customer operations budget.',
+  `total_allocated_budget` DOUBLE COMMENT 'Sum of all 4 category budget allocations for this wire center.',
+  `budget_gap` DOUBLE COMMENT 'Total allocated budget minus estimated cost. Positive = surplus, negative = shortfall.',
+  `budget_coverage_ratio` DOUBLE COMMENT 'Total allocated budget / estimated cost. >1 means budget exceeds cost estimate.',
+  `fiber_build_cost` DOUBLE COMMENT 'Estimated fiber overbuild cost (USD).',
+  `equipment_removal_cost` DECIMAL(26,2) COMMENT 'Estimated copper equipment decommission cost (USD).',
+  `customer_migration_cost` BIGINT COMMENT 'Estimated customer migration cost (USD).',
+  `regulatory_filing_cost` BIGINT COMMENT 'Estimated regulatory compliance filing cost (USD).',
+  `created_timestamp` TIMESTAMP COMMENT 'Row creation timestamp for audit trail.'
+) USING DELTA
+COMMENT 'SYNTHETIC DATA — Budget allocation to copper wire centers. Joins tmf_enterprise.budget (network_infrastructure, regulatory, workforce, customer_operations categories) and allocates proportionally to wire centers based on each wire centers share of total estimated retirement cost. Enables budget-vs-cost gap analysis per wire center.'
