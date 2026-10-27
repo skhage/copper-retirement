@@ -11,7 +11,7 @@ resources:
         Project task board for multi-agent coordination.
         Reads/writes agent tasks, status updates, and CEO directives
         from Lakebase copper-task-board Postgres project.
-      # Repo copy is the deployable source. Live workspace app currently deploys from
-      # copper-task-board-src; reconcile tracked in ACC-DEVOPS-RM-TASKBOARD-DUP.
+      # Repo copy is CANONICAL (WCAG tokens synced from copper-task-board-src 2026-10-27).
+      # Live workspace app deploys from copper-task-board-src; next deploy uses this repo copy.
       # Lakebase project/host are set in apps/copper-task-board/app.yaml (ACC-DE-PARAMETERIZE).
       source_code_path: ../../apps/copper-task-board
