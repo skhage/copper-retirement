@@ -1312,7 +1312,10 @@ out["is_synthetic"] = False
 out["source_url"] = SOURCE_URL
 assert len(out) == H * len(regions) and out.copper_lme_forecast_usd_ton.notna().all()
 
-mlflow.set_experiment("/Users/stephen.hage@databricks.com/copper-retirement/experiments/copper_commodity_forecast")
+# Portable experiment path (no hardcoded user): sibling experiments/ folder of this notebook (ACC-DEVOPS-PLANB-EXPORT-MANIFEST)
+import os
+_fc_nb_dir = os.path.dirname(dbutils.notebook.entry_point.getDbutils().notebook().getContext().notebookPath().get())
+mlflow.set_experiment(f"{_fc_nb_dir}/experiments/copper_commodity_forecast")
 with mlflow.start_run(run_name=f"retrain-real-{MODEL_VERSION}") as run:
     mlflow.log_params({"champion": champion, "train_rows": len(y), "train_start": str(pdf.price_month.min()), "train_end": str(pdf.price_month.max()), "horizon_months": H, "source_url": SOURCE_URL, "is_synthetic": False})
     mlflow.log_metrics({**{f"holdout12_mape_{k}": v for k, v in holdout.items()}, **{f"rolling9_mape_{k}": v for k, v in rolling.items()}})
