@@ -16,6 +16,8 @@ Semantics: an idempotent, NON-DESTRUCTIVE keyed upsert.
   * The Lakebase host is resolved from the endpoint, so no host is hardcoded. Catalog, schema and project are parameters.
 Requires: psycopg[binary], databricks-sdk>=0.118.0.
 Reference run 2026-10-27 (cdm_tmforum.copper_retirement -> copper-task-board): 10/10 tables OK, and a re-run made 0 changes.
+2026-10-28 (ACC-DE-SYNC-RISKMAP-REVENUE): +device_risk_map (risk cols via v_lb_device_risk_map_risk) and
++revenue_at_risk_summary (v_lb_revenue_at_risk_summary); 12 tables.
 """
 import re
 import time
@@ -36,6 +38,12 @@ SYNC_SPECS = {
     "gold_copper_recovery_schedule":   ("gold_copper_recovery_schedule",     ["wire_center_id"], {}),
     "gold_contractor_assignment_plan": ("gold_contractor_assignment_plan",   ["wave", "contractor_id"], {}),
     "gold_reroute_options":            ("gold_reroute_options",              ["physical_device_id", "reroute_option_rank"], {}),
+    # DEC-RISKMAP-WC-20261027 phase 1: risk columns only. The source view omits location/wire-center columns,
+    # so the Lakebase legacy (synthetic) wire_center_id/name, lat/lon and h3 are preserved until H4 (phase 2).
+    "device_risk_map":                 ("v_lb_device_risk_map_risk",         ["physical_device_id"], {}),
+    # Aggregate of gold_circuit_revenue_at_risk; wire_center_id is NULL for out-of-footprint rows (NULL-safe key match).
+    "revenue_at_risk_summary":         ("v_lb_revenue_at_risk_summary",
+                                        ["wire_center_id", "state_code", "device_type", "computed_risk_tier", "revenue_tier", "action_priority"], {}),
 }
 TOUCH_COLS = ("updated_at", "synced_at")
 
