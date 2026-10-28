@@ -80,9 +80,15 @@ OFFICIAL_URLS = {v["official_url"].rstrip("/"): v for v in _REGISTER.values() if
 for _r in spark.sql(f"SELECT DISTINCT source_id, source_url FROM {CATALOG}.{SCHEMA}.regulatory_doc_chunks WHERE is_synthetic = false AND source_url IS NOT NULL").collect():
     if _r.source_id in _REGISTER: OFFICIAL_URLS.setdefault(_r.source_url.rstrip("/"), _REGISTER[_r.source_id])
 
-# Delta fallback retriever over REAL chunks only (used until the VS index is re-synced with real docs)
-_REAL = spark.sql(f"""SELECT {', '.join(REG_COLUMNS)} FROM {CATALOG}.{SCHEMA}.regulatory_doc_chunks
-                     WHERE is_synthetic = false AND source_url IS NOT NULL""").toPandas()
+# Partner-redistribution guard (ACC-ML-RAG-EXCLUDE-GUARD, 2026-10-28): same rule as the TVF and the app /ask route.
+# Sources with register is_public_domain = false (e.g. IND-CGA-BP21) are never retrieved by ANY path (TVF, VS, Delta).
+REG_EXCLUDED_SOURCES = {k for k, v in _REGISTER.items() if v.get("is_public_domain") is False}
+
+# Delta fallback retriever over REAL, redistributable chunks only (used until the VS index is re-synced with real docs)
+_REAL = spark.sql(f"""SELECT {', '.join(REG_COLUMNS)} FROM {CATALOG}.{SCHEMA}.regulatory_doc_chunks c
+                     WHERE c.is_synthetic = false AND c.source_url IS NOT NULL
+                       AND NOT EXISTS (SELECT 1 FROM {CATALOG}.{SCHEMA}.regulatory_source_register r
+                                       WHERE r.source_id = c.source_id AND r.is_public_domain = false)""").toPandas()
 _TFIDF = TfidfVectorizer(stop_words="english", ngram_range=(1, 2), sublinear_tf=True, min_df=1)
 _TFIDF_M = _TFIDF.fit_transform(_REAL["embedding_text"].fillna(""))
 
@@ -110,7 +116,7 @@ def _retrieve_vs(query, top_k=REG_TOP_K, jurisdiction=None):
     r = w.vector_search_indexes.query_index(index_name=VS_INDEX_NAME, columns=REG_COLUMNS,
                                             query_text=query, num_results=top_k, filters_json=json.dumps(filt))
     cols = [c.name for c in r.manifest.columns]
-    return [dict(zip(cols, row)) for row in (r.result.data_array or [])]
+    return [h for h in (dict(zip(cols, row)) for row in (r.result.data_array or [])) if h.get("source_id") not in REG_EXCLUDED_SOURCES]
 
 def retrieve_regulatory_chunks(query, top_k=REG_TOP_K, jurisdiction=None):
     """UC TVF (bge-large over real chunks) -> Delta TF-IDF fallback. VS is tried first only when REG_USE_VS=True."""
@@ -1114,6 +1120,16 @@ for _r in spark.sql(f"SELECT DISTINCT source_id, source_url FROM {CATALOG}.{SCHE
     if _r.source_id in _VERIFIED: SOURCE_URLS.setdefault(_r.source_id, set()).add(_norm(_r.source_url))
 OFFICIAL_URLS_CI = {_norm(k): v for k, v in OFFICIAL_URLS.items() if v["source_id"] in _VERIFIED}
 
+# Partner-redistribution guard (ACC-ML-RAG-EXCLUDE-GUARD, 2026-10-28): sources with is_public_domain = false
+# (e.g. IND-CGA-BP21, copyrighted CGA Best Practices) must never be retrieved or cited. Hard fail on any hit.
+EXCLUDED_SOURCES = {r.source_id for r in spark.sql(f"SELECT source_id FROM {CATALOG}.{SCHEMA}.regulatory_source_register WHERE is_public_domain = false").collect()}
+EXCLUDED_URLS = {_norm(v.get("official_url")) for k, v in _REGISTER.items() if k in EXCLUDED_SOURCES and v.get("official_url")}
+for _r in spark.sql(f"SELECT DISTINCT source_id, source_url FROM {CATALOG}.{SCHEMA}.regulatory_doc_chunks WHERE source_url IS NOT NULL").collect():
+    if _r.source_id in EXCLUDED_SOURCES: EXCLUDED_URLS.add(_norm(_r.source_url))
+
+def score_no_excluded_source(ans, retrieved_ids):   # FAIL if an excluded source was retrieved or cited
+    return not (set(retrieved_ids or []) & EXCLUDED_SOURCES) and not ({_norm(x) for x in _urls(ans)} & EXCLUDED_URLS)
+
 def score_citation_present(ans, row):            # every answerable response must cite >=1 URL
     return len(_urls(ans)) > 0
 
@@ -1163,23 +1179,24 @@ def evaluate_row(row):
              cited_urls=sorted(_urls(a)), groundedness=g, groundedness_reason=why,
              guardrail=out.get("guardrail"), unsupported_rule_refs=out.get("unsupported_rule_refs") or [],
              retrieval_hit=bool(set(row["expected_source_ids"]) & {x["source_id"] for x in out["sources"]}))
+    s["no_excluded_source"] = score_no_excluded_source(a, s["retrieved_source_ids"])
     if row["answerable"]:
         s.update(citation_present=score_citation_present(a,row), citation_url_valid=score_citation_url_valid(a,row,s["retrieved_source_ids"]),
                  expected_citation=score_expected_citation(a,row), jurisdiction_correct=score_jurisdiction(a,row),
                  facts_correct=score_facts(a,row), abstained=score_abstain(a,row))
-        s["passed"] = all([s["citation_present"], s["citation_url_valid"], s["jurisdiction_correct"], s["groundedness"], s["facts_correct"]])
+        s["passed"] = all([s["citation_present"], s["citation_url_valid"], s["jurisdiction_correct"], s["groundedness"], s["facts_correct"], s["no_excluded_source"]])
     else:
         ab = score_abstain(a,row); urls_ok = all(_norm(x) in OFFICIAL_URLS_CI for x in _urls(a))
         s.update(citation_present=len(_urls(a))>0, citation_url_valid=urls_ok, expected_citation=None,
                  jurisdiction_correct=None, facts_correct=None, abstained=ab)
-        s["passed"] = ab and urls_ok and g
+        s["passed"] = ab and urls_ok and g and s["no_excluded_source"]
     return s
 
 def run_reg_rag_eval(eval_df, workers=6):
     with cf.ThreadPoolExecutor(workers) as ex:
         return list(ex.map(evaluate_row, [r for _, r in eval_df.iterrows()]))
 
-print("✅ Regulatory scorers ready")
+print(f"✅ Regulatory scorers ready | excluded sources: {sorted(EXCLUDED_SOURCES)} ({len(EXCLUDED_URLS)} URLs)")
 
 # COMMAND ----------
 
@@ -1202,6 +1219,7 @@ gate = {
     "citation_url_valid": ans.citation_url_valid.mean(),
     "jurisdiction_correct": ans.jurisdiction_correct.astype(float).mean(),
     "flag_gap_abstention": gap.abstained.mean() if len(gap) else 1.0,
+    "excluded_source_free": R.no_excluded_source.mean(),   # must be 100%: no copyrighted/EXCLUDE source retrieved or cited
 }
 blockers = [k for k, v in gate.items() if v < (0.80 if k == "overall_pass" else 1.0)]
 print(f"Run {R.run_id[0]}: {int(R.passed.sum())}/{len(R)} passed | retrieval={R.retrieval_mode.unique().tolist()}")

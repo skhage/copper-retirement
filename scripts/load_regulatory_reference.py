@@ -183,6 +183,9 @@ def download_and_chunk(spark, catalog, schema, register_rows, write_files):
             with open(path, "wb") as fh: fh.write(body)
         rec.update(volume_path=path, download_status="downloaded")
         files.append(rec)
+        if str(r.get("is_public_domain")).lower() == "false":
+            # Copyrighted (e.g. IND-CGA-BP21): keep the file for internal reference, never chunk it into the partner RAG corpus.
+            print(f"SKIPRAG {sid}: is_public_domain=false (not redistributable; cite by URL only)"); continue
         if is_pdf:
             if not write_files:
                 print(f"OK     {sid} (pdf, {len(body)} bytes; parse skipped in smoke mode)"); continue
@@ -235,7 +238,7 @@ TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true')
 TVF_SQL = """
 CREATE OR REPLACE FUNCTION {fq}.search_regulatory_chunks(query STRING, k INT DEFAULT 5)
 RETURNS TABLE (chunk_id STRING, source_id STRING, title STRING, jurisdiction STRING, citation STRING, source_url STRING, score DOUBLE, chunk_text STRING)
-COMMENT 'Semantic search over REAL regulatory chunks (is_synthetic = false) in regulatory_doc_chunks. Embeds the query with databricks-bge-large-en and ranks by cosine similarity. Every row carries the official source_url for citation. telco_project=copper-retirement.'
+COMMENT 'Semantic search over REAL regulatory chunks (is_synthetic = false) in regulatory_doc_chunks. Partner-redistribution guard: excludes sources with regulatory_source_register.is_public_domain = false (e.g. IND-CGA-BP21). Embeds the query with databricks-bge-large-en and ranks by cosine similarity. Every row carries the official source_url for citation. telco_project=copper-retirement.'
 RETURN
   WITH q AS (SELECT ai_query('databricks-bge-large-en', query, returnType => 'ARRAY<FLOAT>') AS qv),
   scored AS (
@@ -244,6 +247,7 @@ RETURN
         / (sqrt(aggregate(c.embedding, 0D, (acc, x) -> acc + CAST(x AS DOUBLE) * x)) * sqrt(aggregate(q.qv, 0D, (acc, x) -> acc + CAST(x AS DOUBLE) * x))) AS score
     FROM {fq}.regulatory_doc_chunks c CROSS JOIN q
     WHERE c.is_synthetic = false AND c.embedding IS NOT NULL AND c.source_url IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM {fq}.regulatory_source_register r WHERE r.source_id = c.source_id AND r.is_public_domain = false)
   ),
   ranked AS (SELECT *, row_number() OVER (ORDER BY score DESC) AS rn FROM scored)
   SELECT chunk_id, source_id, title, jurisdiction, citation, source_url, score, embedding_text AS chunk_text

@@ -82,7 +82,7 @@ async function fetchKpis() {
   const [s = {}] = await executeSQL(`
     SELECT COUNT(*) AS sources, COUNT_IF(lower(verification_status) LIKE 'verified\\_%') AS verified_sources
     FROM ${FQ}.regulatory_source_register WHERE is_synthetic = false`);
-  const [c = {}] = await executeSQL(`SELECT COUNT(*) AS real_chunks FROM ${FQ}.regulatory_doc_chunks WHERE is_synthetic = false`);
+  const [c = {}] = await executeSQL(`SELECT COUNT(*) AS real_chunks FROM ${FQ}.regulatory_doc_chunks ch WHERE is_synthetic = false AND NOT EXISTS (SELECT 1 FROM ${FQ}.regulatory_source_register x WHERE x.source_id = ch.source_id AND x.is_public_domain = false)`);
   const n = (v) => parseInt(v, 10) || 0;
   return { requirements: n(m.requirements), verified: n(m.verified), gaps: n(m.gaps), jurisdictions: n(m.jurisdictions),
     sources: n(s.sources), verified_sources: n(s.verified_sources), real_chunks: n(c.real_chunks) };
@@ -110,6 +110,7 @@ async function retrieveHybrid(question, jur) {
         CASE WHEN ch.citation ILIKE '%CFR%' OR ch.citation ILIKE '%U.S.C%' THEN 1 ELSE 0 END AS codified
       FROM ${FQ}.regulatory_doc_chunks ch CROSS JOIN qv
       WHERE ch.is_synthetic = false AND ch.source_url IS NOT NULL AND ch.embedding IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM ${FQ}.regulatory_source_register x WHERE x.source_id = ch.source_id AND x.is_public_domain = false) -- partner-redistribution guard (IND-CGA-BP21 etc.)
         AND (:jur = 'ALL' OR ch.jurisdiction IN ('US', :jur))),
     r AS (SELECT *, row_number() OVER (ORDER BY sem DESC) AS rs, row_number() OVER (ORDER BY kw DESC, sem DESC) AS rk FROM base),
     f AS (SELECT *, 1.0 / (60 + rs) + 1.0 / (60 + rk) + 0.004 * codified + 0.01 * sec_hit
@@ -144,6 +145,7 @@ async function retrieveKeyword(question, jur) {
         (${score}) + CASE WHEN :jur <> 'ALL' AND ch.jurisdiction = :jur THEN 2 ELSE 0 END AS score
       FROM ${FQ}.regulatory_doc_chunks ch
       WHERE ch.is_synthetic = false AND ch.source_url IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM ${FQ}.regulatory_source_register x WHERE x.source_id = ch.source_id AND x.is_public_domain = false) -- partner-redistribution guard
         AND (:jur = 'ALL' OR ch.jurisdiction IN ('US', :jur)))
     SELECT c.*, r.verification_status, CAST(r.last_verified AS STRING) AS last_verified
     FROM c LEFT JOIN ${FQ}.regulatory_source_register r ON r.source_id = c.source_id
