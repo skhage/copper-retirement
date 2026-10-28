@@ -474,6 +474,22 @@ app.layout = dbc.Container([
     # ── Genie conversation state ──
     dcc.Store(id="genie-store", data={"conv_id": None, "history": []}),
 
+    # ── Plan B LEGACY banner (ACC-APP-PLANB-LEGACY-BANNER, DEC-PLANB-GONOGO-20261028) ──
+    html.Div(
+        [
+            html.Strong("LEGACY demo surface, not shipped in the accelerator. "),
+            html.Span("The partner accelerator ships the unified retirement-plan app (Map/Risk tab)."),
+        ],
+        id="legacy-banner",
+        role="note",
+        **{"aria-label": "Legacy demo surface notice"},
+        style={
+            "backgroundColor": "#F9F7F4", "color": "#1B3139",
+            "borderLeft": "4px solid #1B3139", "padding": "8px 16px",
+            "fontSize": "14px", "fontFamily": "Inter, system-ui, sans-serif",
+        },
+    ),
+
     # ── Header (shared lakelink_header) ──
     lakelink_header(
         subtitle="Copper Prioritization Map",

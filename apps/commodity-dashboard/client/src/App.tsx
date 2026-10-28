@@ -47,6 +47,20 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Plan B LEGACY banner (ACC-APP-PLANB-LEGACY-BANNER, DEC-PLANB-GONOGO-20261028) */}
+      <div
+        id="legacy-banner"
+        role="note"
+        aria-label="Legacy demo surface notice"
+        style={{
+          backgroundColor: '#F9F7F4', color: '#1B3139',
+          borderLeft: '4px solid #1B3139', padding: '8px 16px',
+          fontSize: '14px', fontFamily: 'Inter, system-ui, sans-serif',
+        }}
+      >
+        <strong>LEGACY demo surface, not shipped in the accelerator. </strong>
+        <span>The partner accelerator ships the unified retirement-plan app (Commodity tab).</span>
+      </div>
       {/* Lakelink Fiber nav header (BRAND_GUIDE §5) */}
       <LakeLinkHeader
         subtitle="Commodity & Workforce Dashboard"
