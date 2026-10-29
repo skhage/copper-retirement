@@ -68,6 +68,7 @@ async function fetchSources() {
       CAST(last_verified AS STRING) AS last_verified, CAST(effective_date AS STRING) AS effective_date
     FROM ${FQ}.regulatory_source_register
     WHERE is_synthetic = false AND official_url IS NOT NULL
+      AND coalesce(is_public_domain, true) -- ACC-APP-REG-EXCLUDE-SOURCES-LIST: hide non-redistributable sources (IND-CGA-BP21)
     ORDER BY CASE level WHEN 'federal' THEN 0 ELSE 1 END, jurisdiction, title`);
 }
 
