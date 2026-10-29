@@ -22,7 +22,7 @@ interface SourceRow {
   citation: string; official_url: string; verification_status: string; last_verified: string | null; effective_date: string | null;
 }
 interface AskSource { n: number; title: string; citation: string; url: string; jurisdiction: string; verification_status?: string; last_verified?: string; excerpt: string }
-interface AskResult { answer: string | null; grounded: boolean; insufficient?: boolean; cited?: number[]; sources: AskSource[]; mode: string; llm_error?: string }
+interface AskResult { answer: string | null; grounded: boolean; insufficient?: boolean; cited?: number[]; sources: AskSource[]; mode: string; llm_error?: string; jurisdiction_applied?: string; jurisdiction_source?: 'selector' | 'detected_in_question' | 'none' }
 interface Kpis { requirements: number; verified: number; gaps: number; jurisdictions: number; sources: number; verified_sources: number; real_chunks: number }
 
 const JURISDICTIONS = [
@@ -135,7 +135,7 @@ function AskView({ jur }: { jur: string }) {
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
         Answers are generated only from real official documents (FCC, eCFR, OSHA, PHMSA, EPA, CGA, state statutes). Synthetic demo text is excluded.
-        Interim retrieval: keyword search over parsed official text while the vector index is re-synced (ACC-REG-VS-RESYNC). Not legal advice.
+        Retrieval: semantic + keyword search over parsed official text, filtered to the selected (or named) state plus federal rules. Not legal advice.
       </p>
       <form onSubmit={submit} className="flex gap-2">
         <label htmlFor="reg-q" className="sr-only">Regulatory question</label>
@@ -153,6 +153,11 @@ function AskView({ jur }: { jur: string }) {
       {err && <EmptyState title="The question could not be answered"><p>{err}</p></EmptyState>}
       {res && (
         <div className="rounded-lg border border-border bg-card p-4 space-y-3" aria-live="polite">
+          {res.jurisdiction_applied && res.jurisdiction_applied !== 'ALL' && (
+            <p className="text-xs text-muted-foreground">
+              Sources limited to {res.jurisdiction_applied} + federal{res.jurisdiction_source === 'detected_in_question' ? ' (state detected in your question)' : ''}.
+            </p>
+          )}
           {res.answer && <p className={`text-sm whitespace-pre-wrap ${res.insufficient ? 'text-warning' : 'text-foreground'}`}>{res.answer}</p>}
           {res.llm_error && <p className="text-xs text-warning">{res.llm_error}</p>}
           {chips.length > 0 && (

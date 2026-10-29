@@ -31,6 +31,36 @@ const NO_SOURCE = 'No official source found for this question.';
 const P = (name, value) => ({ name, value: String(value), type: 'STRING' });
 const jurOf = (v) => (v && /^[A-Za-z]{2}$/.test(v) ? v.toUpperCase() : 'ALL');
 
+// ACC-APP-REG-JURIS-PREFILTER (2026-10-29): when the selector is 'All', detect the state named in the question and
+// use it as the retrieval pre-filter (state + federal 'US'), so 'Colorado 811 locate ticket' never cites Oregon.
+// Full state names only, plus unambiguous uppercase USPS codes (OR/ID/IN/ME/OK/HI/OH/PA/MA/DE/LA/AL/MO/CT/GA/SC/NE/
+// NV/MT/NH are skipped as bare codes because they collide with English words or abbreviations).
+const STATES = { alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA', colorado: 'CO',
+  connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA', hawaii: 'HI', idaho: 'ID', illinois: 'IL',
+  indiana: 'IN', iowa: 'IA', kansas: 'KS', kentucky: 'KY', louisiana: 'LA', maine: 'ME', maryland: 'MD',
+  massachusetts: 'MA', michigan: 'MI', minnesota: 'MN', mississippi: 'MS', missouri: 'MO', montana: 'MT',
+  nebraska: 'NE', nevada: 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY',
+  'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK', oregon: 'OR', pennsylvania: 'PA',
+  'rhode island': 'RI', 'south carolina': 'SC', 'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT',
+  vermont: 'VT', virginia: 'VA', washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI', wyoming: 'WY' };
+const SAFE_CODES = new Set(['AZ', 'CO', 'MN', 'WA', 'AK', 'AR', 'CA', 'FL', 'IL', 'IA', 'KS', 'KY', 'MD', 'MI', 'MS',
+  'NJ', 'NM', 'NY', 'NC', 'ND', 'RI', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WV', 'WI', 'WY']);
+const STATE_RE = new RegExp(`\\b(${Object.keys(STATES).sort((a, b) => b.length - a.length).join('|')})\\b`, 'gi');
+export function detectState(question) {
+  const text = String(question || '');
+  // 'Washington, D.C.' / 'DC' is not the state of Washington
+  const cleaned = text.replace(/washington,?\s*d\.?\s*c\.?/gi, ' ');
+  const found = new Set((cleaned.match(STATE_RE) || []).map((m) => STATES[m.toLowerCase()]));
+  for (const c of cleaned.match(/\b[A-Z]{2}\b/g) || []) if (SAFE_CODES.has(c)) found.add(c);
+  return found.size === 1 ? [...found][0] : null; // 0 or 2+ states named -> no pre-filter (don't guess)
+}
+export function resolveJurisdiction(selected, question) {
+  const j = jurOf(selected);
+  if (j !== 'ALL') return { jur: j, jurisdiction_source: 'selector' };
+  const d = detectState(question);
+  return d ? { jur: d, jurisdiction_source: 'detected_in_question' } : { jur: 'ALL', jurisdiction_source: 'none' };
+}
+
 const STOP = new Set(('the a an and or of to in on for with by is are be what which who when how does do i we our my ' +
   'must need required require any all about from that this there their it its can should under rule rules state').split(' '));
 function keywords(q) {
@@ -200,7 +230,9 @@ router.get('/kpis', wrap(async (_req, res) => res.json({ success: true, data: aw
 router.post('/ask', wrap(async (req, res) => {
   const { question, jurisdiction } = req.body || {};
   if (!question || String(question).trim().length < 3) return res.status(400).json({ error: 'question is required' });
-  res.json({ success: true, data: await ask(question, jurOf(jurisdiction)) });
+  const { jur, jurisdiction_source } = resolveJurisdiction(jurisdiction, question);
+  const data = await ask(question, jur);
+  res.json({ success: true, data: { ...data, jurisdiction_applied: jur, jurisdiction_source } });
 }));
 
 export default router;
