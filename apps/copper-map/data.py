@@ -235,6 +235,23 @@ FROM cdm_tmforum.copper_retirement.gold_retirement_executive_summary
 WHERE state_code IN ('CO', 'MN', 'WA', 'OR', 'ID', 'AZ')
 """
 
+# ACC-APP-DEF-PLANB-KPI-MISMATCH: headline KPIs come from the governed UC metric views
+# (same numbers as PARTNER-PLAYBOOK §5). Expected: 2,672 devices / 103 WCs, 14.3% (383) critical,
+# 4.6% (122) fiber ready, 288 customers / 304 services, $603.8M annual revenue at risk.
+QUERY_MV_KPI = """
+SELECT
+  (SELECT MEASURE(`Total Copper Devices`) FROM cdm_tmforum.copper_retirement.copper_retirement_project_status) AS mv_total_devices,
+  (SELECT MEASURE(`Critical Risk Devices`) FROM cdm_tmforum.copper_retirement.copper_retirement_project_status) AS mv_critical_devices,
+  (SELECT MEASURE(`Critical Risk Pct`) FROM cdm_tmforum.copper_retirement.copper_retirement_project_status) AS mv_critical_pct,
+  (SELECT MEASURE(`Fiber Ready Devices`) FROM cdm_tmforum.copper_retirement.copper_retirement_project_status) AS mv_fiber_ready_devices,
+  (SELECT MEASURE(`Fiber Ready Pct`) FROM cdm_tmforum.copper_retirement.copper_retirement_project_status) AS mv_fiber_ready_pct,
+  (SELECT MEASURE(`Unique Wire Centers`) FROM cdm_tmforum.copper_retirement.copper_retirement_project_status) AS mv_wire_centers,
+  (SELECT MEASURE(`Customers Impacted`) FROM cdm_tmforum.copper_retirement.copper_customers_impacted) AS mv_customers,
+  (SELECT MEASURE(`Services at Risk`) FROM cdm_tmforum.copper_retirement.copper_customers_impacted) AS mv_services,
+  (SELECT MEASURE(`Total Annual Revenue at Risk`) FROM cdm_tmforum.copper_retirement.copper_ebitda_impact_achieved) AS mv_annual_revenue_at_risk,
+  (SELECT MEASURE(`Total Monthly Revenue at Risk`) FROM cdm_tmforum.copper_retirement.copper_ebitda_impact_achieved) AS mv_monthly_revenue_at_risk
+"""
+
 QUERY_GOLD_EXECUTIVE_SUMMARY = """
 SELECT
   state_code,
@@ -470,17 +487,17 @@ def load_gold_kpis() -> dict:
     if not rows:
         return {}
     r = rows[0]
-    devices = int(r.get("total_devices") or 0)
-    critical = int(r.get("critical_risk_total") or 0)
+    # Headline KPIs: governed metric views (ACC-APP-DEF-PLANB-KPI-MISMATCH). No flat MRR estimate.
+    mv = _run_query(QUERY_MV_KPI)[0]
+    devices = int(mv.get("mv_total_devices") or 0)
+    critical = int(mv.get("mv_critical_devices") or 0)
     high = int(r.get("high_risk_total") or 0)
-    crit_pct = float(r.get("critical_risk_pct") or 0)
-    services = int(r.get("services_affected") or 0)
-    customers = int(r.get("customers_affected") or 0)
-    # Estimate MRR from service mix (voice $45, broadband $75, fixed $35)
+    crit_pct = round(float(mv.get("mv_critical_pct") or 0), 1)
+    services = int(mv.get("mv_services") or 0)
+    customers = int(mv.get("mv_customers") or 0)
     voice = int(r.get("voice_at_risk") or 0)
     broadband = int(r.get("broadband_at_risk") or 0)
-    other_services = services - voice - broadband
-    est_mrr = voice * 45 + broadband * 75 + other_services * 35
+    monthly_rev = int(round(float(mv.get("mv_monthly_revenue_at_risk") or 0)))
     return {
         "devices": devices,
         "copper_devices": devices,
@@ -490,12 +507,13 @@ def load_gold_kpis() -> dict:
         "critical_risk_pct": crit_pct,
         "pct_crit": crit_pct,
         "states": int(r.get("state_count") or 0),
-        "wire_centers": int(r.get("wire_center_count") or 0),
-        "fiber_ready_devices": int(r.get("fiber_ready_devices") or 0),
-        "fiber_ready_pct": float(r.get("fiber_ready_pct") or 0),
+        "wire_centers": int(mv.get("mv_wire_centers") or 0),
+        "fiber_ready_devices": int(mv.get("mv_fiber_ready_devices") or 0),
+        "fiber_ready_pct": round(float(mv.get("mv_fiber_ready_pct") or 0), 1),
         "services_affected": services,
         "customers_on_copper": customers,
-        "revenue_at_risk_mrr": est_mrr,
+        "revenue_at_risk_mrr": monthly_rev,
+        "revenue_at_risk_annual": int(round(float(mv.get("mv_annual_revenue_at_risk") or 0))),
         "voice_at_risk": voice,
         "broadband_at_risk": broadband,
         "dig_incidents": int(r.get("dig_incidents") or 0),

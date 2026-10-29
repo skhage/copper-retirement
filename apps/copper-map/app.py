@@ -124,12 +124,16 @@ DEVICES = [
 KPIS = {
     "devices": 2672, "cpe": 688, "ont": 663, "olt": 661, "pp": 660,
     "alarms": 26943, "crit_alarms": 9978, "pct_crit": 37.3,
-    "states": 6, "wire_centers": 200,
-    # Converged KPIs (matches SummaryKPIs.tsx)
-    "copper_devices": 975,
-    "critical_risk_pct": 58.3,
-    "revenue_at_risk_mrr": 297600,
-    "services_affected": 2626,
+    "states": 6, "wire_centers": 103,
+    # Mock fallback aligned to metric views / PLAYBOOK §5 (ACC-APP-DEF-PLANB-KPI-MISMATCH)
+    "copper_devices": 2672,
+    "critical_risk_pct": 14.3,
+    "critical_risk_devices": 383,
+    "fiber_ready_pct": 4.6,
+    "fiber_ready_devices": 122,
+    "revenue_at_risk_mrr": 50320476,
+    "services_affected": 304,
+    "customers_on_copper": 288,
 }
 
 # ── Bootstrap initial data (gold tables > base tables > mock) ────────────────

@@ -81,12 +81,15 @@ export interface SellHoldRecommendation {
 
 // --- Mock KPIs ---
 
+// ACC-APP-DEF-PLANB-KPI-MISMATCH: aligned to PLAYBOOK §3a/§5 and metric view cdm_tmforum.copper_retirement.copper_partner_value.
+// Spot = IMF PCOPPUSDM 2026-09 monthly avg (https://fred.stlouisfed.org/series/PCOPPUSDM); change = vs 2026-08 ($6.5006/lb).
+// Net recovery is NEGATIVE: salvage does not fund the program.
 export const mockKPIs = {
-  current_spot_usd_lb: 4.32,
-  spot_30d_change_pct: 3.8,
-  total_recovered_lbs: 1_127_400,
-  total_scrap_value_usd: 3_312_000,
-  net_recovery_value_usd: 2_814_000,
+  current_spot_usd_lb: 6.5649,
+  spot_30d_change_pct: 1.0,
+  total_recovered_lbs: 23_798,
+  total_scrap_value_usd: 156_232,
+  net_recovery_value_usd: -3_822_681,
   active_contractors: 1_254,
   avg_safety_score: 76.4,
   decommission_projects: 847,
