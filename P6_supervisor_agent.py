@@ -103,7 +103,8 @@ def _retrieve_delta(query, top_k=REG_TOP_K, jurisdiction=None):
 
 def _retrieve_tvf(query, top_k=REG_TOP_K, jurisdiction=None):
     """UC TVF search_regulatory_chunks: bge-large cosine over real chunks (ACC-REG-DL-ALT-1024). Used until the VS index is recreated."""
-    df = spark.sql(f"SELECT * FROM {CATALOG}.{SCHEMA}.search_regulatory_chunks(:q, :k)", args={"q": query, "k": top_k * 5}).toPandas()
+    # ACC-ML-REG-JURIS-PREFILTER (2026-10-29): state pre-filter pushed into the TVF (jurisdiction IN (state,'US')); NULL = no filter
+    df = spark.sql(f"SELECT * FROM {CATALOG}.{SCHEMA}.search_regulatory_chunks(:q, :k, :s)", args={"q": query, "k": top_k * 5, "s": jurisdiction}).toPandas()
     df = df.rename(columns={"chunk_text": "embedding_text"})
     if jurisdiction:
         df = df[df["jurisdiction"].isin([jurisdiction, "US"])]
@@ -1227,6 +1228,57 @@ for k, v in gate.items(): print(f"  {k}: {v:.1%}")
 print("  by category:", R.groupby("category").passed.agg(['sum','count']).to_dict('index'))
 print("GATE:", "✅ PASS" if not blockers else f"❌ FAIL {blockers}")
 display(R[~R.passed][["eval_id", "category", "jurisdiction", "retrieved_source_ids", "abstained", "groundedness_reason"]])
+
+# COMMAND ----------
+
+# DBTITLE 1,Regulatory RAG — jurisdiction pre-filter gate (>=95%)
+# ACC-ML-REG-JURIS-PREFILTER / COO-Q-20261029-0550-3 (2026-10-29): retrieval-level jurisdiction gate.
+# Runs search_regulatory_chunks(query, 5, state) on every row of reg_jurisdiction_eval_queries (hand-authored, 67 rows:
+# AZ/CO/ID/MN/OR/WA + US) with state parsed from the query text (no state named -> NULL = unfiltered).
+# GATE: top-5 slot jurisdiction_match >= 95%, top-1 match >= 95%, 0 IND-CGA-BP21 (is_public_domain=false) and 0 synthetic sources.
+import re, datetime, pandas as pd
+JUR_EVAL_TABLE = f"{CATALOG}.{SCHEMA}.reg_jurisdiction_eval_queries"
+JUR_RESULTS_TABLE = f"{CATALOG}.{SCHEMA}.reg_jurisdiction_eval_results"
+_STATE_NAMES = {"CO": "colorado", "MN": "minnesota", "WA": "washington", "OR": "oregon", "ID": "idaho", "AZ": "arizona"}
+
+def parse_state(text):
+    t = text.lower()
+    for code, name in _STATE_NAMES.items():
+        if name in t or re.search(rf"\b{code}\b", text): return code
+    return None
+
+q_df = spark.table(JUR_EVAL_TABLE).toPandas()
+rows = []
+for _, e in q_df.iterrows():
+    st = parse_state(e.query_text)
+    hits = spark.sql(f"SELECT source_id, jurisdiction, score FROM {CATALOG}.{SCHEMA}.search_regulatory_chunks(:q, 5, :s)",
+                     args={"q": e.query_text, "s": st}).toPandas().sort_values("score", ascending=False).reset_index(drop=True)
+    ok_set = set(e.acceptable_jurisdictions.split(","))
+    for i, h in hits.iterrows():
+        rows.append(dict(mode="after_parsed", eval_query_id=e.eval_query_id, expected_jurisdiction=e.expected_jurisdiction,
+                         query_text=e.query_text, rank=i + 1, source_id=h.source_id, jurisdiction=h.jurisdiction,
+                         jurisdiction_match=bool(h.jurisdiction in ok_set)))
+J = pd.DataFrame(rows)
+J["run_id"] = "juris-gate-" + datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M")
+spark.createDataFrame(J).selectExpr("mode", "eval_query_id", "expected_jurisdiction", "query_text", "CAST(rank AS INT) AS rank",
+    "source_id", "jurisdiction", "jurisdiction_match", "run_id").write.mode("append").saveAsTable(JUR_RESULTS_TABLE)
+
+excluded = set(REG_EXCLUDED_SOURCES) if "REG_EXCLUDED_SOURCES" in globals() else {"IND-CGA-BP21"}
+synthetic_srcs = {r.source_id for r in spark.sql(f"SELECT DISTINCT source_id FROM {CATALOG}.{SCHEMA}.regulatory_doc_chunks WHERE is_synthetic = true").collect()}
+real_srcs = {r.source_id for r in spark.sql(f"SELECT DISTINCT source_id FROM {CATALOG}.{SCHEMA}.regulatory_doc_chunks WHERE is_synthetic = false").collect()}
+jgate = {
+    "slot_jurisdiction_match_top5": J.jurisdiction_match.mean(),
+    "top1_jurisdiction_match": J[J["rank"] == 1].jurisdiction_match.mean(),
+    "excluded_source_hits": int(J.source_id.isin(excluded).sum()),
+    "synthetic_only_source_hits": int(J.source_id.isin(synthetic_srcs - real_srcs).sum()),
+}
+print(f"Run {J.run_id.iloc[0]}: {J.eval_query_id.nunique()} queries")
+for k, v in jgate.items(): print(f"  {k}: {v:.1%}" if isinstance(v, float) else f"  {k}: {v}")
+print(J.groupby("expected_jurisdiction").jurisdiction_match.mean().round(3).to_dict())
+passed = (jgate["slot_jurisdiction_match_top5"] >= 0.95 and jgate["top1_jurisdiction_match"] >= 0.95
+          and jgate["excluded_source_hits"] == 0 and jgate["synthetic_only_source_hits"] == 0)
+print("JURISDICTION GATE:", "✅ PASS" if passed else "❌ FAIL")
+assert passed, jgate
 
 # COMMAND ----------
 
