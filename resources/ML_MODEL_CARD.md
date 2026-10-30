@@ -1,4 +1,6 @@
-# Production Model Card — Copper Retirement Risk Classifier (V5)
+> **SUPERSEDED 2026-10-30 (ACC-ML-MODEL-CARD-DEDUP). Do not use. The single model card is [risk/MODEL_CARD.md](../risk/MODEL_CARD.md).** Its still-valid content (SLA targets, retraining triggers, ethical considerations, version history) was merged there. The V5 metrics below were computed on labels that were replaced on 2026-09-15 and are WITHDRAWN. The original is preserved in git commit 20598e7. This file is on the H4 human-delete list.
+
+# (SUPERSEDED) Production Model Card — Copper Retirement Risk Classifier (V5)
 
 **Model name:** `cdm_tmforum.ml_models.copper_retirement_risk`  
 **Version:** 5 (`@champion`)  
@@ -142,7 +144,7 @@ Optuna Bayesian optimization, 50 trials, optimizing AUC-ROC.
 
 | Metric | Value |
 | --- | --- |
-| **AUC-ROC** | 0.9864 |
+| **AUC-ROC** | [V5 value withdrawn; see risk/MODEL_CARD.md] |
 | **Accuracy** | 0.8953 |
 | **Weighted F1** | 0.8954 |
 | Train AUC-ROC | 1.0 (memorization — see Limitations) |
@@ -283,7 +285,7 @@ Optuna Bayesian optimization, 50 trials, optimizing AUC-ROC.
 ### Performance Decay
 | Signal | Threshold | Action |
 | --- | --- | --- |
-| AUC-ROC decline | Below 0.95 (current: 0.986) | Mandatory retrain |
+| AUC-ROC decline | Below 0.95 (see risk/MODEL_CARD.md §9) | Mandatory retrain |
 | Critical-tier recall | Below 0.75 (current: 0.833) | Mandatory retrain |
 | Fairness regression | Any slice drops to YELLOW or RED | Investigate slice; file FEATURE-REQ |
 | Champion/challenger divergence | Disagreement > 20% of scored devices | Evaluate challenger; promote if superior |
@@ -344,7 +346,7 @@ Copper retirement disproportionately affects customers who may lack alternatives
 
 ## 13. Known Limitations
 
-1. **Synthetic data ceiling.** All training data is synthetic with uniform/random distributions. Train AUC=1.0 confirms memorization of synthetic patterns. Test AUC=0.986 demonstrates generalization on held-out synthetic data, but production performance with real operational data will differ. The pipeline, scoring, and monitoring architecture are production-grade; the model coefficients are not.
+1. **Synthetic data ceiling.** All training data is synthetic with uniform/random distributions. Train AUC=1.0 confirms memorization of synthetic patterns. Test AUC [withdrawn; see risk/MODEL_CARD.md] demonstrated generalization on held-out synthetic data, but production performance with real operational data will differ. The pipeline, scoring, and monitoring architecture are production-grade; the model coefficients are not.
 2. **Firmware coverage gap.** 37% of copper devices lack software lifecycle data (imputed with zeros). These devices may be systematically underscored for firmware-related risk signals.
 3. **3 zero-importance features.** `is_support_expired`, `is_past_eol`, and `has_software_data` contribute zero split importance. Likely constant or redundant with `days_past_support_expiry`/`days_past_eol`. Candidates for removal in V6.
 4. **Small residential segment.** Only 32 residential devices in the dataset — below the n=50 stability threshold. YELLOW flag on recall (0.933 vs. 0.996 global).

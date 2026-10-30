@@ -6,7 +6,7 @@
 | --- | --- |
 | UC model | `cdm_tmforum.ml_models.copper_retirement_risk` (parameterize as `${catalog}.ml_models.copper_retirement_risk`) |
 | Aliases | `@champion` = v6 (LightGBM, 39 features, promoted 2026-10-26), `@challenger` = v5 (rollback only; chance-level on current labels) |
-| Serving endpoint | `copper-retirement-risk` (CPU Small, scale-to-zero). **As of 2026-10-26 the endpoint still pins v5 by version number**; switching the served entity to v6 needs a human (agent config updates are blocked by the safety gate). Batch scoring uses `@champion` = v6. |
+| Serving endpoint | `copper-retirement-risk` (CPU Small, scale-to-zero). **As of 2026-10-26 the endpoint still pins v5 by version number (re-verified 2026-10-30: state READY / NOT_UPDATING, served entity `copper_retirement_risk` v5; aliases champion=6, challenger=5)**; switching the served entity to v6 needs a human (agent config updates are blocked by the safety gate). Batch scoring uses `@champion` = v6. |
 | Inference table | `copper_retirement.risk_model_inference_payload` / unpacked view `risk_inference_unpacked` (99 rows, last request 2026-09-17). Endpoint `auto_capture_config` is not set, so live traffic is not captured. |
 | Training run | MLflow `09db5f470eed4d65be526bc8c4d9c63f` (run name `copper_risk_v6_lgbm_balanced_quartiles`), experiment 3064056660647801. Superseded v5 run: `0d308b43371249eeb017867da6acf327` |
 | Label | `risk_tier` = balanced quartiles (668 devices per tier) of `composite_risk_score` in `copper_risk_target`. The table was replaced on 2026-09-15 (Delta v23); earlier labels used fixed thresholds. |
@@ -90,4 +90,47 @@ State, customer_segment and most service_type slices are too small to support fa
 * State and customer_segment slices are too small in the demo (n < 30) for fairness conclusions.
 * The feature and label share inputs, so v6's 0.899 accuracy measures how well it re-learns the composite formula. It is not a predictive-validity result.
 
-_Maintainer: @ml-engineer. Last updated 2026-10-26 (ACC-ML-RISK-RETRAIN-V6 / COO-Q-20261026-0550-1)._
+## 8. Serving SLA and latency targets
+These targets were carried over from the retired `resources/ML_MODEL_CARD.md`. They are design targets, not measured SLOs.
+
+| Scenario | Target | Notes |
+| --- | --- | --- |
+| Single-device scoring (p50) | < 200 ms | Warm endpoint, real-time lookup |
+| Single-device scoring (p99) | < 1,000 ms | Warm endpoint |
+| Cold start (scale-to-zero) | 60-90 s | Observed about 82 s on 2026-10-29. Pre-warm before demos, or disable scale-to-zero in production. |
+| Batch scoring (2,672 devices) | < 30 s | `scripts/batch_score_copper_risk` loads `@champion` directly. It does not call the endpoint. |
+| Error rate | < 1% | 5xx or malformed responses |
+
+## 9. Retraining triggers
+| Signal | Threshold | Action |
+| --- | --- | --- |
+| Label or target table rewritten | Any CREATE OR REPLACE / WRITE on the label table newer than the champion | Block scoring (guard in 6.6b) and retrain. This is the failure that made v5 chance-level. |
+| Champion accuracy on current labels | Drop > 0.05 vs. the value logged on the MLflow run | Block scoring and retrain |
+| AUC-ROC (OvR) | Below 0.95 (v6: 0.985) | Mandatory retrain |
+| Critical-tier recall | Below 0.80 (v6: 0.918) | Mandatory retrain |
+| Feature drift (PSI) | PSI > 0.2 on any top-10 feature | Investigate, then retrain if confirmed |
+| Null rate | Rises > 5 pp on any feature | Fix the pipeline, then retrain |
+| New device type | Any type outside {cpe, ont, olt, patch_panel} | Retrain with the expanded set |
+| Fairness regression | Any slice with n >= 30 turns RED | Block promotion and investigate |
+| Scheduled | Quarterly | Full retrain, re-run fairness, update this card |
+
+## 10. Ethical considerations
+* **False positives (over-classified as critical):** can bring a retirement forward for customers who still rely on copper. This matters most where no fiber alternative exists.
+* **False negatives (under-classified):** leave degraded plant in service, which raises outage and safety risk.
+* **Geographic bias:** rural plant with sparse alarm telemetry may be under-scored. Region slices exist, but rural/urban is not sliced. Partners should add a density slice.
+* **Customer vulnerability:** copper-dependent customers (rural, elderly, low-income, medical alert devices, E911 reliance) need a separate customer-impact review before any retirement decision.
+* **Mitigation:** no automated retirement. All critical-tier actions need human review, and regulatory notice obligations apply regardless of the score (Section 1).
+
+## 11. Version history
+| Version | Date | Notes |
+| --- | --- | --- |
+| v1-v2 | 2026-09-11 | Initial LightGBM; Optuna tuning |
+| v3 | 2026-09-12 | XGBoost challenger |
+| v4 | 2026-09-12 | Added complaint, dispute, usage and revenue features. Leaked the target (`composite_risk_score`). Withdrawn. |
+| v5 | 2026-09-13 | Added 11 firmware and 6 plant features; leakage fix. Trained on the pre-2026-09-15 threshold labels. Its published metrics are WITHDRAWN: it scores 0.329 accuracy / 0.693 AUC on current labels. Still the version served by the endpoint; now `@challenger`. |
+| **v6** | **2026-10-26** | **`@champion`. LightGBM on `copper_risk_features` with current balanced-quartile labels (Section 4).** |
+
+## Consolidation note
+This file is the single model card for the risk model. `resources/model_card.md` (demo talking points) and `resources/ML_MODEL_CARD.md` (V5 production card) were merged here on 2026-10-30 (ACC-ML-MODEL-CARD-DEDUP) and reduced to pointer stubs. Both are on the H4 human-delete list. Their V5 metrics and fairness tables were computed on superseded labels and were intentionally not carried over.
+
+_Maintainer: @ml-engineer. Last updated 2026-10-30 (ACC-ML-MODEL-CARD-DEDUP). Previous update 2026-10-26 (ACC-ML-RISK-RETRAIN-V6 / COO-Q-20261026-0550-1)._

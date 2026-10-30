@@ -1,4 +1,6 @@
-# Copper Retirement Risk Model — Demo Talking Points
+> **SUPERSEDED 2026-10-30 (ACC-ML-MODEL-CARD-DEDUP). Do not use. The single model card is [risk/MODEL_CARD.md](../risk/MODEL_CARD.md).** Everything below describes V5 on labels that were replaced on 2026-09-15, and those metrics are WITHDRAWN. The original is preserved in git commit 20598e7. This file is on the H4 human-delete list.
+
+# (SUPERSEDED) Copper Retirement Risk Model — Demo Talking Points
 
 > **Beat 1 Risk Walkthrough** | Presenter reference for the copper-retirement-risk V5 model
 > Updated: 2026-09-21 by @ml-engineer
@@ -48,7 +50,7 @@ These are the top signals the model uses to distinguish risk tiers. Split-count 
 
 | Metric | Value |
 | --- | --- |
-| **AUC-ROC** | **0.9864** |
+| **AUC-ROC** | **[V5 value withdrawn; see risk/MODEL_CARD.md]** |
 | Accuracy | 0.895 |
 | Weighted F1 | 0.895 |
 | 5-Fold CV AUC | 0.979 ± 0.005 |
@@ -133,7 +135,7 @@ The model was evaluated across 20 demographic slices to ensure it doesn't system
 
 | Change | Impact |
 | --- | --- |
-| **Leakage fix** | V4 accidentally included the target variable (composite_risk_score) as a feature, inflating accuracy to 99.8%. V5 removes all leaked features — honest AUC of 0.986. |
+| **Leakage fix** | V4 accidentally included the target variable (composite_risk_score) as a feature, inflating accuracy to 99.8%. V5 removes all leaked features — AUC [withdrawn; see risk/MODEL_CARD.md]. |
 | **+11 firmware features** | Device age, firmware obsolescence score, vendor support expiry, patch recency — adds a lifecycle dimension V4 lacked. |
 | **+6 plant features** | Loop length, cable vintage, moisture rate, dB loss, splice count — physical infrastructure signals. |
 | **Depth cap (max_depth=3)** | Limits overfitting on synthetic data; V4 used depth=8. |
@@ -156,7 +158,7 @@ The model was evaluated across 20 demographic slices to ensure it doesn't system
 ## Known Caveats (Be Transparent in Demo)
 
 1. **Synthetic data.** All training data is synthetic — the model architecture and pipeline are production-grade, but accuracy numbers reflect synthetic patterns, not real operational telemetry.
-2. **Train AUC = 1.0.** The model memorizes training data (expected with synthetics). Test AUC of 0.986 shows it generalizes within the synthetic distribution.
+2. **Train AUC = 1.0.** The model memorizes training data (expected with synthetics). Test AUC [withdrawn; see risk/MODEL_CARD.md] showed it generalizes within the synthetic distribution.
 3. **37% firmware data gap.** Roughly 1 in 3 copper devices lack software lifecycle data — imputed with zeros. These devices may be under-scored on firmware risk.
 4. **3 zero-importance features.** `is_support_expired`, `is_past_eol`, `has_software_data` contribute nothing — candidates for removal in V6.
 5. **Residential sample.** Only 32 residential devices — too few for reliable slice metrics.
