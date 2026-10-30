@@ -134,7 +134,7 @@ function AskView({ jur }: { jur: string }) {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Answers are generated only from real official documents (FCC, eCFR, OSHA, PHMSA, EPA, CGA, state statutes). Synthetic demo text is excluded.
+        Answers are generated only from real official documents (FCC, eCFR, OSHA, PHMSA, EPA, state statutes). Synthetic demo text is excluded.
         Retrieval: semantic + keyword search over parsed official text, filtered to the selected (or named) state plus federal rules. Not legal advice.
       </p>
       <form onSubmit={submit} className="flex gap-2">
@@ -223,7 +223,7 @@ export function RegulatoryTab() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <KpiCard label="Requirements verified" value={kpis ? `${kpis.verified} / ${kpis.requirements}` : '—'} sub={kpis ? `${kpis.jurisdictions} jurisdictions` : undefined} valueClass="text-success" />
         <KpiCard label="Flagged gaps" value={kpis ? kpis.gaps : '—'} sub="Unverified, conflict, not found or state gap" valueClass="text-warning" />
-        <KpiCard label="Official sources verified" value={kpis ? `${kpis.verified_sources} / ${kpis.sources}` : '—'} sub="FCC, eCFR, OSHA, PHMSA, EPA, CGA, states" />
+        <KpiCard label="Official sources verified" value={kpis ? `${kpis.verified_sources} / ${kpis.sources}` : '—'} sub="FCC, eCFR, OSHA, PHMSA, EPA, states" />
         <KpiCard label="Parsed official text chunks" value={kpis ? kpis.real_chunks.toLocaleString() : '—'} sub="Synthetic text excluded" />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
