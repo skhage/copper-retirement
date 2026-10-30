@@ -1,7 +1,14 @@
 # Copper Retirement Solution Accelerator — Declarative Automation Bundle
 #
 # ONE-COMMAND DEPLOY (any workspace; host comes from your CLI profile / env auth):
-#   databricks bundle deploy -t <dev|staging|prod|partner> --var warehouse_id=<WAREHOUSE_ID>
+#   databricks bundle deploy -t partner --var warehouse_id=<WAREHOUSE_ID> \
+#     --var lakebase_project=<YOUR_LAKEBASE_PROJECT> --var lakebase_host=<YOUR_LAKEBASE_HOST>
+# lakebase_project and lakebase_host have NO default: the partner target fails fast if they are
+# not passed (ACC-QA-DEF-PARTNER-DEPLOY-DEFAULTS). dev/staging/prod (reference demo workspace
+# only) get them from bundle/targets/reference_workspace.yml.
+# The partner target deploys every job schedule PAUSED (presets.trigger_pause_status). Unpause
+# only after seed_synthetic_sources_job has run and copper_retirement_risk@champion is registered
+# (PARTNER-PLAYBOOK.md section 6a).
 # Optional overrides: --var catalog_name=... --var schema_name=... --var vs_endpoint=...
 #   --var vs_index=... (both OPTIONAL, DEC-VS-OPTIONAL) --var serving_endpoint=... --var llm_endpoint=... --var lakebase_project=... --var lakebase_branch=...
 #   --var lakebase_host=... --var lakebase_database=... (copper-task-board app Lakebase connection)
@@ -43,6 +50,33 @@ include:
   - bundle/resources/retirement_plan.app.yml
   - bundle/resources/copper_task_board.app.yml
   - bundle/resources/lakebase_sync.job.yml
+  - bundle/targets/reference_workspace.yml
+
+# Files uploaded to <root_path>/files on deploy. Mirrors the EXCLUDE list in
+# bundle/PARTNER_EXPORT_MANIFEST.md: retired app source, inert retired resource files,
+# merged demo docs, ledger-retired notebooks, demo-workspace ops, reference-only targets.
+sync:
+  exclude:
+    - apps/copper-map/**
+    - apps/commodity-dashboard/**
+    - apps/regulatory-assistant/**
+    - bundle/resources/apps.app.yml
+    - bundle/resources/commodity_dashboard.app.yml
+    - bundle/resources/copper_map.app.yml
+    - bundle/resources/dig_triage.app.yml
+    - bundle/resources/regulatory_assistant.app.yml
+    - bundle/resources/serving_endpoints.yml
+    - bundle/resources/unity_catalog.yml
+    - bundle/targets/reference_workspace.yml
+    - DEMO-RUNBOOK.md
+    - DEMO-ROLLBACK-RECOVERY.md
+    - DEMO-ENV-FREEZE-CHECKLIST.md
+    - demo_kpi_cheat_sheet.md
+    - P6_regulatory_rag_chain.py
+    - data_gen/fix_coordinates.py
+    - scripts/manual_inference_log_demo.py
+    - scripts/monitor_drift_activation.py
+    - ops/**
 
 variables:
   catalog_name:
@@ -74,8 +108,9 @@ variables:
     description: Foundation model endpoint used by the Regulatory tab for grounded, cited answers (ai_query).
     default: databricks-claude-sonnet-4-5
   lakebase_project:
-    description: Lakebase Postgres project for task board and app write-back data.
-    default: copper-task-board
+    description: >-
+      REQUIRED (no default). Your Lakebase Postgres project for the task board app, the gold->Lakebase
+      sync job and app write-back data. Never the reference project.
   lakebase_branch:
     description: Lakebase branch used by apps.
     default: production
@@ -83,37 +118,20 @@ variables:
     description: >-
       Postgres host of the Lakebase primary endpoint (projects/<lakebase_project>/branches/<lakebase_branch>/endpoints/primary),
       used by the copper-task-board app. Find it with `databricks postgres list-endpoints projects/<project>/branches/<branch>`.
-      Partners MUST override this for their own Lakebase project.
-    default: ep-rough-bar-d229503i.database.us-east-1.cloud.databricks.com
+      REQUIRED (no default).
   lakebase_database:
     description: Lakebase Postgres database name used by the copper-task-board app.
     default: databricks_postgres
 
+# dev / staging / prod (reference demo workspace) are defined in bundle/targets/reference_workspace.yml.
 targets:
-  dev:
-    mode: development
-    default: true
-    variables:
-      vs_endpoint: cmeg-demos-vs
-      vs_index: regulatory_doc_chunks_vs_index
-
-  staging:
-    mode: development
-    variables:
-      vs_endpoint: cmeg-demos-vs
-      vs_index: regulatory_doc_chunks_vs_index
-
-  prod:
-    mode: production
-    variables:
-      vs_endpoint: cmeg-demos-vs
-      vs_index: regulatory_doc_chunks_vs_index
-    workspace:
-      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
-
   partner:
     # Fresh partner workspace: same resources as prod plus schema creation.
     mode: production
+    presets:
+      # All job schedules/triggers deploy PAUSED: the weekly scoring job needs
+      # copper_retirement_risk@champion and the refresh/sync jobs need seeded sources.
+      trigger_pause_status: PAUSED
     workspace:
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
     resources:

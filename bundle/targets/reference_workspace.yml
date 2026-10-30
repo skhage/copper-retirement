@@ -1,0 +1,38 @@
+# REFERENCE (LakeLink demo) WORKSPACE TARGETS — NOT FOR PARTNERS.
+#
+# dev / staging / prod reuse the reference demo infrastructure (Lakebase project
+# copper-task-board, VS endpoint cmeg-demos-vs). These values were moved out of
+# databricks.yml (ACC-QA-DEF-PARTNER-DEPLOY-DEFAULTS, COO-Q-20261030-0550-2) so the
+# partner target has NO default pointing at the reference Lakebase project:
+# lakebase_project and lakebase_host are REQUIRED for -t partner.
+#
+# Partners: use -t partner and pass --var lakebase_project=... --var lakebase_host=...
+# You may delete this file and its include line; this file is excluded from bundle sync.
+
+targets:
+  dev:
+    mode: development
+    default: true
+    variables:
+      vs_endpoint: cmeg-demos-vs
+      vs_index: regulatory_doc_chunks_vs_index
+      lakebase_project: copper-task-board
+      lakebase_host: ep-rough-bar-d229503i.database.us-east-1.cloud.databricks.com
+
+  staging:
+    mode: development
+    variables:
+      vs_endpoint: cmeg-demos-vs
+      vs_index: regulatory_doc_chunks_vs_index
+      lakebase_project: copper-task-board
+      lakebase_host: ep-rough-bar-d229503i.database.us-east-1.cloud.databricks.com
+
+  prod:
+    mode: production
+    variables:
+      vs_endpoint: cmeg-demos-vs
+      vs_index: regulatory_doc_chunks_vs_index
+      lakebase_project: copper-task-board
+      lakebase_host: ep-rough-bar-d229503i.database.us-east-1.cloud.databricks.com
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}

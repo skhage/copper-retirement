@@ -37,7 +37,10 @@ SHIP = clean `git clone` of HEAD (191 files) minus `ops/` (3 files, demo-workspa
 
 * Secrets (`dapi…`, `ghp_…`, AWS keys, literal passwords): **0**.
 * `/Users/stephen.hage` or the user email: **29 hits in 9 files, all Markdown docs, 0 in code** (P6 experiment path fixed in commit 012d593). Largest: `resources/DLP_PIPELINE_RUNBOOK.md` (19). This manifest adds 2 more, both in the §6 export command (source path in this workspace).
-* Internal Lakebase host `ep-rough-bar-d229503i…`: in `databricks.yml` as the `lakebase_host` variable default (partners must override) and in `apps/copper-task-board/app.yaml` (superseded by bundle `config.env` = `${var.lakebase_host}`). Doc-only mentions remain in `resources/DEMO_DEPLOYMENT_RUNBOOK.md` and `resources/MANUAL_RUNBOOK.md`.
+* Internal Lakebase host `ep-rough-bar-d229503i…`: **0 lines in `databricks.yml`** since 2026-10-30 (ACC-QA-DEF-PARTNER-DEPLOY-DEFAULTS). `lakebase_project` and `lakebase_host` have no default; `-t partner` fails fast unless both are passed. Reference values live only in `bundle/targets/reference_workspace.yml` (dev/staging/prod; excluded from bundle sync). Still present in `apps/copper-task-board/app.yaml` (superseded on bundle deploy by `config.env` = `${var.lakebase_host}`; kept because the live reference app reads it).
+* Bundle sync (2026-10-30): `databricks.yml` `sync.exclude` mirrors the §2 EXCLUDE list. `bundle sync --dry-run --full -t partner` uploads 189 files (was 283): 0 files under the 3 retired app folders, 0 ledger-retired notebooks, 0 `ops/`, 0 non-Markdown files containing `stephen.hage`.
+* Partner target sets `presets.trigger_pause_status: PAUSED`: the refresh, Lakebase sync and weekly scoring job schedules deploy PAUSED (seed job is manual). Unpause after the seed job has run and `copper_retirement_risk@champion` is registered.
+* Doc-only host mentions remain in `resources/DEMO_DEPLOYMENT_RUNBOOK.md` and `resources/MANUAL_RUNBOOK.md`.
 
 ## 5. Validation
 
