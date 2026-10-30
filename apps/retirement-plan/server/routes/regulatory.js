@@ -112,7 +112,7 @@ async function fetchKpis() {
     FROM ${FQ}.jurisdiction_requirements_cited WHERE is_synthetic = false`);
   const [s = {}] = await executeSQL(`
     SELECT COUNT(*) AS sources, COUNT_IF(lower(verification_status) LIKE 'verified\\_%') AS verified_sources
-    FROM ${FQ}.regulatory_source_register WHERE is_synthetic = false`);
+    FROM ${FQ}.regulatory_source_register WHERE is_synthetic = false AND coalesce(is_public_domain, true)`); // excludes IND-CGA-BP21 (ACC-DES-DEF-REG-ASK-DISCLOSURE)
   const [c = {}] = await executeSQL(`SELECT COUNT(*) AS real_chunks FROM ${FQ}.regulatory_doc_chunks ch WHERE is_synthetic = false AND NOT EXISTS (SELECT 1 FROM ${FQ}.regulatory_source_register x WHERE x.source_id = ch.source_id AND x.is_public_domain = false)`);
   const n = (v) => parseInt(v, 10) || 0;
   return { requirements: n(m.requirements), verified: n(m.verified), gaps: n(m.gaps), jurisdictions: n(m.jurisdictions),
