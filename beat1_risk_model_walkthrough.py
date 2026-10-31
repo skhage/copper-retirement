@@ -414,8 +414,31 @@ _nb_dir = os.path.dirname(dbutils.notebook.entry_point.getDbutils().notebook().g
 P["model_name"] = P["model_name"].strip() or f"{P['catalog']}.ml_models.copper_retirement_risk"
 P["experiment_path"] = P["experiment_path"].strip() or f"{_nb_dir}/experiments/copper_risk_classifier"
 TIERS = ["low", "medium", "high", "critical"]
-# Feature contract = input signature of the current champion (39 doubles)
-FEATURES = [i.name for i in get_model_info(f"models:/{P['model_name']}@champion").signature.inputs.inputs]
+# Feature contract = input signature of the current champion (39 doubles).
+# On a fresh workspace with no champion yet (bootstrap), fall back to the hardcoded
+# 39-feature contract from risk/MODEL_CARD.md §3.  (ACC-ML-PARTNER-CHAMPION-BOOTSTRAP)
+_BOOTSTRAP_FEATURES = [
+    "alarm_count", "critical_alarm_rate", "service_affecting_rate",
+    "sla_breach_count", "sla_breach_rate", "test_fail_rate",
+    "problem_count", "recurring_problem_rate",
+    "dispute_count", "escalated_dispute_count", "sla_breach_dispute_count", "months_since_last_dispute",
+    "complaint_count", "complaint_rate_per_month", "escalated_complaint_count",
+    "high_severity_complaint_count", "complaint_avg_resolution_hours",
+    "active_months", "avg_monthly_usage", "avg_monthly_revenue",
+    "device_age_days", "firmware_obsolescence_score", "days_since_last_patch",
+    "days_past_eol", "days_past_support_expiry",
+    "is_past_eol", "is_support_expired", "has_vulnerabilities",
+    "has_upgrade_blocked", "has_upgrade_ineligible",
+    "installed_software_count", "has_software_data",
+    "plant_pair_count", "avg_loop_length_ft", "avg_splice_count",
+    "avg_cable_vintage_year", "avg_db_loss", "moisture_rate",
+    "device_type_encoded",
+]
+try:
+    FEATURES = [i.name for i in get_model_info(f"models:/{P['model_name']}@champion").signature.inputs.inputs]
+except Exception as _e:
+    print(f"⚠ No @champion found ({_e}); using bootstrap feature contract from MODEL_CARD.md §3 (39 features)")
+    FEATURES = _BOOTSTRAP_FEATURES
 SLICES = [s.strip() for s in P["slice_cols"].split(",") if s.strip()]
 
 src = f"{P['catalog']}.{P['schema']}.{P['feature_table']}"
@@ -478,8 +501,16 @@ display(spark.createDataFrame(rows)) if rows else None
 if P["register"] == "true":
     assert n_red == 0, "Fairness gate failed (RED slice); not registering"
     mv = mlflow.register_model(f"runs:/{run.info.run_id}/model", P["model_name"])
-    mlflow.MlflowClient().set_registered_model_alias(P["model_name"], "challenger", mv.version)
-    print(f"Registered {P['model_name']} v{mv.version} as @challenger")
+    _c = mlflow.MlflowClient()
+    # Bootstrap: if no @champion exists yet (fresh workspace), register as champion
+    # directly so the scoring job can be unpaused.  (ACC-ML-PARTNER-CHAMPION-BOOTSTRAP)
+    try:
+        _c.get_model_version_by_alias(P["model_name"], "champion")
+        _alias = "challenger"  # existing champion; new model starts as challenger
+    except Exception:
+        _alias = "champion"   # first-ever model on this workspace
+    _c.set_registered_model_alias(P["model_name"], _alias, mv.version)
+    print(f"Registered {P['model_name']} v{mv.version} as @{_alias}")
 else:
     print("Dry run: register=false, nothing registered")
 

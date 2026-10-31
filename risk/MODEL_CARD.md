@@ -75,6 +75,18 @@ Gate metric: recall on high+critical (`recall_high_crit`) per slice. Flag rules:
 State, customer_segment and most service_type slices are too small to support fairness claims on the 2,672-device demo. Partners with real fleets should gate on state and service_type slices with n >= 30. The legacy `copper_retirement.v5_fairness_report` table is in-sample and v5-only. Do not use it.
 
 ## 6. Retraining on customer data (partner procedure)
+
+### 6.0 Day-1 bootstrap (fresh workspace, no model yet)
+On a partner workspace deployed from the bundle, there is no registered model. The weekly scoring job (`risk_scoring_job`) ships PAUSED and will fail without a `@champion` alias. Steps:
+1. Run `beat1_risk_model_walkthrough` Section 5 with widgets `register=true` and your `catalog`/`schema`.
+2. The template auto-detects that no `@champion` exists and registers the first trained version as `@champion` directly (not `@challenger`).
+3. Create the serving endpoint: `copper-retirement-risk`, CPU Small, scale-to-zero, served entity `<catalog>.ml_models.copper_retirement_risk` pointing to the version just registered.
+4. Unpause the scoring job: Jobs UI > `risk_scoring_job` > Resume (or `databricks jobs unpause ...`).
+5. Run the scoring job once (`databricks bundle run risk_scoring_job`) to populate `copper_risk_predictions`.
+
+The retrain template uses a hardcoded 39-feature contract (MODEL_CARD.md §3) when no champion signature is available. All subsequent retrains follow the normal challenger-then-promote flow below.
+
+### 6.1 Normal retrain (champion already exists)
 1. **Build the feature table** `${catalog}.${schema}.copper_risk_features` with `physical_device_id`, the 39 contract columns, label column `risk_tier` (`low/medium/high/critical`), and slice columns `device_type`, `region`, `customer_segment`.
 2. **Replace the label (mandatory).** The demo label is a binned composite of percentile ranks of `alarm_count, critical_alarm_rate, service_affecting_rate, sla_breach_count, test_fail_rate, problem_count, recurring_problem_rate`, all of which are also features. A 2026-10-24 smoke test with 19 of 39 features zero-filled still reached holdout AUC 0.989, confirming the model largely re-learns the label formula. Use a real forward-looking outcome instead, e.g. device failure / truck roll / service-affecting outage in the next 90-180 days, binned to tiers by business-agreed thresholds. Features must be computed strictly before the label window (point-in-time).
 3. **Run** `beat1_risk_model_walkthrough` Section 5 with widgets `catalog`, `schema`, `feature_table`, `model_name`, `experiment_path`, `register=true`. It validates the contract, trains LightGBM with v5 hyperparameters (re-tune with Optuna on real data), logs metrics + per-slice fairness to MLflow, and registers a new version with alias `@challenger`.
