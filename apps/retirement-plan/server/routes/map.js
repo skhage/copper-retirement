@@ -8,6 +8,8 @@
  *   ${CATALOG}.${SCHEMA}.gold_wire_center_scorecard         (103 wire centers, readiness + priority rank)
  *   ${CATALOG}.${SCHEMA}.copper_risk_predictions            (2,672 devices scored by champion V5 via the SERVING_ENDPOINT model endpoint)
  *   ${CATALOG}.tmf_enterprise.physical_device + ${CATALOG}.tmf_shared.geographic_address (device location)
+ *   ${CATALOG}.${SCHEMA}.copper_retirement_project_status / copper_customers_impacted / copper_ebitda_impact_achieved
+ *     (governed UC metric views; headline KPIs, same numbers as copper-map + PARTNER-PLAYBOOK §5; ACC-APP-MAP-TAB-CODE)
  * All user input goes through Statement API named parameters (no string interpolation of input).
  */
 import express from 'express';
@@ -51,6 +53,39 @@ async function fetchKpis() {
     serving_endpoint: SERVING_ENDPOINT,
   };
 }
+
+// ACC-APP-MAP-TAB-CODE: headline KPIs come from the governed metric views (parity with copper-map
+// ACC-APP-DEF-PLANB-KPI-MISMATCH). Verified 2026-10-31: 2,672 devices, 103 WCs, 383 (14.3%) critical,
+// 122 (4.6%) fiber ready, 288 customers / 304 services, $603.8M annual revenue at risk.
+async function fetchGovernedKpis() {
+  const ps = `${FQ}.copper_retirement_project_status`;
+  const ci = `${FQ}.copper_customers_impacted`;
+  const eb = `${FQ}.copper_ebitda_impact_achieved`;
+  const [r = {}] = await executeSQL(`
+    SELECT
+      (SELECT MEASURE(\`Total Copper Devices\`) FROM ${ps}) AS total_devices,
+      (SELECT MEASURE(\`Critical Risk Devices\`) FROM ${ps}) AS critical_devices,
+      (SELECT CAST(MEASURE(\`Critical Risk Pct\`) AS DOUBLE) FROM ${ps}) AS critical_pct,
+      (SELECT MEASURE(\`Fiber Ready Devices\`) FROM ${ps}) AS fiber_ready_devices,
+      (SELECT CAST(MEASURE(\`Fiber Ready Pct\`) AS DOUBLE) FROM ${ps}) AS fiber_ready_pct,
+      (SELECT MEASURE(\`Unique Wire Centers\`) FROM ${ps}) AS wire_centers,
+      (SELECT MEASURE(\`Customers Impacted\`) FROM ${ci}) AS customers,
+      (SELECT MEASURE(\`Services at Risk\`) FROM ${ci}) AS services,
+      (SELECT CAST(MEASURE(\`Total Annual Revenue at Risk\`) AS DOUBLE) FROM ${eb}) AS annual_revenue_at_risk`);
+  const pct = (v) => (num(v) == null ? null : Math.round(num(v) * 10) / 10);
+  return {
+    total_devices: int(r.total_devices), critical_devices: int(r.critical_devices), critical_pct: pct(r.critical_pct),
+    fiber_ready_devices: int(r.fiber_ready_devices), fiber_ready_pct: pct(r.fiber_ready_pct), wire_centers: int(r.wire_centers),
+    customers: int(r.customers), services: int(r.services), annual_revenue_at_risk: num(r.annual_revenue_at_risk),
+  };
+}
+
+// UC objects the app service principal must be able to read for this tab (feeds the H1a grant list).
+const UC_OBJECTS = [
+  `${FQ}.gold_retirement_executive_summary`, `${FQ}.gold_wire_center_scorecard`, `${FQ}.copper_risk_predictions`,
+  `${FQ}.copper_retirement_project_status`, `${FQ}.copper_customers_impacted`, `${FQ}.copper_ebitda_impact_achieved`,
+  `${CATALOG}.tmf_enterprise.physical_device`, `${CATALOG}.tmf_shared.geographic_address`,
+];
 
 async function fetchStates() {
   const rows = await executeSQL(`
@@ -111,7 +146,10 @@ const wrap = (fn) => (req, res) => fn(req, res).catch((err) => {
   res.status(err.status || 500).json({ error: err.message });
 });
 
-router.get('/kpis', wrap(async (_req, res) => res.json({ success: true, synthetic: true, data: await fetchKpis() })));
+router.get('/kpis', wrap(async (_req, res) => {
+  const [footprint, governed] = await Promise.all([fetchKpis(), fetchGovernedKpis()]);
+  res.json({ success: true, synthetic: true, data: { ...footprint, governed } });
+}));
 router.get('/states', wrap(async (_req, res) => {
   const data = await fetchStates();
   res.json({ success: true, synthetic: true, count: data.length, data });
@@ -124,6 +162,7 @@ router.get('/devices', wrap(async (req, res) => {
   const data = await fetchDevices(stateParam(req.query.state), tierParam(req.query.tier));
   res.json({ success: true, synthetic: true, count: data.length, data });
 }));
-router.get('/filters', (_req, res) => res.json({ success: true, data: { footprint: FOOTPRINT, tiers: TIERS } }));
+// No SQL here, so it still answers when the SP lacks grants (the client uses uc_objects in its 'Data access pending' state).
+router.get('/filters', (_req, res) => res.json({ success: true, data: { footprint: FOOTPRINT, tiers: TIERS, uc_objects: UC_OBJECTS } }));
 
 export default router;

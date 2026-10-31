@@ -1,7 +1,9 @@
 /**
  * tabs/map/MapTab.tsx — Map & Risk tab of the unified Copper Retirement Accelerator (ACC-APP-PORT-MAP).
  * Ported 2026-10-25 from the retired standalone copper-map Dash app. Answers: "Where is our copper, and which plant is most at risk?"
- *   KPIs        -> /api/map/kpis          (gold_retirement_executive_summary footprint + copper_risk_predictions)
+ *   KPIs        -> /api/map/kpis          (governed UC metric views for headline numbers, ACC-APP-MAP-TAB-CODE;
+ *                                          gold_retirement_executive_summary footprint + copper_risk_predictions)
+ *   Access      -> /api/map/filters       (uc_objects; no SQL, so it answers even when the app SP has no grants)
  *   Map         -> /api/map/devices       (2,672 model-scored devices) + /api/map/wire-centers (103 wire centers)
  *   Scorecards  -> /api/map/states, /api/map/wire-centers (retirement priority rank)
  * Dependency-free SVG map (no map library / tiles) so the partner build needs no extra npm packages or API keys.
@@ -10,13 +12,21 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { MapPin, Radio } from 'lucide-react';
 import { TabHeader, KpiCard, EmptyState, SyntheticBadge, getFootprintLabel } from '../../components/shared';
+import { ApiError, errorState } from '../../lib/planApi';
 
 interface Kpis {
   footprint_devices: number; wire_centers: number; customers_affected: number; fiber_ready_pct: number;
   footprint_critical: number; footprint_high: number; footprint_states: number; scored_devices: number;
   scored_critical: number; scored_high: number; model_version: string | null; footprint: string[];
   serving_endpoint: string | null; // ACC-APP-SERVING-ENDPOINT-VAR: from server env SERVING_ENDPOINT
+  governed: Governed;
 }
+/** Headline numbers from the governed UC metric views (same as copper-map and PARTNER-PLAYBOOK §5). */
+interface Governed {
+  total_devices: number; critical_devices: number; critical_pct: number | null; fiber_ready_devices: number;
+  fiber_ready_pct: number | null; wire_centers: number; customers: number; services: number; annual_revenue_at_risk: number | null;
+}
+interface Filters { footprint: string[]; tiers: string[]; uc_objects: string[] }
 interface Device { id: string; type: string; status: string; tier: Tier; confidence: number | null; state: string; lat: number | null; lon: number | null }
 interface WireCenter {
   id: string; name: string; clli: string; state: string; fiber_ready: boolean; puc_filing_required: boolean; puc_name: string;
@@ -64,20 +74,40 @@ const py = (lat: number) => PAD + ((BOUNDS.maxLat - lat) / (BOUNDS.maxLat - BOUN
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+  if (!res.ok) throw new ApiError(res.status, body.error || `HTTP ${res.status}`);
   return body.data as T;
 }
 
-function useApi<T>(url: string): { data: T | null; err: string | null } {
+/** No mock fallback: a failed load is either 'denied' (403, SP lacks UC grants) or a real error. */
+function useApi<T>(url: string): { data: T | null; err: string | null; denied: boolean } {
   const [data, setData] = useState<T | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [denied, setDenied] = useState(false);
   useEffect(() => {
     let live = true;
-    setData(null); setErr(null);
-    getJson<T>(url).then((d) => live && setData(d)).catch((e) => live && setErr((e as Error).message));
+    setData(null); setErr(null); setDenied(false);
+    getJson<T>(url).then((d) => live && setData(d)).catch((e) => {
+      if (!live) return;
+      setErr((e as Error).message);
+      setDenied(errorState(e) === 'denied');
+    });
     return () => { live = false; };
   }, [url]);
-  return { data, err };
+  return { data, err, denied };
+}
+
+const usd = (n: number | null | undefined) =>
+  n == null ? '—' : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${Math.round(n).toLocaleString('en-US')}`;
+
+/** Shown once at the top when the app service principal cannot read the tab's UC objects. */
+function DataAccessPending({ objects }: { objects: string[] }) {
+  return (
+    <EmptyState title="Data access pending">
+      <p>The app service principal cannot read the Map &amp; Risk tables yet, so no figures are shown (no sample data is substituted).</p>
+      <p className="mt-2">An admin must grant USE CATALOG, USE SCHEMA and SELECT on:</p>
+      <ul className="mt-1 list-disc pl-5 text-left font-mono text-xs">{objects.map((o) => <li key={o}>{o}</li>)}</ul>
+    </EmptyState>
+  );
 }
 
 function Legend() {
@@ -208,6 +238,7 @@ export function MapTab() {
   const [tier, setTier] = useState('ALL');
   const [sel, setSel] = useState<Selection>(null);
   const kpis = useApi<Kpis>('/api/map/kpis');
+  const filters = useApi<Filters>('/api/map/filters');
   const states = useApi<StateRow[]>('/api/map/states');
   const devices = useApi<Device[]>(`/api/map/devices?state=${encodeURIComponent(state)}&tier=${encodeURIComponent(tier)}`);
   const wcs = useApi<WireCenter[]>(`/api/map/wire-centers?state=${encodeURIComponent(state)}`);
@@ -217,6 +248,8 @@ export function MapTab() {
   useEffect(() => { if (state === 'ALL' && tier === 'ALL' && deviceStates.length) setAllStates(deviceStates); }, [state, tier, deviceStates]);
   useEffect(() => setSel(null), [state, tier]);
   const k = kpis.data;
+  const g = k?.governed;
+  const denied = kpis.denied || states.denied || devices.denied || wcs.denied;
   // ACC-DES-DEF-MAP-KEYBOARD (b): keyboard-reachable list of the highest-risk devices (critical first, then confidence).
   const topDevices = useMemo(() => [...(devices.data ?? [])]
     .sort((a, b) => TIERS.indexOf(a.tier) - TIERS.indexOf(b.tier) || (b.confidence ?? 0) - (a.confidence ?? 0))
@@ -235,14 +268,16 @@ export function MapTab() {
       />
 
       <p className="sr-only" role="status" aria-live="polite">{announce}</p>
-      {kpis.err && <EmptyState title="Could not load Map & Risk data"><p>{kpis.err}</p></EmptyState>}
+      {denied && <DataAccessPending objects={filters.data?.uc_objects ?? []} />}
+      {!denied && kpis.err && <EmptyState title="Could not load Map & Risk data"><p>{kpis.err}</p></EmptyState>}
+      {/* Headline KPIs = governed UC metric views (parity with copper-map / PLAYBOOK §5). '—' on failure, never a mock value. */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-4">
-        <KpiCard label="Copper devices (footprint)" value={k ? fmt(k.footprint_devices) : '…'} sub={k ? `${k.footprint_states} states: ${footprint.join(', ')}` : undefined} />
-        <KpiCard label="Wire centers" value={k ? fmt(k.wire_centers) : '…'} sub="scored for retirement readiness" />
-        <KpiCard label="Customers affected" value={k ? fmt(k.customers_affected) : '…'} sub="on copper in the footprint" />
-        <KpiCard label="Fiber ready" value={k ? `${k.fiber_ready_pct}%` : '…'} sub="of footprint copper devices" valueClass="text-success" />
-        <KpiCard label="Critical + high risk" value={k ? fmt(k.footprint_critical + k.footprint_high) : '…'} sub={k ? `${fmt(k.footprint_critical)} critical in footprint` : undefined} valueClass="text-danger" />
-        <KpiCard label="Devices scored by model" value={k ? fmt(k.scored_devices) : '…'} sub={k ? `${fmt(k.scored_critical)} critical · model v${k.model_version ?? '?'}` : undefined} />
+        <KpiCard label="Copper devices" busy={!g && !kpis.err} value={g ? fmt(g.total_devices) : kpis.err ? '—' : '…'} sub={g ? `${fmt(g.wire_centers)} wire centers` : undefined} />
+        <KpiCard label="Customers impacted" busy={!g && !kpis.err} value={g ? fmt(g.customers) : kpis.err ? '—' : '…'} sub={g ? `${fmt(g.services)} services at risk` : undefined} />
+        <KpiCard label="Fiber ready" busy={!g && !kpis.err} value={g?.fiber_ready_pct != null ? `${g.fiber_ready_pct}%` : kpis.err ? '—' : '…'} sub={g ? `${fmt(g.fiber_ready_devices)} copper devices` : undefined} valueClass="text-success" />
+        <KpiCard label="Critical risk" busy={!g && !kpis.err} value={g ? fmt(g.critical_devices) : kpis.err ? '—' : '…'} sub={g?.critical_pct != null ? `${g.critical_pct}% of copper devices` : undefined} valueClass="text-danger" />
+        <KpiCard label="Annual revenue at risk" busy={!g && !kpis.err} value={g ? usd(g.annual_revenue_at_risk) : kpis.err ? '—' : '…'} sub="synthetic demo data" />
+        <KpiCard label="Devices scored by model" busy={!k && !kpis.err} value={k ? fmt(k.scored_devices) : kpis.err ? '—' : '…'} sub={k ? `${fmt(k.scored_critical)} critical · model v${k.model_version ?? '?'} · ${k.footprint_states} footprint states: ${footprint.join(', ')}` : undefined} />
       </div>
 
       <div className="flex flex-wrap items-end gap-3 mb-3">
@@ -269,7 +304,7 @@ export function MapTab() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
         <div className="lg:col-span-2">
           {devices.err || wcs.err ? (
-            <EmptyState title="Could not load the risk map"><p>{devices.err || wcs.err}</p></EmptyState>
+            <EmptyState title={denied ? 'Data access pending' : 'Could not load the risk map'}><p>{denied ? 'Map data appears once the grants above are in place.' : devices.err || wcs.err}</p></EmptyState>
           ) : devices.data && wcs.data ? (
             <RiskMap devices={devices.data} wcs={wcs.data} selected={sel} onSelect={setSel} />
           ) : (
@@ -330,7 +365,7 @@ export function MapTab() {
               ))}
             </tbody>
           </table>
-          {states.err && <p className="text-xs text-danger p-3">{states.err}</p>}
+          {states.err && <p className="text-xs text-danger p-3">{states.denied ? 'Data access pending' : states.err}</p>}
         </div>
 
         <div className="overflow-x-auto rounded-lg border border-border bg-card xl:col-span-2">
