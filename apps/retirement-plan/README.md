@@ -8,12 +8,13 @@ so existing deploy wiring keeps working. The internal ops app `copper-task-board
 
 **Status: DEPLOYED BUT NOT DEMO-VERIFIED.**
 
-* The reference workspace runs deployment `01f1d422d72a18da86bfbf70bf80e893` (2026-10-30 05:29 UTC, state ACTIVE).
+* The reference workspace runs deployment `01f1d55108261754a6d3fb6662ec137b` (2026-10-31 17:32 UTC, SUCCEEDED, app RUNNING),
+  built from source commit `60e1bb2` on `main`. Verified by reading the deployed snapshot under the app SP's `src/<deployment_id>`.
 * No one has watched a rendered end-to-end demo of the live app. Agent tokens get 401/SSO at the app URL.
 * Every route has been exercised from source with the server harness, as the developer identity. They
   return HTTP 200 with that identity, and HTTP 403 "Data access pending" when grants are missing.
 * The live app service principal (`d96a80a5-cf49-4947-b518-164cd950f872`) has **no UC grants**. Checked
-  2026-10-30 via effective-permissions: only `account users` READ_METADATA is inherited. Until those
+  2026-10-31 via effective-permissions: only `account users` READ_METADATA is inherited. Until those
   grants exist, the deployed tabs show their error state, not data.
 
 ### 1. Every tab depends on the app SP grants (PARTNER-PLAYBOOK §5b-2, runbook step R1)
@@ -29,7 +30,7 @@ After deploying, the partner must grant the app's service principal:
 
 | Tab | Route prefix | Reads | Without grants |
 |---|---|---|---|
-| Map & Risk (default) | `/api/map/*` | `copper_risk_predictions`, `gold_wire_center_scorecard`, `gold_retirement_executive_summary` | Error state ("Data access pending"), no map points |
+| Map & Risk (default) | `/api/map/*` | `copper_risk_predictions`, `gold_wire_center_scorecard`, `gold_retirement_executive_summary` | Error state ("Data access pending", shipped since 99d286b; live in deploy 01f1d551), no map points. With grants, KPI strip shows model version + scoring date, and the "Critical risk" card is labeled rule-based |
 | Plan | `/api/plan/*` | `gold_wave_schedule`, `silver_budget_allocation`, `retirement_milestones`, `jurisdiction_requirements_cited` | KPI cards and checklist show an error state. Mock fallback was removed (`USE_MOCK_DATA = false`) |
 | Dig Triage | `/api/triage/*` | `DIG_811_TABLE`, `silver_dig_incident_enriched`, functions `incident_lookup` / `proximity_search` / `reroute_suggest` | KPIs show the `denied` state ("Data access pending"), and the incident table is empty |
 | Regulatory | `/api/regulatory/*` | `regulatory_doc_chunks`, `regulatory_source_register`, `jurisdiction_requirements_cited`, `LLM_ENDPOINT` (ai_query) | `/ask` and the matrix return 403 |
