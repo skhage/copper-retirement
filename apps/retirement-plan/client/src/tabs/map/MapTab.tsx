@@ -17,7 +17,7 @@ import { ApiError, errorState } from '../../lib/planApi';
 interface Kpis {
   footprint_devices: number; wire_centers: number; customers_affected: number; fiber_ready_pct: number;
   footprint_critical: number; footprint_high: number; footprint_states: number; scored_devices: number;
-  scored_critical: number; scored_high: number; model_version: string | null; footprint: string[];
+  scored_critical: number; scored_high: number; model_version: string | null; scored_date: string | null; footprint: string[];
   serving_endpoint: string | null; // ACC-APP-SERVING-ENDPOINT-VAR: from server env SERVING_ENDPOINT
   governed: Governed;
 }
@@ -180,7 +180,7 @@ function RiskMap({ devices, wcs, selected, onSelect }: { devices: Device[]; wcs:
   );
 }
 
-function DetailPanel({ sel, servingEndpoint }: { sel: Selection; servingEndpoint?: string | null }) {
+function DetailPanel({ sel, modelVersion, scoredDate }: { sel: Selection; modelVersion?: string | null; scoredDate?: string | null }) {
   if (!sel) {
     return (
       <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
@@ -205,7 +205,7 @@ function DetailPanel({ sel, servingEndpoint }: { sel: Selection; servingEndpoint
           {row('State', d.state)}
           {row('Location', d.lat != null && d.lon != null ? `${d.lat.toFixed(2)}, ${d.lon.toFixed(2)}` : '—')}
         </dl>
-        <p className="text-xs text-muted-foreground mt-2">Scored by the champion risk model{servingEndpoint ? <> served on <code>{servingEndpoint}</code></> : null}.</p>
+        <p className="text-xs text-muted-foreground mt-2">Batch prediction from risk model v{modelVersion ?? '?'}, scored {scoredDate ?? 'date unknown'} (synthetic plant data).</p>
       </div>
     );
   }
@@ -275,9 +275,9 @@ export function MapTab() {
         <KpiCard label="Copper devices" busy={!g && !kpis.err} value={g ? fmt(g.total_devices) : kpis.err ? '—' : '…'} sub={g ? `${fmt(g.wire_centers)} wire centers` : undefined} />
         <KpiCard label="Customers impacted" busy={!g && !kpis.err} value={g ? fmt(g.customers) : kpis.err ? '—' : '…'} sub={g ? `${fmt(g.services)} services at risk` : undefined} />
         <KpiCard label="Fiber ready" busy={!g && !kpis.err} value={g?.fiber_ready_pct != null ? `${g.fiber_ready_pct}%` : kpis.err ? '—' : '…'} sub={g ? `${fmt(g.fiber_ready_devices)} copper devices` : undefined} valueClass="text-success" />
-        <KpiCard label="Critical risk" busy={!g && !kpis.err} value={g ? fmt(g.critical_devices) : kpis.err ? '—' : '…'} sub={g?.critical_pct != null ? `${g.critical_pct}% of copper devices` : undefined} valueClass="text-danger" />
+        <KpiCard label="Critical risk" busy={!g && !kpis.err} value={g ? fmt(g.critical_devices) : kpis.err ? '—' : '…'} sub={g?.critical_pct != null ? `${g.critical_pct}% of copper devices · rule-based tier, not model` : undefined} valueClass="text-danger" />
         <KpiCard label="Annual revenue at risk" busy={!g && !kpis.err} value={g ? usd(g.annual_revenue_at_risk) : kpis.err ? '—' : '…'} sub="synthetic demo data" />
-        <KpiCard label="Devices scored by model" busy={!k && !kpis.err} value={k ? fmt(k.scored_devices) : kpis.err ? '—' : '…'} sub={k ? `${fmt(k.scored_critical)} critical · model v${k.model_version ?? '?'} · ${k.footprint_states} footprint states: ${footprint.join(', ')}` : undefined} />
+        <KpiCard label="Devices scored by model" busy={!k && !kpis.err} value={k ? fmt(k.scored_devices) : kpis.err ? '—' : '…'} sub={k ? `${fmt(k.scored_critical)} critical · model v${k.model_version ?? '?'}, scored ${k.scored_date ?? '?'} · ${k.footprint_states} footprint states: ${footprint.join(', ')}` : undefined} />
       </div>
 
       <div className="flex flex-wrap items-end gap-3 mb-3">
@@ -311,7 +311,7 @@ export function MapTab() {
             <div className="rounded-lg border border-border bg-card p-8 text-sm text-muted-foreground">Loading risk map…</div>
           )}
         </div>
-        <DetailPanel sel={sel} servingEndpoint={k?.serving_endpoint} />
+        <DetailPanel sel={sel} modelVersion={k?.model_version} scoredDate={k?.scored_date} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
@@ -397,8 +397,11 @@ export function MapTab() {
       </div>
 
       <p className="text-xs text-muted-foreground mt-3">
-        Network, device and customer records are synthetic demo data (tables labeled SYNTHETIC in Unity Catalog). Device risk tiers are predictions from the
-        registered champion model; wire-center readiness comes from <code>gold_wire_center_scorecard</code>.
+        Network, device and customer records are synthetic demo data (tables labeled SYNTHETIC in Unity Catalog). Map device tiers are batch predictions from
+        risk model v{k?.model_version ?? '?'}, scored {k?.scored_date ?? '?'}, read from <code>copper_risk_predictions</code>; they refresh only when the batch scoring
+        job is re-run, so a newer model registered as champion is not reflected until then. The &quot;Critical risk&quot; headline is the rule-based tier in the
+        <code>copper_retirement_project_status</code> metric view (critical alarm rate &gt; 30% or SLA breach rate &gt; 20%), so it differs from the model&apos;s critical count.
+        Wire-center readiness comes from <code>gold_wire_center_scorecard</code>.
       </p>
     </section>
   );

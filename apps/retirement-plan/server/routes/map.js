@@ -6,7 +6,7 @@
  * Data (reused, nothing new created; all SYNTHETIC and labeled in the UI):
  *   ${CATALOG}.${SCHEMA}.gold_retirement_executive_summary  (6 footprint states, DEC-DSI-FOOTPRINT)
  *   ${CATALOG}.${SCHEMA}.gold_wire_center_scorecard         (103 wire centers, readiness + priority rank)
- *   ${CATALOG}.${SCHEMA}.copper_risk_predictions            (2,672 devices scored by champion V5 via the SERVING_ENDPOINT model endpoint)
+ *   ${CATALOG}.${SCHEMA}.copper_risk_predictions            (2,672 devices batch-scored; model_version + scored_date are returned by /api/map/kpis and shown on screen, COO-Q-20261031-0550-3)
  *   ${CATALOG}.tmf_enterprise.physical_device + ${CATALOG}.tmf_shared.geographic_address (device location)
  *   ${CATALOG}.${SCHEMA}.copper_retirement_project_status / copper_customers_impacted / copper_ebitda_impact_achieved
  *     (governed UC metric views; headline KPIs, same numbers as copper-map + PARTNER-PLAYBOOK §5; ACC-APP-MAP-TAB-CODE)
@@ -33,7 +33,7 @@ const int = (v) => (v == null || v === '' ? 0 : parseInt(v, 10) || 0);
 async function fetchKpis() {
   const [r = {}] = await executeSQL(`
     WITH es AS (SELECT * FROM ${FQ}.gold_retirement_executive_summary WHERE state_code IN ${FOOT_SQL}),
-         p  AS (SELECT predicted_risk_tier AS t, model_version FROM ${FQ}.copper_risk_predictions)
+         p  AS (SELECT predicted_risk_tier AS t, model_version, scored_at FROM ${FQ}.copper_risk_predictions)
     SELECT (SELECT SUM(total_copper_devices) FROM es) AS footprint_devices,
       (SELECT SUM(wire_center_count) FROM es) AS wire_centers,
       (SELECT SUM(total_affected_customers) FROM es) AS customers_affected,
@@ -44,12 +44,13 @@ async function fetchKpis() {
       (SELECT COUNT(*) FROM p) AS scored_devices,
       (SELECT COUNT(*) FROM p WHERE t = 'critical') AS scored_critical,
       (SELECT COUNT(*) FROM p WHERE t = 'high') AS scored_high,
-      (SELECT MAX(model_version) FROM p) AS model_version`);
+      (SELECT MAX(model_version) FROM p) AS model_version,
+      (SELECT CAST(TO_DATE(MAX(scored_at)) AS STRING) FROM p) AS scored_date`);
   return {
     footprint_devices: int(r.footprint_devices), wire_centers: int(r.wire_centers), customers_affected: int(r.customers_affected),
     fiber_ready_pct: num(r.fiber_ready_pct) ?? 0, footprint_critical: int(r.footprint_critical), footprint_high: int(r.footprint_high),
     footprint_states: int(r.footprint_states), scored_devices: int(r.scored_devices), scored_critical: int(r.scored_critical),
-    scored_high: int(r.scored_high), model_version: r.model_version || null, footprint: FOOTPRINT,
+    scored_high: int(r.scored_high), model_version: r.model_version || null, scored_date: r.scored_date || null, footprint: FOOTPRINT,
     serving_endpoint: SERVING_ENDPOINT,
   };
 }
