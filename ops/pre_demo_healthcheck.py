@@ -18,7 +18,10 @@ Outputs GREEN / YELLOW / RED per component:
   2. Endpoints   — Serving endpoints are READY
   3. Pipeline    — DLP pipeline last successful run < 48h
   4. Lakebase    — Task-board tables are accessible
-  5. VectorSearch— Regulatory index is ONLINE with rows
+  5. VectorSearch— Regulatory index is ONLINE with rows (optional)
+  6-9. MV freshness, inference table, Lakebase sync, citation invariant
+  10. Release numbers — live PARTNER-PLAYBOOK §0/§2e/§5b-2 figures as a markdown table
+      (env: COPPER_APP_SP_ID, COPPER_RESTRICTED_SOURCE_IDS, COPPER_LEGACY_APPS)
 
 Author: @devops | Created: 2026-09-21
 """
@@ -570,6 +573,119 @@ def check_citation_invariant(w: WorkspaceClient) -> Status:
 
 
 # ===================================================================
+# 10. RELEASE NUMBERS (ACC-DE-HEALTHCHECK-RELEASE-NUMBERS)
+#     Live, SQL-generated figures for PARTNER-PLAYBOOK §0 / §2e / §5b-2.
+#     Informational: never changes overall status unless queries error (YELLOW).
+#     Prints a markdown table @pm can paste instead of hand-typing numbers.
+# ===================================================================
+APP_SP_ID = os.environ.get("COPPER_APP_SP_ID", "d96a80a5-cf49-4947-b518-164cd950f872")
+# Apps counted for the 2-app gate: core + support + retired legacy apps still deployed
+PROJECT_APPS = CORE_APPS + SUPPORT_APPS + _env_list(
+    "COPPER_LEGACY_APPS", "copper-map,dig-triage,regulatory-assistant,commodity-dashboard,lakelink-ra-review")
+RESTRICTED_SOURCE_IDS = [x.strip() for x in os.environ.get("COPPER_RESTRICTED_SOURCE_IDS", "IND-CGA-BP21").split(",") if x.strip()]
+
+
+def release_numbers(w: WorkspaceClient) -> list:
+    """Return [(section, metric, value)] from live queries."""
+    from pyspark.sql import SparkSession
+    spark = SparkSession.builder.getOrCreate()
+    out = []
+    restricted = ", ".join("'" + s.replace("'", "''") + "'" for s in RESTRICTED_SOURCE_IDS) or "''"
+
+    def one(sql):
+        return spark.sql(sql).collect()[0]
+
+    def add(section, metric, fn):
+        try:
+            out.append((section, metric, fn()))
+        except Exception as exc:
+            out.append((section, metric, f"ERROR: {str(exc)[:120]}"))
+
+    # §0 / §2e: regulatory corpus
+    def _chunks():
+        r = one(
+            f"SELECT count(*) total, "
+            f"count(*) FILTER (WHERE NOT coalesce(is_synthetic,false) AND coalesce(source_id,'') NOT IN ({restricted})) public_real, "
+            f"count(*) FILTER (WHERE coalesce(source_id,'') IN ({restricted})) restricted_cga, "
+            f"count(*) FILTER (WHERE coalesce(is_synthetic,false)) synthetic, "
+            f"count(DISTINCT source_id) FILTER (WHERE NOT coalesce(is_synthetic,false) AND coalesce(source_id,'') NOT IN ({restricted})) public_sources "
+            f"FROM {FQ}.regulatory_doc_chunks")
+        return r
+    try:
+        c = _chunks()
+        out += [("§0/§2e", "regulatory_doc_chunks total", c.total),
+                ("§0/§2e", "  real public chunks", c.public_real),
+                ("§0/§2e", "  real public source_ids", c.public_sources),
+                ("§0/§2e", "  restricted (CGA) chunks", c.restricted_cga),
+                ("§0/§2e", "  synthetic chunks", c.synthetic),
+                ("§0/§2e", "R2 delete-predicate rows (restricted OR synthetic)", c.restricted_cga + c.synthetic),
+                ("§0/§2e", "  chunks left after R2 delete", c.total - c.restricted_cga - c.synthetic)]
+    except Exception as exc:
+        out.append(("§0/§2e", "regulatory_doc_chunks", f"ERROR: {str(exc)[:120]}"))
+
+    # §2e: cited jurisdiction matrix
+    add("§2e", "jurisdiction_requirements_cited rows",
+        lambda: one(f"SELECT count(*) n FROM {FQ}.jurisdiction_requirements_cited").n)
+    add("§2e", "  verification_status split",
+        lambda: ", ".join(f"{r.s}={r.n}" for r in spark.sql(
+            f"SELECT coalesce(verification_status,'NULL') s, count(*) n FROM {FQ}.jurisdiction_requirements_cited GROUP BY 1 ORDER BY 2 DESC").collect()))
+    add("§2e", "  scrap-metal rows by status",
+        lambda: ", ".join(f"{r.s}={r.n}" for r in spark.sql(
+            f"SELECT coalesce(verification_status,'NULL') s, count(*) n FROM {FQ}.jurisdiction_requirements_cited "
+            f"WHERE requirement_type LIKE 'scrap%' GROUP BY 1 ORDER BY 2 DESC").collect()) or "0")
+
+    # §5b-2: field-cost evidence
+    add("§5b-2", "field_cost_benchmark_register status split",
+        lambda: ", ".join(f"{r.s}={r.n}" for r in spark.sql(
+            f"SELECT coalesce(verification_status,'NULL') s, count(*) n FROM {FQ}.field_cost_benchmark_register GROUP BY 1 ORDER BY 2 DESC").collect()))
+    add("§5b-2", "bottom_up_reference total cost_base_usd",
+        lambda: "${:,.0f}".format(one(
+            f"SELECT coalesce(sum(cost_base_usd),0) v FROM {FQ}.v_sow_demo_wave_cost_rollup WHERE scenario='bottom_up_reference'").v))
+    add("§5b-2", "  bottom_up_reference by evidence_tier",
+        lambda: ", ".join(f"{r.t}={r.n} rows/${r.v:,.0f}" for r in spark.sql(
+            f"SELECT evidence_tier t, count(*) n, coalesce(sum(cost_base_usd),0) v FROM {FQ}.v_sow_demo_wave_cost_rollup "
+            f"WHERE scenario='bottom_up_reference' GROUP BY 1 ORDER BY 3 DESC").collect()))
+    add("§5b-2", "roi_calculator_assumptions field_cost populated / NULL base",
+        lambda: (lambda r: f"{r.pop} / {r.nul}")(one(
+            f"SELECT count(*) FILTER (WHERE base_value IS NOT NULL) pop, count(*) FILTER (WHERE base_value IS NULL) nul "
+            f"FROM {FQ}.roi_calculator_assumptions WHERE param_group='field_cost'")))
+
+    # Release gates: SP grants + live app count
+    def _grants():
+        rows = spark.sql(f"SHOW GRANTS `{APP_SP_ID}` ON SCHEMA {FQ}").collect()
+        return f"{len(rows)} rows" + (": " + ", ".join(sorted({r[1] for r in rows})) if rows else "")
+    add("gate", f"SHOW GRANTS rows for app SP {APP_SP_ID[:8]} on {FQ}", _grants)
+
+    def _apps():
+        active = []
+        for name in PROJECT_APPS:
+            try:
+                a = w.apps.get(name)
+                if a.compute_status and str(a.compute_status.state).split(".")[-1] == "ACTIVE":
+                    active.append(name)
+            except Exception:
+                pass  # deleted / not deployed in this workspace
+        return f"{len(active)} (target 2): {', '.join(active) or 'none'}"
+    add("gate", "project apps with compute ACTIVE", _apps)
+    return out
+
+
+def check_release_numbers(w: WorkspaceClient) -> Status:
+    _banner("10/10  RELEASE NUMBERS (paste into PARTNER-PLAYBOOK)")
+    rows = release_numbers(w)
+    print("\n| Section | Metric | Value |\n| --- | --- | --- |")
+    for sec, metric, val in rows:
+        print(f"| {sec} | {metric.strip()} | {val} |")
+    print()
+    errors = [m for _, m, v in rows if isinstance(v, str) and v.startswith("ERROR")]
+    if errors:
+        _row("Release numbers", Status.YELLOW, f"{len(errors)} queries errored")
+        return Status.YELLOW
+    _row("Release numbers", Status.GREEN, f"{len(rows)} figures generated")
+    return Status.GREEN
+
+
+# ===================================================================
 # MAIN
 # ===================================================================
 def run_healthcheck():
@@ -589,6 +705,7 @@ def run_healthcheck():
     results["InferenceTable"] = check_inference_table(w)
     results["LakebaseSync"] = check_lakebase_sync(w)
     results["CitationInvariant"] = check_citation_invariant(w)
+    results["ReleaseNumbers"] = check_release_numbers(w)
 
     # Summary
     print("\n" + "=" * 60)

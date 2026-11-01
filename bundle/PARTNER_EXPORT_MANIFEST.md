@@ -110,7 +110,7 @@ How it was computed: `git ls-files -z` (284) minus the `databricks.yml` `sync.ex
 * `resources/uc-pages/` (9): `00_schema_overview.md`, `01_physical_plant.md`, `02_circuits_and_services.md`, `03_customer_impact.md`, `04_risk_and_ml.md`, `05_regulatory.md`, `06_financial_and_ebitda.md`, `07_operations.md`, `FULL_COLUMN_REFERENCE.md`
 * `risk/` (3): `MODEL_CARD.md`, `__init__.py`, `scoring.py`
 * `scripts/` (6): `batch_score_copper_risk.py`, `generate_synthetic_sources.py`, `load_regulatory_reference.py`, `provision_app_objects.py`, `run_thin_slice.py`, `sync_gold_to_lakebase.py`
-* `src/metric_views/` (4): `copper_customers_impacted.sql`, `copper_ebitda_impact_achieved.sql`, `copper_ebitda_impact_forecast.sql`, `copper_retirement_project_status.sql`
+* `src/metric_views/` (4): `copper_customers_impacted.sql`, `copper_ebitda_impact_achieved.sql`, `copper_ebitda_impact_forecast.sql`, `copper_retirement_project_status.sql` (**KNOWN LIMITATION at the Plan C candidate: all 4 are 0-byte placeholders and no job runs them, so a fresh deploy creates no metric views. Disclosed in PARTNER-PLAYBOOK §5b-2 v1.23; fix after the tag in ACC-DA-MV-DDL-EXPORT / ACC-DE-MV-DDL-PROVISION. ACC-QA-DEF-MV-SQL-EMPTY, 2026-11-01.**)
 * `tests/` (5): `__init__.py`, `regression_suite.py`, `test_risk_scoring.py`, `test_synthetic_assets.py`, `test_synthetic_sources.py`
 * `uc-pages/` (6): `circuits-services.md`, `customer-impact.md`, `financial-operations.md`, `physical-plant.md`, `regulatory-compliance.md`, `risk-ml.md`
 
