@@ -262,9 +262,10 @@ export async function fetchRegulatoryChecklist(wireCenterId) {
         WHEN j.requirement_type LIKE '811%' OR j.requirement_type IN ('excavation_safety', 'permit_authority') THEN 'public_notice'
         ELSE 'public_notice' END AS item_category,
       j.requirement_summary AS description,
-      (j.verification_status LIKE 'VERIFIED%') AS required,
+      -- ACC-APP-REG-BADGE-STATUS: required = verified_* or DERIVED_FROM_STATUTE; NO_STATE_HOLD_PERIOD is citable but NOT required (verified absence).
+      (upper(j.verification_status) LIKE 'VERIFIED%' OR upper(j.verification_status) = 'DERIVED_FROM_STATUTE') AS required,
       CASE WHEN j.value_unit = 'calendar_days' THEN CAST(j.value_numeric AS INT) END AS required_notice_days,
-      CASE WHEN j.verification_status LIKE 'VERIFIED%' AND j.value_unit = 'calendar_days'
+      CASE WHEN (upper(j.verification_status) LIKE 'VERIFIED%' OR upper(j.verification_status) = 'DERIVED_FROM_STATUTE') AND j.value_unit = 'calendar_days'
             AND j.requirement_type IN ('copper_retirement_notice', 'section_214_discontinuance', 'state_discontinuance_notice', 'e911_coordination')
            THEN CAST(date_sub(ws.wave_start_date, CAST(j.value_numeric AS INT)) AS STRING) END AS deadline_date,
       'pending' AS status,

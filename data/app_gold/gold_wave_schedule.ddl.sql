@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS {fq}.`gold_wave_schedule` (
   `estimated_crew_days` BIGINT COMMENT 'Estimated crew-days needed to decommission this wire center (5 days/device).',
   `earliest_eligible_wave` STRING COMMENT 'Earliest wave eligible after regulatory notice periods and fiber readiness.',
   `affected_customer_count` BIGINT COMMENT 'Count of distinct customers served by copper at this wire center. Drives migration planning.',
-  `annual_revenue_at_risk` DOUBLE COMMENT 'Annual recurring revenue (USD) from copper-dependent services at this wire center.',
+  `annual_revenue_at_risk` DOUBLE COMMENT 'SYNTHETIC. Annual recurring revenue (USD) at risk per wire center = SUM(estimated_annual_revenue) from gold_circuit_revenue_at_risk grouped by wire_center_id (fixed 2026-11-03, ACC-DE-DEF-WAVE-REV-FANOUT; previously the state total was broadcast to every WC). Circuits with NULL wire_center_id (~$23.08M) are unassigned to a wave and excluded.',
   `optimizer_version` STRING COMMENT 'Version of the LP/MIP optimizer that produced this schedule.',
   `solved_date` STRING COMMENT 'Date the optimizer last solved/updated this wire centers wave assignment.'
 ) USING DELTA

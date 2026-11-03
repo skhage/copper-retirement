@@ -7,6 +7,8 @@
  *   UC functions cdm_tmforum.copper_retirement.incident_lookup / proximity_search / reroute_suggest
  *   cdm_tmforum.copper_retirement.silver_dig_incident_enriched  (5,000 rows, SYNTHETIC)
  *   cdm_tmforum.provable_resilience_intelligence.stg_811_dig_ticket (3,000 rows, origin=INGESTED; directive 13)
+ *   cdm_tmforum.copper_retirement.gold_contractor_scorecard (10,000 rows, SYNTHETIC; Active Contractors tile,
+ *     ACC-APP-DEF-TRIAGE-CONTRACTORS-CONST replaces the old hard-coded 1254)
  */
 import express from 'express';
 import { executeSQL } from '../databricksSQL.js';
@@ -15,6 +17,10 @@ const CATALOG = process.env.CATALOG || 'cdm_tmforum';
 const SCHEMA = process.env.SCHEMA || 'copper_retirement';
 const FQ = `${CATALOG}.${SCHEMA}`;
 const T811 = process.env.DIG_811_TABLE || 'cdm_tmforum.provable_resilience_intelligence.stg_811_dig_ticket';
+// Same footprint list as map.js / commodity.js (DEC-DSI-FOOTPRINT); whitelisted 2-letter codes only, no injection.
+const FOOTPRINT = (process.env.FOOTPRINT_STATES || 'CO,MN,WA,OR,ID,AZ').split(',').map((s) => s.trim().toUpperCase()).filter((s) => /^[A-Z]{2}$/.test(s));
+// 'Available for dispatch' = dispatch_status preferred or eligible (column comment on gold_contractor_scorecard).
+const DISPATCHABLE = ['preferred', 'eligible'];
 
 const bool = (v) => v === true || v === 'true';
 const toId = (v) => {
@@ -89,7 +95,13 @@ async function fetchIncidentKPIs(asOfParam) {
   const asOfExpr = asOf
     ? `CAST('${asOf} 23:59:59' AS TIMESTAMP)`
     : `(SELECT MAX(COALESCE(incident_timestamp, CAST(incident_date AS TIMESTAMP))) FROM ${FQ}.silver_dig_incident_enriched)`;
-  const [r = {}] = await executeSQL(`
+  const fpList = FOOTPRINT.map((s) => `'${s}'`).join(',');
+  const contractorsP = executeSQL(`
+    SELECT COUNT(*) AS active_contractors
+    FROM ${FQ}.gold_contractor_scorecard
+    WHERE dispatch_status IN (${DISPATCHABLE.map((s) => `'${s}'`).join(',')})
+      ${fpList ? `AND upper(primary_state) IN (${fpList})` : ''}`);
+  const kpiP = executeSQL(`
     WITH p AS (SELECT ${asOfExpr} AS as_of),
     d AS (SELECT i.severity, i.reroute_required, i.resolution_time_hours, p.as_of,
                  COALESCE(i.incident_timestamp, CAST(i.incident_date AS TIMESTAMP)) AS ts
@@ -102,6 +114,8 @@ async function fetchIncidentKPIs(asOfParam) {
       COUNT_IF(ts > as_of - INTERVAL ${WINDOW_DAYS} DAYS AND ts <= as_of AND severity = 'critical') AS critical_incidents,
       COUNT_IF(ts > as_of - INTERVAL ${WINDOW_DAYS} DAYS AND ts <= as_of) AS window_incidents
     FROM d`);
+  // Promise.all so a failure in either query rejects once (no unhandled rejection), and 403 mapping in wrap() still applies.
+  const [[r = {}], [c = {}]] = await Promise.all([kpiP, contractorsP]);
   return {
     as_of: r.as_of || null,
     window_days: WINDOW_DAYS,
@@ -112,7 +126,9 @@ async function fetchIncidentKPIs(asOfParam) {
     incidents_this_week: parseInt(r.incidents_this_week, 10) || 0,
     reroutes_pending: parseInt(r.reroutes_pending, 10) || 0,
     window_incidents: parseInt(r.window_incidents, 10) || 0,
-    active_contractors: 1254,
+    active_contractors: parseInt(c.active_contractors, 10) || 0,
+    contractors_source: `${FQ}.gold_contractor_scorecard`,
+    contractors_footprint: FOOTPRINT,
     critical_incidents: parseInt(r.critical_incidents, 10) || 0,
   };
 }

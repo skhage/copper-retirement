@@ -7,8 +7,8 @@
  * Citation display per BRAND_GUIDE §0.2 (CitationLink). Colors from styles/tokens.css only.
  */
 import { useEffect, useState, type FormEvent } from 'react';
-import { Search, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { TabHeader, TabBar, KpiCard, EmptyState, CitationLink, isVerifiedStatus, panelId, tabId } from '../../components/shared';
+import { Search, AlertTriangle, SearchX } from 'lucide-react';
+import { TabHeader, TabBar, KpiCard, EmptyState, CitationLink, StatusBadge, getStatusBadge, isCitableStatus, panelId, tabId } from '../../components/shared';
 
 interface MatrixRow {
   requirement_key: string; jurisdiction_code: string; jurisdiction_name: string; jurisdiction_level: string;
@@ -23,7 +23,7 @@ interface SourceRow {
 }
 interface AskSource { n: number; title: string; citation: string; url: string; jurisdiction: string; verification_status?: string; last_verified?: string; excerpt: string }
 interface AskResult { answer: string | null; grounded: boolean; insufficient?: boolean; cited?: number[]; sources: AskSource[]; mode: string; llm_error?: string; jurisdiction_applied?: string; jurisdiction_source?: 'selector' | 'detected_in_question' | 'none' }
-interface Kpis { requirements: number; verified: number; gaps: number; jurisdictions: number; sources: number; verified_sources: number; real_chunks: number }
+interface Kpis { requirements: number; verified: number; gaps: number; jurisdictions: number; sources: number; verified_sources: number; real_chunks: number; citable?: number; derived?: number; no_state_rule?: number }
 
 const JURISDICTIONS = [
   { id: 'ALL', label: 'All (federal + 6 states)' }, { id: 'US', label: 'Federal only' },
@@ -48,18 +48,15 @@ async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
   return body.data as T;
 }
 
-/** A row is verified only if its status is verified_* AND it carries an official URL (charter citation rule). */
-const rowVerified = (r: { verification_status: string; official_url: string | null }) => isVerifiedStatus(r.verification_status) && !!r.official_url;
+/** A row is citable only if its status is citable (BRAND_GUIDE #status-badges) AND it carries an official URL (charter citation rule). */
+const rowVerified = (r: { verification_status: string; official_url: string | null }) => isCitableStatus(r.verification_status) && !!r.official_url;
 
 function StatusCell({ status, hasUrl = true }: { status: string; hasUrl?: boolean }) {
   if (!hasUrl) {
     return <span className="inline-flex items-center gap-1 text-xs text-warning"><AlertTriangle size={14} strokeWidth={1.5} aria-hidden="true" />Flagged gap (no official source)</span>;
   }
-  return isVerifiedStatus(status) ? (
-    <span className="inline-flex items-center gap-1 text-xs text-success"><CheckCircle2 size={14} strokeWidth={1.5} aria-hidden="true" />Verified</span>
-  ) : (
-    <span className="inline-flex items-center gap-1 text-xs text-warning"><AlertTriangle size={14} strokeWidth={1.5} aria-hidden="true" />Flagged gap ({status.replace(/_/g, ' ').toLowerCase()})</span>
-  );
+  // ACC-APP-REG-BADGE-STATUS: one badge per status (Verified / Derived / No state requirement / Unverified).
+  return <StatusBadge status={status} />;
 }
 
 function MatrixView({ jur }: { jur: string }) {
@@ -79,7 +76,7 @@ function MatrixView({ jur }: { jur: string }) {
   return (
     <div>
     <div className="flex flex-wrap items-center justify-between gap-2 mb-2 text-xs text-muted-foreground">
-      <span role="status">{rows.length} requirements · {rows.length - gapCount} verified · {gapCount} flagged gaps</span>
+      <span role="status">{rows.length} requirements · {rows.length - gapCount} citable · {gapCount} flagged gaps</span>
       <label className="inline-flex items-center gap-2">
         <input type="checkbox" checked={gapsOnly} onChange={(e) => setGapsOnly(e.target.checked)} className="accent-primary" />
         Show gaps only
@@ -103,7 +100,7 @@ function MatrixView({ jur }: { jur: string }) {
                   {r.requirement_summary}
                   {r.notes && <p className="text-xs text-muted-foreground mt-1">{r.notes}</p>}
                 </td>
-                <td className="p-2 whitespace-nowrap">{verified && r.value_numeric ? `${Number(r.value_numeric)} ${(r.value_unit || '').replace(/_/g, ' ')}` : '—'}</td>
+                <td className="p-2 whitespace-nowrap">{getStatusBadge(r.verification_status).kind === 'no_state_rule' && r.official_url ? 'None in cited sections' : verified && r.value_numeric ? `${Number(r.value_numeric)} ${(r.value_unit || '').replace(/_/g, ' ')}` : '—'}</td>
                 <td className="p-2 whitespace-nowrap"><StatusCell status={r.verification_status} hasUrl={!!r.official_url} /></td>
                 <td className="p-2 min-w-[14rem]"><CitationLink title={r.source_title || r.citation || r.source_id} url={r.official_url} citationUrl={r.citation_url} verificationStatus={r.verification_status} citation={r.citation} lastVerified={r.citation_verified_on || r.last_verified} /></td>
               </tr>
@@ -112,6 +109,66 @@ function MatrixView({ jur }: { jur: string }) {
         </tbody>
       </table>
     </div>
+    </div>
+  );
+}
+
+// ACC-APP-REG-INSUFFICIENT-UI: BRAND_GUIDE #ask-insufficient (binding). Strip the model's prefix token; never render it.
+const INSUFFICIENT_PREFIX = /^\s*INSUFFICIENT SOURCES:\s*/i;
+const jurName = (code?: string) => (!code || code === 'US' || code.startsWith('US-') ? 'Federal' : JURISDICTIONS.find((j) => j.id === code)?.label || code);
+
+function InsufficientSourceCard({ s }: { s: AskSource }) {
+  const [open, setOpen] = useState(false);
+  const exId = `reg-ins-ex-${s.n}`;
+  return (
+    <li className="rounded border border-border bg-card p-3 space-y-2">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <CitationLink title={s.title} url={s.url} verificationStatus={s.verification_status} citation={s.citation} lastVerified={s.last_verified} />
+        <span className="rounded border border-border bg-muted px-2 py-0.5 text-xs text-foreground">{jurName(s.jurisdiction)}</span>
+      </div>
+      {s.excerpt && (
+        <>
+          <blockquote id={exId} className={`border-l-2 border-border pl-3 text-sm text-muted-foreground whitespace-pre-wrap ${open ? '' : 'line-clamp-4'}`}>{s.excerpt}</blockquote>
+          <button type="button" aria-expanded={open} aria-controls={exId} onClick={() => setOpen((v) => !v)}
+            className="text-xs font-medium text-secondary underline min-h-[44px] md:min-h-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+            {open ? 'Show less' : 'Show more'}
+          </button>
+        </>
+      )}
+    </li>
+  );
+}
+
+function AskInsufficient({ res, question, onAsk }: { res: AskResult; question: string; onAsk: (text: string) => void }) {
+  const reason = (res.answer || '').replace(INSUFFICIENT_PREFIX, '').trim();
+  // Retrieval order, not filtered by `cited`; never a card without a URL.
+  const cards = res.sources.filter((s) => !!s.url).slice(0, 3);
+  const top = cards[0];
+  const needState = !res.jurisdiction_applied || res.jurisdiction_applied === 'ALL';
+  const chip = 'rounded-full border border-input bg-card px-3 py-1 text-xs text-secondary hover:bg-muted min-h-[44px] md:min-h-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
+  return (
+    <div role="status" data-state="insufficient" className="rounded-lg border border-border bg-card p-4 space-y-3" style={{ borderLeft: '4px solid rgb(var(--color-warning-text))' }}>
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <SearchX size={16} strokeWidth={1.5} aria-hidden="true" />
+        The official sources found don't fully answer this question.
+      </h3>
+      <p className="text-sm text-foreground whitespace-pre-wrap"><span className="font-medium">What's missing: </span>{reason || 'The retrieved passages cover related rules but not the specific point asked.'}</p>
+      {cards.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-secondary mb-1">Closest official sources</p>
+          <ol className="space-y-2">{cards.map((s) => <InsufficientSourceCard key={s.n} s={s} />)}</ol>
+        </div>
+      )}
+      <div>
+        <p className="text-xs font-semibold text-secondary mb-1">Try a narrower question</p>
+        <div className="flex flex-wrap gap-2">
+          {top?.citation && <button type="button" className={chip} onClick={() => onAsk(`What does ${top.citation} require?`)}>What does {top.citation} require?</button>}
+          {needState
+            ? <button type="button" className={chip} onClick={() => document.getElementById('reg-jur')?.focus()}>Pick a state above</button>
+            : top && <button type="button" className={chip} onClick={() => onAsk(`${question} (${jurName(top.jurisdiction)})`)}>{question} ({jurName(top.jurisdiction)})</button>}
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">Answers come only from official text. When the text is silent, we show the closest sources instead of guessing. Not legal advice.</p>
     </div>
   );
 }
@@ -151,14 +208,24 @@ function AskView({ jur }: { jur: string }) {
         ))}
       </div>
       {err && <EmptyState title="The question could not be answered"><p>{err}</p></EmptyState>}
-      {res && (
+      {res && res.insufficient && (
+        <div aria-live="polite" className="space-y-2">
+          {res.jurisdiction_applied && res.jurisdiction_applied !== 'ALL' && (
+            <p className="text-xs text-muted-foreground">
+              Sources limited to {res.jurisdiction_applied} + federal{res.jurisdiction_source === 'detected_in_question' ? ' (state detected in your question)' : ''}.
+            </p>
+          )}
+          <AskInsufficient res={res} question={q} onAsk={(t) => submit(undefined, t)} />
+        </div>
+      )}
+      {res && !res.insufficient && (
         <div className="rounded-lg border border-border bg-card p-4 space-y-3" aria-live="polite">
           {res.jurisdiction_applied && res.jurisdiction_applied !== 'ALL' && (
             <p className="text-xs text-muted-foreground">
               Sources limited to {res.jurisdiction_applied} + federal{res.jurisdiction_source === 'detected_in_question' ? ' (state detected in your question)' : ''}.
             </p>
           )}
-          {res.answer && <p className={`text-sm whitespace-pre-wrap ${res.insufficient ? 'text-warning' : 'text-foreground'}`}>{res.answer}</p>}
+          {res.answer && <p className="text-sm whitespace-pre-wrap text-foreground">{res.answer}</p>}
           {res.llm_error && <p className="text-xs text-warning">{res.llm_error}</p>}
           {chips.length > 0 && (
             <div>
@@ -221,15 +288,15 @@ export function RegulatoryTab() {
       <TabHeader title="Regulatory" question="Are we clear on notice, 811 and permit rules in every jurisdiction?"
         badges={<span className="rounded border border-border bg-card px-2 py-0.5 text-xs font-medium text-success">REAL OFFICIAL SOURCES</span>} />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <KpiCard label="Requirements verified" value={kpis ? `${kpis.verified} / ${kpis.requirements}` : '—'} sub={kpis ? `${kpis.jurisdictions} jurisdictions` : undefined} valueClass="text-success" />
-        <KpiCard label="Flagged gaps" value={kpis ? kpis.gaps : '—'} sub="Unverified, conflict, not found or state gap" valueClass="text-warning" />
+        <KpiCard label="Requirements citable" value={kpis ? `${kpis.citable ?? kpis.verified} / ${kpis.requirements}` : '—'} sub={kpis ? `${kpis.verified} verified · ${kpis.derived ?? 0} derived · ${kpis.no_state_rule ?? 0} no state rule · ${kpis.jurisdictions} jurisdictions` : undefined} valueClass="text-success" />
+        <KpiCard label="Flagged gaps" value={kpis ? kpis.gaps : '—'} sub="Unverified or no official source" valueClass="text-warning" />
         <KpiCard label="Official sources verified" value={kpis ? `${kpis.verified_sources} / ${kpis.sources}` : '—'} sub="FCC, eCFR, OSHA, PHMSA, EPA, states" />
         <KpiCard label="Parsed official text chunks" value={kpis ? kpis.real_chunks.toLocaleString() : '—'} sub="Synthetic text excluded" />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <TabBar tabs={SUBS} activeId={sub} onChange={setSub} idPrefix="reg" ariaLabel="Regulatory views" />
         <label className="text-xs text-muted-foreground flex items-center gap-2">Jurisdiction
-          <select value={jur} onChange={(e) => setJur(e.target.value)} className="rounded border border-input bg-card px-2 py-1 text-sm text-foreground">
+          <select id="reg-jur" value={jur} onChange={(e) => setJur(e.target.value)} className="rounded border border-input bg-card px-2 py-1 text-sm text-foreground">
             {JURISDICTIONS.map((j) => <option key={j.id} value={j.id}>{j.label}</option>)}
           </select>
         </label>

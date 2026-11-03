@@ -215,9 +215,9 @@ export function CommodityTab() {
           sub={forecast.data ? (forecast.data.synthetic ? 'SYNTHETIC forecaster output' : `model ${forecast.data.model_version ?? ''}`) : undefined} />
         <KpiCard label="Copper in place" busy={!value.data && !value.err} value={value.data ? `${fmtInt(value.data.totals.copper_lbs)} lb` : value.err ? '—' : '…'} sub={value.data ? `${value.data.totals.wire_centers} wire centers (synthetic plant)` : value.err ? 'Data access pending' : undefined} />
         <KpiCard label="Gross salvage value" busy={!roi && !value.err && !assumptions.err} value={roi ? fmtSigned(roi.gross) : value.err || assumptions.err ? '—' : '…'}
-          sub={roi ? `net margin ${roi.marginPerLb < 0 ? '-' : ''}$${Math.abs(roi.marginPerLb).toFixed(2)}/lb after salvage cost (per unit)` : 'at selected ROI inputs'} valueClass={roi && roi.gross < 0 ? 'text-danger' : 'text-success'} />
-        <KpiCard label={'Annual O&M savings'} busy={!roi && !value.err && !assumptions.err} value={roi ? fmtSigned(roi.opex) : value.err || assumptions.err ? '—' : '…'} sub={value.data ? `${fmtInt(value.data.totals.working_lines)} working copper lines` : undefined} valueClass="text-success" />
-        <KpiCard label="Customers to migrate" busy={!value.data && !value.err} value={value.data ? fmtInt(value.data.totals.customers_impacted - value.data.totals.customers_migrated) : value.err ? '—' : '…'} sub={value.data ? `${fmtInt(value.data.totals.customers_migrated)} migrated so far` : undefined} />
+          sub={roi ? `synthetic plant volume; net margin ${roi.marginPerLb < 0 ? '-' : ''}$${Math.abs(roi.marginPerLb).toFixed(2)}/lb after salvage cost (per unit)` : 'synthetic plant volume at selected ROI inputs'} valueClass={roi && roi.gross < 0 ? 'text-danger' : 'text-success'} />
+        <KpiCard label={'Annual O&M savings'} busy={!roi && !value.err && !assumptions.err} value={roi ? fmtSigned(roi.opex) : value.err || assumptions.err ? '—' : '…'} sub={value.data ? `${fmtInt(value.data.totals.working_lines)} working copper lines (synthetic plant volume)` : undefined} valueClass="text-success" />
+        <KpiCard label="Customers to migrate" busy={!value.data && !value.err} value={value.data ? fmtInt(value.data.totals.customers_impacted - value.data.totals.customers_migrated) : value.err ? '—' : '…'} sub={value.data ? `${fmtInt(value.data.totals.customers_migrated)} migrated so far (synthetic plan data)` : undefined} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-3 mb-4">
@@ -234,7 +234,7 @@ export function CommodityTab() {
           </Card>
         </div>
         <div className="xl:col-span-2">
-          <Card title="ROI calculator" badges={<span className="text-xs text-muted-foreground">low / base / high</span>}>
+          <Card title="ROI calculator" badges={<><span className="text-xs text-muted-foreground">low / base / high</span><SyntheticBadge label="MIXED: SYNTHETIC PLANT + PARTNER INPUTS" /></>}>
             {assumptions.err ? <EmptyState title="Could not load ROI assumptions"><p>{assumptions.err}</p></EmptyState> : !assumptions.data ? <p className="text-sm text-muted-foreground">Loading assumptions…</p> : (
               <>
                 <ul className="space-y-3">
@@ -260,8 +260,8 @@ export function CommodityTab() {
                     <dt className="text-muted-foreground">Net salvage margin (per unit only)</dt><dd className="text-right">{`${roi.marginPerLb < 0 ? '-' : ''}$${Math.abs(roi.marginPerLb).toFixed(2)}/lb`}</dd>
                     <dt className="text-muted-foreground">One-time cost ex fiber build <SyntheticBadge /></dt><dd className="text-right">{fmtUsd(-roi.oneTime)}</dd>
                     <dt className="text-muted-foreground">Annual O&amp;M savings</dt><dd className="text-right">{fmtUsd(roi.opex)}</dd>
-                    <dt className="text-muted-foreground">5-year net value ex fiber</dt><dd className={`text-right font-semibold ${roi.fiveYear < 0 ? 'text-danger' : 'text-success'}`}>{fmtSigned(roi.fiveYear)}</dd>
-                    <dt className="text-muted-foreground">Payback ex fiber (months)</dt><dd className="text-right font-semibold">{roi.paybackMonths == null ? '—' : `${roi.paybackMonths.toFixed(1)} mo`}</dd>
+                    <dt className="text-muted-foreground">5-year net value ex fiber <SyntheticBadge label="MIXED" /></dt><dd className={`text-right font-semibold ${roi.fiveYear < 0 ? 'text-danger' : 'text-success'}`}>{fmtSigned(roi.fiveYear)}</dd>
+                    <dt className="text-muted-foreground">Payback ex fiber (months) <SyntheticBadge label="MIXED" /></dt><dd className="text-right font-semibold">{roi.paybackMonths == null ? '—' : `${roi.paybackMonths.toFixed(1)} mo`}</dd>
                   </dl>
                 )}
                 {roi && (

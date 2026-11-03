@@ -105,9 +105,13 @@ async function fetchSources() {
 async function fetchKpis() {
   const [m = {}] = await executeSQL(`
     SELECT COUNT(*) AS requirements,
-      -- verified = verified_* status AND an official URL; gaps = everything else (matches the matrix 'Flagged gap' cells)
-      COUNT_IF(upper(verification_status) LIKE 'VERIFIED\\_%' AND official_url IS NOT NULL) AS verified,
-      COUNT_IF(NOT (coalesce(upper(verification_status), '') LIKE 'VERIFIED\\_%' AND official_url IS NOT NULL)) AS gaps,
+      -- ACC-APP-REG-BADGE-STATUS (BRAND_GUIDE #status-badges): citable = verified_* OR DERIVED_FROM_STATUTE OR NO_STATE_HOLD_PERIOD, AND an official URL.
+      -- gaps = everything else (UNVERIFIED/unknown or no URL), matching the matrix 'Unverified' / 'Flagged gap' cells.
+      COUNT_IF(upper(trim(verification_status)) LIKE 'VERIFIED\\_%' AND official_url IS NOT NULL) AS verified,
+      COUNT_IF(upper(trim(verification_status)) = 'DERIVED_FROM_STATUTE' AND official_url IS NOT NULL) AS derived,
+      COUNT_IF(upper(trim(verification_status)) = 'NO_STATE_HOLD_PERIOD' AND official_url IS NOT NULL) AS no_state_rule,
+      COUNT_IF(official_url IS NOT NULL AND (upper(trim(verification_status)) LIKE 'VERIFIED\\_%' OR upper(trim(verification_status)) IN ('DERIVED_FROM_STATUTE', 'NO_STATE_HOLD_PERIOD'))) AS citable,
+      COUNT_IF(NOT (official_url IS NOT NULL AND (coalesce(upper(trim(verification_status)), '') LIKE 'VERIFIED\\_%' OR upper(trim(verification_status)) IN ('DERIVED_FROM_STATUTE', 'NO_STATE_HOLD_PERIOD')))) AS gaps,
       COUNT(DISTINCT jurisdiction_code) AS jurisdictions
     FROM ${FQ}.jurisdiction_requirements_cited WHERE is_synthetic = false`);
   const [s = {}] = await executeSQL(`
@@ -115,7 +119,7 @@ async function fetchKpis() {
     FROM ${FQ}.regulatory_source_register WHERE is_synthetic = false AND coalesce(is_public_domain, true)`); // excludes IND-CGA-BP21 (ACC-DES-DEF-REG-ASK-DISCLOSURE)
   const [c = {}] = await executeSQL(`SELECT COUNT(*) AS real_chunks FROM ${FQ}.regulatory_doc_chunks ch WHERE is_synthetic = false AND NOT EXISTS (SELECT 1 FROM ${FQ}.regulatory_source_register x WHERE x.source_id = ch.source_id AND x.is_public_domain = false)`);
   const n = (v) => parseInt(v, 10) || 0;
-  return { requirements: n(m.requirements), verified: n(m.verified), gaps: n(m.gaps), jurisdictions: n(m.jurisdictions),
+  return { requirements: n(m.requirements), verified: n(m.verified), derived: n(m.derived), no_state_rule: n(m.no_state_rule), citable: n(m.citable), gaps: n(m.gaps), jurisdictions: n(m.jurisdictions),
     sources: n(s.sources), verified_sources: n(s.verified_sources), real_chunks: n(c.real_chunks) };
 }
 

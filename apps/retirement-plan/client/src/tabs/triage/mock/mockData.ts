@@ -316,7 +316,7 @@ const MOCK_KPIS: TriageKPIs = {
   avg_resolution_hours: 4.7,        // avg of resolved incidents
   incidents_this_week: 8,           // mock: incidents in last 7 days
   reroutes_pending: 3,              // INC-200001, 200004, 200007
-  active_contractors: 1254,         // real: bp_agreement WHERE status='active'
+  active_contractors: 3959,         // live: gold_contractor_scorecard dispatch_status IN (preferred, eligible) AND footprint primary_state (synthetic)
   critical_incidents: 3,            // INC-200001, 200004, 200007
 };
 

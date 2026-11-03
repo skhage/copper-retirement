@@ -14,7 +14,7 @@ import type { LoadState } from '../lib/planApi';
 import { formatDate } from '../lib/formatters';
 import { CheckCircle2, Circle, AlertTriangle, Clock, FileText } from 'lucide-react';
 import type { RegulatoryItem } from '../lib/planApi';
-import { CitationLink, EmptyState, isVerifiedStatus } from './shared';
+import { CitationLink, EmptyState, StatusBadge, isCitableStatus } from './shared';
 import type { PlanFilters } from '../App';
 
 interface Props {
@@ -226,7 +226,10 @@ export function RegulatoryChecklist({ filters }: Props) {
                           {item.description && (
                             <p className="text-muted-foreground mt-0.5">{item.description}</p>
                           )}
-                          {item.verification_status && !isVerifiedStatus(item.verification_status) && (
+                          {item.verification_status && isCitableStatus(item.verification_status) && !/^verified_/i.test(item.verification_status.trim()) && (
+                            <span className="ml-0"><StatusBadge status={item.verification_status} /></span>
+                          )}
+                          {item.verification_status && !isCitableStatus(item.verification_status) && (
                             <span className="ll-badge-synthetic">Flagged gap - not a verified fact ({item.verification_status})</span>
                           )}
                           <div className="mt-0.5">
