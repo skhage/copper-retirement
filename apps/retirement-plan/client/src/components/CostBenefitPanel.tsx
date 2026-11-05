@@ -79,7 +79,7 @@ export function CostBenefitPanel({ wireCenter, onClose }: Props) {
           </p>
         </div>
         <div className="rounded border p-3">
-          <p className="text-xs text-muted-foreground">Revenue at Risk (MRR)</p>
+          <p className="text-xs text-muted-foreground">Wire-center revenue (MRR, wave plan)</p>
           <p className="text-lg font-bold text-warning">
             {formatCurrency(wc.revenue_at_risk_mrr)}
           </p>

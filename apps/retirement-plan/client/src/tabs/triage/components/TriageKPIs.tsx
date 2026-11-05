@@ -52,7 +52,8 @@ export function TriageKPIs() {
     { label: 'Avg Resolution', value: val((k) => `${k.avg_resolution_hours.toFixed(1)}h`), valueClass: 'text-warning', sub: sub(`last ${windowDays} days`) },
     { label: 'Last 7 Days', value: val((k) => formatCount(k.incidents_this_week)), valueClass: 'text-secondary', sub: sub('new incidents') },
     { label: 'Reroutes Required', value: val((k) => formatCount(k.reroutes_pending)), valueClass: 'text-muted-foreground', sub: sub(`last ${windowDays} days`) },
-    { label: 'Active Contractors', value: val((k) => formatCount(k.active_contractors)), valueClass: 'text-accent-strong', sub: sub('dispatch-eligible in footprint (synthetic)') },
+    // ACC-QA-R11-DIFF-REVIEW: null = contractors query degraded (non-403) -> '—', never 0.
+    { label: 'Active Contractors', value: val((k) => (k.active_contractors == null ? '—' : formatCount(k.active_contractors))), valueClass: 'text-accent-strong', sub: kpis && kpis.active_contractors == null ? 'Could not load contractor scorecard' : sub('dispatch-eligible in footprint (synthetic)') },
     { label: 'Critical', value: val((k) => formatCount(k.critical_incidents)), valueClass: 'text-primary-strong', sub: sub(`last ${windowDays} days`) },
   ];
 

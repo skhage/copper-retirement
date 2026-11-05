@@ -23,14 +23,20 @@ interface SourceRow {
 }
 interface AskSource { n: number; title: string; citation: string; url: string; jurisdiction: string; verification_status?: string; last_verified?: string; excerpt: string }
 interface AskResult { answer: string | null; grounded: boolean; insufficient?: boolean; cited?: number[]; sources: AskSource[]; mode: string; llm_error?: string; jurisdiction_applied?: string; jurisdiction_source?: 'selector' | 'detected_in_question' | 'none' }
-interface Kpis { requirements: number; verified: number; gaps: number; jurisdictions: number; sources: number; verified_sources: number; real_chunks: number; citable?: number; derived?: number; no_state_rule?: number }
+// null = that sub-query failed (non-403); server sets degraded:true. Render '—', never 0 (ACC-QA-R11-DIFF-REVIEW).
+type N = number | null;
+interface Kpis { requirements: N; verified: N; gaps: N; jurisdictions: N; sources: N; verified_sources: N; real_chunks: N; citable?: N; derived?: N; no_state_rule?: N; degraded?: boolean; degraded_sources?: string[] }
+const dash = (v: N | undefined) => (v == null ? '—' : v.toLocaleString());
 
 const JURISDICTIONS = [
   { id: 'ALL', label: 'All (federal + 6 states)' }, { id: 'US', label: 'Federal only' },
   { id: 'WA', label: 'Washington' }, { id: 'AZ', label: 'Arizona' }, { id: 'CO', label: 'Colorado' },
   { id: 'MN', label: 'Minnesota' }, { id: 'OR', label: 'Oregon' }, { id: 'ID', label: 'Idaho' },
 ];
-const SUBS = [{ id: 'matrix', label: 'Jurisdiction matrix' }, { id: 'ask', label: 'Ask the sources' }, { id: 'sources', label: 'Source register' }] as const;
+// DEC-ASK-KILL-CRITERION-20261104 (B): Ask ships as Beta BY DEFAULT. Set to false only after ACC-ML-ASK-FINAL-GATE PASSES.
+const ASK_BETA = true;
+const ASK_BETA_NOTE = 'Answers may be incomplete; verify against the linked official source.';
+const SUBS = [{ id: 'matrix', label: 'Jurisdiction matrix' }, { id: 'ask', label: ASK_BETA ? 'Ask the sources (Beta)' : 'Ask the sources' }, { id: 'sources', label: 'Source register' }] as const;
 type Sub = (typeof SUBS)[number]['id'];
 const SUGGESTED = [
   'How much advance public notice is required before a copper retirement?',
@@ -190,6 +196,14 @@ function AskView({ jur }: { jur: string }) {
   const chips = res ? res.sources.filter((s) => !res.cited?.length || res.cited.includes(s.n)).slice(0, 5) : [];
   return (
     <div className="space-y-3">
+      {ASK_BETA && (
+        <div data-state="beta" className="flex flex-wrap items-center gap-2 rounded border border-border bg-card px-3 py-2">
+          <span className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-xs font-medium text-warning" title="Beta: did not yet pass the 80% grounded-answer gate">
+            <AlertTriangle size={14} strokeWidth={1.5} aria-hidden="true" />Beta
+          </span>
+          <span className="text-xs text-foreground">{ASK_BETA_NOTE}</span>
+        </div>
+      )}
       <p className="text-xs text-muted-foreground">
         Answers are generated only from real official documents (FCC, eCFR, OSHA, PHMSA, EPA, state statutes). Synthetic demo text is excluded.
         Retrieval: semantic + keyword search over parsed official text, filtered to the selected (or named) state plus federal rules. Not legal advice.
@@ -288,11 +302,16 @@ export function RegulatoryTab() {
       <TabHeader title="Regulatory" question="Are we clear on notice, 811 and permit rules in every jurisdiction?"
         badges={<span className="rounded border border-border bg-card px-2 py-0.5 text-xs font-medium text-success">REAL OFFICIAL SOURCES</span>} />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <KpiCard label="Requirements citable" value={kpis ? `${kpis.citable ?? kpis.verified} / ${kpis.requirements}` : '—'} sub={kpis ? `${kpis.verified} verified · ${kpis.derived ?? 0} derived · ${kpis.no_state_rule ?? 0} no state rule · ${kpis.jurisdictions} jurisdictions` : undefined} valueClass="text-success" />
-        <KpiCard label="Flagged gaps" value={kpis ? kpis.gaps : '—'} sub="Unverified or no official source" valueClass="text-warning" />
-        <KpiCard label="Official sources verified" value={kpis ? `${kpis.verified_sources} / ${kpis.sources}` : '—'} sub="FCC, eCFR, OSHA, PHMSA, EPA, states" />
-        <KpiCard label="Parsed official text chunks" value={kpis ? kpis.real_chunks.toLocaleString() : '—'} sub="Synthetic text excluded" />
+        <KpiCard label="Requirements citable" value={kpis && kpis.requirements != null ? `${dash(kpis.citable ?? kpis.verified)} / ${dash(kpis.requirements)}` : '—'} sub={kpis && kpis.requirements != null ? `${dash(kpis.verified)} verified · ${dash(kpis.derived ?? 0)} derived · ${dash(kpis.no_state_rule ?? 0)} no state rule · ${dash(kpis.jurisdictions)} jurisdictions` : kpis ? 'Could not load' : undefined} valueClass="text-success" />
+        <KpiCard label="Flagged gaps" value={kpis ? dash(kpis.gaps) : '—'} sub={kpis && kpis.gaps == null ? 'Could not load' : 'Unverified or no official source'} valueClass="text-warning" />
+        <KpiCard label="Official sources verified" value={kpis && kpis.sources != null ? `${dash(kpis.verified_sources)} / ${dash(kpis.sources)}` : '—'} sub={kpis && kpis.sources == null ? 'Could not load' : 'FCC, eCFR, OSHA, PHMSA, EPA, states'} />
+        <KpiCard label="Parsed official text chunks" value={kpis ? dash(kpis.real_chunks) : '—'} sub={kpis && kpis.real_chunks == null ? 'Could not load' : 'Synthetic text excluded'} />
       </div>
+      {kpis?.degraded && (
+        <p role="status" data-state="degraded" className="mb-3 rounded border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+          Some regulatory KPIs could not load ({(kpis.degraded_sources || []).join(', ')}); affected tiles show —.
+        </p>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <TabBar tabs={SUBS} activeId={sub} onChange={setSub} idPrefix="reg" ariaLabel="Regulatory views" />
         <label className="text-xs text-muted-foreground flex items-center gap-2">Jurisdiction

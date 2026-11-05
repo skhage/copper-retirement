@@ -225,7 +225,8 @@ export interface LiveTriageKPIs {
   incidents_this_week: number;
   reroutes_pending: number;
   window_incidents: number;
-  active_contractors: number;
+  active_contractors: number | null; // null = contractors query degraded (non-403); 403 throws ApiError
+  degraded?: boolean;
   critical_incidents: number;
 }
 

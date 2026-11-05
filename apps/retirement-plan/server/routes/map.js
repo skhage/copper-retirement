@@ -147,9 +147,18 @@ const wrap = (fn) => (req, res) => fn(req, res).catch((err) => {
   res.status(err.status || 500).json({ error: err.message });
 });
 
+// COO-Q-20261103-0650-2: degrade gracefully when metric views are missing (fresh partner deploy).
+// fetchGovernedKpis reads 3 UC metric views whose DDL may be 0-byte or absent. A failure there
+// must not take down the footprint KPIs (gold_retirement_executive_summary + copper_risk_predictions).
 router.get('/kpis', wrap(async (_req, res) => {
-  const [footprint, governed] = await Promise.all([fetchKpis(), fetchGovernedKpis()]);
-  res.json({ success: true, synthetic: true, data: { ...footprint, governed } });
+  const [footprint, governed] = await Promise.all([
+    fetchKpis(),
+    fetchGovernedKpis().catch((err) => {
+      console.warn('[accelerator:map] governed metric views unavailable (degraded):', err.message);
+      return null;
+    }),
+  ]);
+  res.json({ success: true, synthetic: true, degraded: governed === null, data: { ...footprint, governed } });
 }));
 router.get('/states', wrap(async (_req, res) => {
   const data = await fetchStates();

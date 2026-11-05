@@ -14,7 +14,7 @@ import type { LoadState } from '../lib/planApi';
 import { formatDate } from '../lib/formatters';
 import { CheckCircle2, Circle, AlertTriangle, Clock, FileText } from 'lucide-react';
 import type { RegulatoryItem } from '../lib/planApi';
-import { CitationLink, EmptyState, StatusBadge, isCitableStatus } from './shared';
+import { CitationLink, EmptyState, StatusBadge } from './shared';
 import type { PlanFilters } from '../App';
 
 interface Props {
@@ -226,11 +226,10 @@ export function RegulatoryChecklist({ filters }: Props) {
                           {item.description && (
                             <p className="text-muted-foreground mt-0.5">{item.description}</p>
                           )}
-                          {item.verification_status && isCitableStatus(item.verification_status) && !/^verified_/i.test(item.verification_status.trim()) && (
+                          {/* ACC-DES-R11-BRAND-DIFF residual: ONE status signal per row, no raw enum. StatusBadge covers
+                              Derived / No state requirement / Unverified (word + icon + tooltip); CitationLink chip is hidden. */}
+                          {item.verification_status && !/^verified_/i.test(item.verification_status.trim()) && (
                             <span className="ml-0"><StatusBadge status={item.verification_status} /></span>
-                          )}
-                          {item.verification_status && !isCitableStatus(item.verification_status) && (
-                            <span className="ll-badge-synthetic">Flagged gap - not a verified fact ({item.verification_status})</span>
                           )}
                           <div className="mt-0.5">
                             <CitationLink
@@ -240,6 +239,7 @@ export function RegulatoryChecklist({ filters }: Props) {
                               verificationStatus={item.verification_status}
                               citation={item.citation}
                               lastVerified={item.last_verified}
+                              hideStatusChip
                             />
                           </div>
                           <div className="flex gap-3 mt-0.5 text-muted-foreground">

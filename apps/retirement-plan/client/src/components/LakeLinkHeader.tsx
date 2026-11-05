@@ -5,7 +5,9 @@
  * Spec:
  *   - Left: brand wordmark (secondary, 600 weight, 16px) — partner rebrand via --brand-name in tokens.css ONLY
  *   - Left: App subtitle (h1) + tagline (muted-foreground)
- *   - Right: Data source badge (LIVE/MOCK + SYNTHETIC)
+ *   - Right: ONE data source badge (BRAND_GUIDE §0.3 #synthetic-banner, ACC-DES-DEF-SHELL-SYNTH-LABELS):
+ *       LIVE (all panels real) / SYNTHETIC (all synthetic) / MIXED (any synthetic) / MOCK (USE_MOCK_DATA only).
+ *       SYNTHETIC and MIXED use .ll-badge-synthetic; the word is always shown (never color-only).
  *   - Background: bg-background with border-border
  *
  * Colors come ONLY from tokens.css via Tailwind keys (ACC-APP-TOKENS-WIRE). No hex literals.
@@ -27,15 +29,22 @@ function cssStringVar(name: string, fallback: string): string {
 export const getBrandName = () => cssStringVar('--brand-name', 'Copper Retirement Accelerator');
 export const getFootprintLabel = () => cssStringVar('--brand-footprint-label', 'Service footprint');
 
+export type DataSource = 'LIVE' | 'SYNTHETIC' | 'MIXED' | 'MOCK';
+
+const BADGE: Record<DataSource, { text: string; className: string; title: string }> = {
+  LIVE: { text: 'LIVE', className: 'text-xs px-2.5 py-1 rounded font-medium text-secondary bg-accent/20', title: 'All panels read real data' },
+  SYNTHETIC: { text: 'SYNTHETIC', className: 'll-badge-synthetic', title: 'All panels show synthetic demo data' },
+  MIXED: { text: 'MIXED', className: 'll-badge-synthetic', title: 'Some panels show synthetic demo data; regulatory sources are real and linked' },
+  MOCK: { text: 'MOCK', className: 'text-xs px-2.5 py-1 rounded font-medium text-secondary bg-viz-4/20', title: 'Bundled mock data (USE_MOCK_DATA=true), not read from the workspace' },
+};
+
 export interface LakeLinkHeaderProps {
   /** App subtitle shown below wordmark */
   subtitle: string;
   /** Optional tagline below subtitle */
   tagline?: string;
-  /** Data source: 'LIVE' | 'MOCK'. Defaults to 'MOCK'. */
-  dataSource?: 'LIVE' | 'MOCK';
-  /** Whether to show the SYNTHETIC badge. Defaults true. */
-  showSynthetic?: boolean;
+  /** Data source shown in the single header badge. Defaults to 'MIXED'. */
+  dataSource?: DataSource;
   /** Optional right-side children (e.g. global filters) */
   children?: React.ReactNode;
 }
@@ -43,11 +52,10 @@ export interface LakeLinkHeaderProps {
 export function LakeLinkHeader({
   subtitle,
   tagline,
-  dataSource = 'MOCK',
-  showSynthetic = true,
+  dataSource = 'MIXED',
   children,
 }: LakeLinkHeaderProps) {
-  const badgeBg = dataSource === 'LIVE' ? 'bg-accent/20' : 'bg-viz-4/20';
+  const badge = BADGE[dataSource];
   const brandName = getBrandName();
   useEffect(() => { document.title = `Copper Retirement Accelerator — ${brandName}`; }, [brandName]);
 
@@ -63,10 +71,9 @@ export function LakeLinkHeader({
       {/* Right: children (filters etc.) + data source badge */}
       <div className="flex items-center gap-3">
         {children}
-        <span className={`text-xs px-2.5 py-1 rounded font-medium text-secondary ${badgeBg}`}>
-          {dataSource} DATA
+        <span className={badge.className} data-source={dataSource} title={badge.title} aria-label={`Data source: ${badge.text}. ${badge.title}`}>
+          {badge.text}
         </span>
-        {showSynthetic && <span className="ll-badge-synthetic">SYNTHETIC</span>}
       </div>
     </header>
   );

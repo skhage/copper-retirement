@@ -13,7 +13,10 @@ import type { LiveKPIs, LoadState } from '../lib/planApi';
 import { formatCount, formatCurrency, formatPercent } from '../lib/formatters';
 import { KpiCard, SyntheticBadge } from './shared';
 
-const LABELS = ['Wire Centers', 'Copper Devices', 'Avg Readiness', 'Crew-Days', 'Revenue at Risk', 'Customers Affected'];
+// BRAND_GUIDE §0.4 #kpi-scope-labels (binding, DEC-KPI-CANONICAL-20261102): Plan labels name the wave-plan scope
+// and never reuse the Map & Risk portfolio names, so no KPI name shows two different values across tabs.
+const LABELS = ['Wire centers scheduled', 'Copper devices in scheduled waves', 'Avg wave readiness', 'Planned crew-days', 'Scheduled-wave revenue', 'Customers in scheduled waves'];
+const HINT = 'Wave-plan scope: only wire centers in scheduled retirement waves. Map & Risk shows the full at-risk portfolio.';
 
 export function PlanKPIs() {
   const [liveKPIs, setLiveKPIs] = useState<LiveKPIs | null>(null);
@@ -39,39 +42,39 @@ export function PlanKPIs() {
   const cards = liveKPIs
     ? [
         {
-          label: 'Wire Centers',
+          label: LABELS[0],
           value: formatCount(liveKPIs.total_wire_centers),
-          sub: `${liveKPIs.total_waves} waves · ${liveKPIs.total_states} states`,
+          sub: `${liveKPIs.total_waves} waves · ${liveKPIs.total_states} states · synthetic plan data`,
           color: 'text-secondary',
         },
         {
-          label: 'Copper Devices',
+          label: LABELS[1],
           value: formatCount(liveKPIs.total_devices),
-          sub: `${formatCount(liveKPIs.total_critical_devices)} critical risk`,
+          sub: `${formatCount(liveKPIs.total_critical_devices)} critical risk · synthetic plan data`,
           color: 'text-primary-strong',
         },
         {
-          label: 'Avg Readiness',
+          label: LABELS[2],
           value: `${liveKPIs.avg_readiness}%`,
-          sub: `${liveKPIs.fiber_ready_count} fiber-ready`,
+          sub: `${liveKPIs.fiber_ready_count} fiber-ready · synthetic plan data`,
           color: 'text-accent-strong',
         },
         {
-          label: 'Crew-Days',
+          label: LABELS[3],
           value: formatCount(liveKPIs.total_crew_days),
-          sub: `${liveKPIs.first_wave} → ${liveKPIs.last_wave}`,
+          sub: `${liveKPIs.first_wave} → ${liveKPIs.last_wave} · synthetic plan data`,
           color: 'text-muted-foreground',
         },
         {
-          label: 'Revenue at Risk',
+          label: LABELS[4],
           value: formatCurrency(Number(liveKPIs.total_revenue_at_risk)),
-          sub: 'annual across all waves',
+          sub: 'annual · wave plan · synthetic',
           color: 'text-warning',
         },
         {
-          label: 'Customers Affected',
+          label: LABELS[5],
           value: formatCount(liveKPIs.total_customers),
-          sub: `${liveKPIs.puc_required_count} PUC filings required`,
+          sub: `${liveKPIs.puc_required_count} PUC filings required · synthetic plan data`,
           color: 'text-primary-strong',
         },
       ]
@@ -117,7 +120,7 @@ export function PlanKPIs() {
     : LABELS.map((label) => ({ label, value: busy ? '…' : '—', sub: failText(state), color: 'text-muted-foreground' }));
 
   const note =
-    state === 'live' ? 'Live from gold_wave_schedule (synthetic plan data).'
+    state === 'live' ? 'Wave-plan scope: wire centers in scheduled retirement waves (synthetic plan data). Map & Risk shows the full at-risk portfolio, so its totals are larger. Excludes footprint revenue on circuits not yet assigned to a wire center.'
     : state === 'mock' ? 'Mock data mode (USE_MOCK_DATA): values are illustrative, not from any table.'
     : state === 'denied' ? 'Data access pending: the app service principal lacks SELECT on the plan tables.'
     : state === 'error' ? 'Could not load live plan KPIs.'
@@ -131,7 +134,7 @@ export function PlanKPIs() {
       </p>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4" aria-busy={busy || undefined}>
         {cards.map((card) => (
-          <KpiCard key={card.label} label={card.label} value={card.value} sub={card.sub} valueClass={card.color} busy={busy} />
+          <KpiCard key={card.label} label={card.label} value={card.value} sub={card.sub} valueClass={card.color} busy={busy} hint={liveKPIs || !mockKPIs ? HINT : undefined} />
         ))}
       </div>
     </>

@@ -75,7 +75,7 @@ export interface TriageKPIs {
   avg_resolution_hours: number;
   incidents_this_week: number;
   reroutes_pending: number;
-  active_contractors: number;
+  active_contractors: number | null; // null = contractors query degraded (server degraded:true)
   critical_incidents: number;
 }
 

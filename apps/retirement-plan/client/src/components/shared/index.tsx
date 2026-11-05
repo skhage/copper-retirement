@@ -2,8 +2,8 @@
  * components/shared — shared building blocks for every tab of the unified accelerator app
  * (BRAND_GUIDE §0). Colors come only from styles/tokens.css via Tailwind keys.
  */
-import { Component, type ReactNode, type ErrorInfo } from 'react';
-import { ExternalLink, Inbox, CheckCircle2, Calculator, MinusCircle, AlertTriangle, type LucideIcon } from 'lucide-react';
+import { Component, useEffect, useId, useState, type ReactNode, type ErrorInfo } from 'react';
+import { ExternalLink, Inbox, CheckCircle2, Calculator, MinusCircle, AlertTriangle, Info, type LucideIcon } from 'lucide-react';
 
 export { LakeLinkHeader, LakeLinkHeader as BrandHeader, getBrandName, getFootprintLabel } from '../LakeLinkHeader';
 export { TabBar, tabId, panelId } from './TabBar';
@@ -15,13 +15,44 @@ export function SyntheticBadge({ label = 'SYNTHETIC' }: { label?: string }) {
 }
 
 /** One KPI card (label, value, sub). valueClass must be a text-safe token class. */
-export function KpiCard({ label, value, sub, valueClass = 'text-secondary', busy = false }: { label: string; value: ReactNode; sub?: ReactNode; valueClass?: string; busy?: boolean }) {
+export function KpiCard({ label, value, sub, valueClass = 'text-secondary', busy = false, hint }: { label: string; value: ReactNode; sub?: ReactNode; valueClass?: string; busy?: boolean; hint?: string }) {
   return (
     <div className="rounded-lg border border-border bg-card p-3 shadow-sm" aria-busy={busy || undefined}>
-      <p className="text-xs text-muted-foreground mb-1">{label}</p>
+      <div className="flex items-center gap-1 mb-1">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        {hint && <KpiHint label={label} hint={hint} />}
+      </div>
       <p className={`text-xl font-bold ${valueClass}`}>{value}</p>
       {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
     </div>
+  );
+}
+
+/**
+ * BRAND_GUIDE §0.4 one-line tooltip (WCAG 1.4.13): shows on hover AND focus, stays while hovered,
+ * Esc closes. Lucide Info 14px / 1.5px stroke in a 24px button (8px grid). No title attribute.
+ */
+function KpiHint({ label, hint }: { label: string; hint: string }) {
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+  return (
+    <span className="relative inline-flex" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <button type="button" aria-label={`About ${label}`} aria-describedby={id}
+        className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground"
+        onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}>
+        <Info size={14} strokeWidth={1.5} aria-hidden="true" />
+      </button>
+      <span id={id} role="tooltip" hidden={!open}
+        className="absolute left-0 top-full z-20 mt-1 w-64 rounded bg-secondary px-2 py-1 text-xs text-white shadow-sm">
+        {hint}
+      </span>
+    </span>
   );
 }
 
@@ -81,8 +112,10 @@ export function StatusBadge({ status }: { status?: string | null }) {
  * ACC-APP-JUR-CITATION-URL: optional `citationUrl` = section-level page containing the cited value. When set,
  * the title links there and the official source URL (`url`) is still shown as "Official source".
  */
-export function CitationLink({ title, url, verificationStatus, citation, lastVerified, citationUrl }: {
+export function CitationLink({ title, url, verificationStatus, citation, lastVerified, citationUrl, hideStatusChip }: {
   title: string; url?: string | null; verificationStatus?: string | null; citation?: string | null; lastVerified?: string | null; citationUrl?: string | null;
+  /** BRAND_GUIDE 'One status signal per row': set when the row already renders a StatusBadge. */
+  hideStatusChip?: boolean;
 }) {
   // ACC-DES-DEF-REG-MATRIX-HIDDEN-GAPS: no-URL state is distinct from UNVERIFIED-with-URL.
   if (!url) return <span className="ll-badge-synthetic">No official source found</span>;
@@ -98,7 +131,7 @@ export function CitationLink({ title, url, verificationStatus, citation, lastVer
           <ExternalLink size={12} strokeWidth={1.5} className="inline ml-0.5" aria-hidden="true" />
           <span className="sr-only"> (opens official source in new tab)</span>
         </a>
-        {unverified && <span className="ll-badge-synthetic">UNVERIFIED</span>}
+        {unverified && !hideStatusChip && <span className="ll-badge-synthetic">UNVERIFIED</span>}
       </span>
       {secondary && <span className="text-muted-foreground">{secondary}</span>}
       {showSource && (

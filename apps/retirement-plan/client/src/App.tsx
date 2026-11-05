@@ -27,6 +27,13 @@ export interface PlanFilters {
   constraint: string; // 'all' | 'contract_locked' | 'regulatory_notice_pending' | ...
 }
 
+// BRAND_GUIDE §0.3 (ACC-DES-DEF-SHELL-SYNTH-LABELS): ONE header badge. Every tab except Regulatory has synthetic
+// panels, so the app-level source is MIXED. MOCK only when bundled mock data is on.
+const DATA_SOURCE = USE_MOCK_DATA ? 'MOCK' : 'MIXED';
+// Release shown in the footer (package.json version is a 0.0.0 placeholder).
+const APP_VERSION = 'accel-r1-planc';
+const SYNTHETIC_DISCLOSURE = 'Synthetic data disclosure: network, customer, plant and incident data are generated for demonstration and do not represent any real carrier. Regulatory content links to official public sources.';
+
 const TOP_TABS = [
   { id: 'map', label: 'Map & Risk' },
   { id: 'plan', label: 'Plan' },
@@ -71,7 +78,7 @@ export default function App() {
       <LakeLinkHeader
         subtitle="Copper Retirement Accelerator"
         tagline="Find the copper, plan the path, dig safely, stay compliant, monetize the scrap"
-        dataSource={USE_MOCK_DATA ? 'MOCK' : 'LIVE'}
+        dataSource={DATA_SOURCE}
       />
 
       <TabBar
@@ -98,6 +105,11 @@ export default function App() {
           {route.tab === 'commodity' && <CommodityTab />}
         </ErrorBoundary>
       </main>
+
+      <footer className="border-t border-border px-4 md:px-6 py-3 text-xs text-muted-foreground" data-testid="synthetic-disclosure">
+        <p className="m-0">{SYNTHETIC_DISCLOSURE}</p>
+        <p className="m-0 mt-1">Version {APP_VERSION}</p>
+      </footer>
     </div>
   );
 }

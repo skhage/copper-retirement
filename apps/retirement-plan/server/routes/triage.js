@@ -114,8 +114,18 @@ async function fetchIncidentKPIs(asOfParam) {
       COUNT_IF(ts > as_of - INTERVAL ${WINDOW_DAYS} DAYS AND ts <= as_of AND severity = 'critical') AS critical_incidents,
       COUNT_IF(ts > as_of - INTERVAL ${WINDOW_DAYS} DAYS AND ts <= as_of) AS window_incidents
     FROM d`);
-  // Promise.all so a failure in either query rejects once (no unhandled rejection), and 403 mapping in wrap() still applies.
-  const [[r = {}], [c = {}]] = await Promise.all([kpiP, contractorsP]);
+  // COO-Q-20261103-0650-2: degrade gracefully when gold_contractor_scorecard is missing (fresh partner deploy).
+  // Incident KPIs (from silver_dig_incident_enriched) must still render even if the contractors query fails.
+  const [[r = {}], cResult] = await Promise.all([
+    kpiP,
+    contractorsP.catch((err) => {
+      // ACC-QA-R11-DIFF-REVIEW: keep 403 honest (wrap() -> 'Data access pending'); other errors -> null, never 0.
+      if (err.status === 403) throw err;
+      console.warn('[accelerator:triage] contractors query unavailable (degraded):', err.message);
+      return null;
+    }),
+  ]);
+  const c = cResult ? (cResult[0] || {}) : null;
   return {
     as_of: r.as_of || null,
     window_days: WINDOW_DAYS,
@@ -126,7 +136,8 @@ async function fetchIncidentKPIs(asOfParam) {
     incidents_this_week: parseInt(r.incidents_this_week, 10) || 0,
     reroutes_pending: parseInt(r.reroutes_pending, 10) || 0,
     window_incidents: parseInt(r.window_incidents, 10) || 0,
-    active_contractors: parseInt(c.active_contractors, 10) || 0,
+    active_contractors: c ? parseInt(c.active_contractors, 10) || 0 : null,
+    degraded: c === null,
     contractors_source: `${FQ}.gold_contractor_scorecard`,
     contractors_footprint: FOOTPRINT,
     critical_incidents: parseInt(r.critical_incidents, 10) || 0,

@@ -84,7 +84,7 @@ export function BudgetChart() {
           <p className="text-lg font-bold text-accent-strong">{hasSpent ? money(totalAllocated - totalSpent) : '—'}</p>
         </div>
         <div className="rounded border p-2">
-          <p className="text-xs text-muted-foreground">Revenue at Risk (Annual)</p>
+          <p className="text-xs text-muted-foreground">Scheduled-wave revenue (annual)</p>
           <p className="text-lg font-bold text-warning">{money(totalRevAtRisk)}</p>
         </div>
       </div>

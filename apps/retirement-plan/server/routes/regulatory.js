@@ -102,8 +102,20 @@ async function fetchSources() {
     ORDER BY CASE level WHEN 'federal' THEN 0 ELSE 1 END, jurisdiction, title`);
 }
 
+// COO-Q-20261103-0650-2: degrade gracefully when a regulatory sub-table is missing (fresh partner deploy).
+// The 3 queries hit different tables; if one fails the others should still return.
 async function fetchKpis() {
-  const [m = {}] = await executeSQL(`
+  // ACC-QA-R11-DIFF-REVIEW: a 403 must stay honest (rethrow -> wrap() -> 'Data access pending');
+  // any other sub-query failure returns null (never 0) so the client renders '—' plus a degraded note.
+  const safe = async (p) => {
+    try { return (await p)[0] || {}; } catch (err) {
+      if (err.status === 403) throw err;
+      console.warn('[accelerator:regulatory] KPI sub-query degraded:', err.message);
+      return null;
+    }
+  };
+  const [m, s, c] = await Promise.all([
+    safe(executeSQL(`
     SELECT COUNT(*) AS requirements,
       -- ACC-APP-REG-BADGE-STATUS (BRAND_GUIDE #status-badges): citable = verified_* OR DERIVED_FROM_STATUTE OR NO_STATE_HOLD_PERIOD, AND an official URL.
       -- gaps = everything else (UNVERIFIED/unknown or no URL), matching the matrix 'Unverified' / 'Flagged gap' cells.
@@ -113,14 +125,17 @@ async function fetchKpis() {
       COUNT_IF(official_url IS NOT NULL AND (upper(trim(verification_status)) LIKE 'VERIFIED\\_%' OR upper(trim(verification_status)) IN ('DERIVED_FROM_STATUTE', 'NO_STATE_HOLD_PERIOD'))) AS citable,
       COUNT_IF(NOT (official_url IS NOT NULL AND (coalesce(upper(trim(verification_status)), '') LIKE 'VERIFIED\\_%' OR upper(trim(verification_status)) IN ('DERIVED_FROM_STATUTE', 'NO_STATE_HOLD_PERIOD')))) AS gaps,
       COUNT(DISTINCT jurisdiction_code) AS jurisdictions
-    FROM ${FQ}.jurisdiction_requirements_cited WHERE is_synthetic = false`);
-  const [s = {}] = await executeSQL(`
+    FROM ${FQ}.jurisdiction_requirements_cited WHERE is_synthetic = false`)),
+    safe(executeSQL(`
     SELECT COUNT(*) AS sources, COUNT_IF(lower(verification_status) LIKE 'verified\\_%') AS verified_sources
-    FROM ${FQ}.regulatory_source_register WHERE is_synthetic = false AND coalesce(is_public_domain, true)`); // excludes IND-CGA-BP21 (ACC-DES-DEF-REG-ASK-DISCLOSURE)
-  const [c = {}] = await executeSQL(`SELECT COUNT(*) AS real_chunks FROM ${FQ}.regulatory_doc_chunks ch WHERE is_synthetic = false AND NOT EXISTS (SELECT 1 FROM ${FQ}.regulatory_source_register x WHERE x.source_id = ch.source_id AND x.is_public_domain = false)`);
-  const n = (v) => parseInt(v, 10) || 0;
-  return { requirements: n(m.requirements), verified: n(m.verified), derived: n(m.derived), no_state_rule: n(m.no_state_rule), citable: n(m.citable), gaps: n(m.gaps), jurisdictions: n(m.jurisdictions),
-    sources: n(s.sources), verified_sources: n(s.verified_sources), real_chunks: n(c.real_chunks) };
+    FROM ${FQ}.regulatory_source_register WHERE is_synthetic = false AND coalesce(is_public_domain, true)`)), // excludes IND-CGA-BP21 (ACC-DES-DEF-REG-ASK-DISCLOSURE)
+    safe(executeSQL(`SELECT COUNT(*) AS real_chunks FROM ${FQ}.regulatory_doc_chunks ch WHERE is_synthetic = false AND NOT EXISTS (SELECT 1 FROM ${FQ}.regulatory_source_register x WHERE x.source_id = ch.source_id AND x.is_public_domain = false)`)),
+  ]);
+  const n = (o, k) => (o ? parseInt(o[k], 10) || 0 : null);
+  const degraded = [m ? null : 'jurisdiction_requirements_cited', s ? null : 'regulatory_source_register', c ? null : 'regulatory_doc_chunks'].filter(Boolean);
+  return { requirements: n(m, 'requirements'), verified: n(m, 'verified'), derived: n(m, 'derived'), no_state_rule: n(m, 'no_state_rule'), citable: n(m, 'citable'), gaps: n(m, 'gaps'), jurisdictions: n(m, 'jurisdictions'),
+    sources: n(s, 'sources'), verified_sources: n(s, 'verified_sources'), real_chunks: n(c, 'real_chunks'),
+    degraded: degraded.length > 0, degraded_sources: degraded };
 }
 
 // Section numbers like 51.333 or 63.71 in the question (matched verbatim in chunk text).

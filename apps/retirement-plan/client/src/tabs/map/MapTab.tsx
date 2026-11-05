@@ -19,7 +19,7 @@ interface Kpis {
   footprint_critical: number; footprint_high: number; footprint_states: number; scored_devices: number;
   scored_critical: number; scored_high: number; model_version: string | null; scored_date: string | null; footprint: string[];
   serving_endpoint: string | null; // ACC-APP-SERVING-ENDPOINT-VAR: from server env SERVING_ENDPOINT
-  governed: Governed;
+  governed: Governed | null; // null = governed metric views unavailable (server sets degraded:true, COO-Q-20261103-0650-2)
 }
 /** Headline numbers from the governed UC metric views (same as copper-map and PARTNER-PLAYBOOK §5). */
 interface Governed {
@@ -248,7 +248,13 @@ export function MapTab() {
   useEffect(() => { if (state === 'ALL' && tier === 'ALL' && deviceStates.length) setAllStates(deviceStates); }, [state, tier, deviceStates]);
   useEffect(() => setSel(null), [state, tier]);
   const k = kpis.data;
-  const g = k?.governed;
+  const g = k?.governed ?? null;
+  // COO-Q-20261103-0650-2: loading only while /kpis is in flight. When /kpis answered but governed is null
+  // (metric views missing on a fresh deploy), fall back to footprint values instead of spinning forever.
+  const loading = !k && !kpis.err;
+  const degraded = !!k && !g;
+  const fb = (governedVal: ReactNode, footprintVal: ReactNode) => (g ? governedVal : degraded ? footprintVal : kpis.err ? '—' : '…');
+  const fbSub = 'footprint table · governed metric views unavailable';
   const denied = kpis.denied || states.denied || devices.denied || wcs.denied;
   // ACC-DES-DEF-MAP-KEYBOARD (b): keyboard-reachable list of the highest-risk devices (critical first, then confidence).
   const topDevices = useMemo(() => [...(devices.data ?? [])]
@@ -270,13 +276,18 @@ export function MapTab() {
       <p className="sr-only" role="status" aria-live="polite">{announce}</p>
       {denied && <DataAccessPending objects={filters.data?.uc_objects ?? []} />}
       {!denied && kpis.err && <EmptyState title="Could not load Map & Risk data"><p>{kpis.err}</p></EmptyState>}
+      {!denied && degraded && (
+        <p role="status" data-state="degraded" className="mb-3 rounded border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+          Governed metric views are unavailable in this workspace, so headline tiles show footprint-table values (gold_retirement_executive_summary). Revenue at risk needs the governed view. Deploy the metric views to restore governed figures.
+        </p>
+      )}
       {/* Headline KPIs = governed UC metric views (parity with copper-map / PLAYBOOK §5). '—' on failure, never a mock value. */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-4">
-        <KpiCard label="Copper devices" busy={!g && !kpis.err} value={g ? fmt(g.total_devices) : kpis.err ? '—' : '…'} sub={g ? `${fmt(g.wire_centers)} wire centers` : undefined} />
-        <KpiCard label="Customers impacted" busy={!g && !kpis.err} value={g ? fmt(g.customers) : kpis.err ? '—' : '…'} sub={g ? `${fmt(g.services)} services at risk` : undefined} />
-        <KpiCard label="Fiber ready" busy={!g && !kpis.err} value={g?.fiber_ready_pct != null ? `${g.fiber_ready_pct}%` : kpis.err ? '—' : '…'} sub={g ? `${fmt(g.fiber_ready_devices)} copper devices` : undefined} valueClass="text-success" />
-        <KpiCard label="Critical risk" busy={!g && !kpis.err} value={g ? fmt(g.critical_devices) : kpis.err ? '—' : '…'} sub={g?.critical_pct != null ? `${g.critical_pct}% of copper devices · rule-based tier, not model` : undefined} valueClass="text-danger" />
-        <KpiCard label="Annual revenue at risk" busy={!g && !kpis.err} value={g ? usd(g.annual_revenue_at_risk) : kpis.err ? '—' : '…'} sub="synthetic demo data" />
+        <KpiCard label="Copper devices" busy={loading} value={fb(g && fmt(g.total_devices), k && fmt(k.footprint_devices))} sub={g ? `${fmt(g.wire_centers)} wire centers` : degraded && k ? `${fmt(k.wire_centers)} wire centers · ${fbSub}` : undefined} />
+        <KpiCard label="Customers impacted" busy={loading} value={fb(g && fmt(g.customers), k && fmt(k.customers_affected))} sub={g ? `${fmt(g.services)} services at risk` : degraded ? fbSub : undefined} />
+        <KpiCard label="Fiber ready" busy={loading} value={g ? (g.fiber_ready_pct != null ? `${g.fiber_ready_pct}%` : '—') : fb(null, k && `${k.fiber_ready_pct}%`)} sub={g ? `${fmt(g.fiber_ready_devices)} copper devices` : degraded ? fbSub : undefined} valueClass="text-success" />
+        <KpiCard label="Critical risk" busy={loading} value={fb(g && fmt(g.critical_devices), k && fmt(k.footprint_critical))} sub={g?.critical_pct != null ? `${g.critical_pct}% of copper devices · rule-based tier, not model` : degraded ? `rule-based tier · ${fbSub}` : undefined} valueClass="text-danger" />
+        <KpiCard label="Annual revenue at risk" busy={loading} value={fb(g && usd(g.annual_revenue_at_risk), '—')} sub={degraded ? 'needs governed metric view · synthetic demo data' : 'synthetic demo data'} />
         <KpiCard label="Devices scored by model" busy={!k && !kpis.err} value={k ? fmt(k.scored_devices) : kpis.err ? '—' : '…'} sub={k ? `${fmt(k.scored_critical)} critical · model v${k.model_version ?? '?'}, scored ${k.scored_date ?? '?'} · ${k.footprint_states} footprint states: ${footprint.join(', ')}` : undefined} />
       </div>
 
