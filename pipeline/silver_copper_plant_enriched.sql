@@ -46,9 +46,13 @@ SELECT
   -- Jurisdiction
   cwj.puc_name,
   cwj.puc_short_name,
-  cwj.governor_notice_days,
-  cwj.puc_notice_days,
-  cwj.residential_direct_notice_days,
+  -- Notice periods are REAL cited values from jurisdiction_requirements_cited (ACC-DE-DEF-SYNTH-NOTICE-LINEAGE, 2026-11-04).
+  -- The old synthetic values from copper_plant_wire_center_jurisdiction are no longer used. NULL = UNKNOWN (never inferred).
+  CAST(NULL AS BIGINT) AS governor_notice_days,           -- no cited governor-notice requirement exists: UNKNOWN
+  jrs.notice_days AS puc_notice_days,                     -- state_discontinuance_notice (state PUC rule/statute)
+  jrs.citation_url AS puc_notice_citation_url,
+  jru.notice_days AS residential_direct_notice_days,      -- US copper_retirement_notice (47 CFR Part 51 Subpart D)
+  jru.citation_url AS residential_notice_citation_url,
   cwj.section_214_required,
 
   -- Computed risk tier
@@ -76,9 +80,27 @@ LEFT JOIN (
     distance_to_wire_center_km,
     puc_name,
     puc_short_name,
-    governor_notice_days,
-    puc_notice_days,
-    residential_direct_notice_days,
     section_214_required
   FROM copper_plant_wire_center_jurisdiction
-) cwj ON bcd.physical_device_id = cwj.physical_device_id;
+) cwj ON bcd.physical_device_id = cwj.physical_device_id
+-- Cited state notice period: one verified row per state, else NULL (conflicting or missing rows = UNKNOWN, no fan-out)
+LEFT JOIN (
+  SELECT jurisdiction_code,
+         CAST(min(value_numeric) AS BIGINT) AS notice_days,
+         min(citation_url) AS citation_url
+  FROM jurisdiction_requirements_cited
+  WHERE requirement_type = 'state_discontinuance_notice'
+    AND verification_status <> 'UNVERIFIED'
+  GROUP BY jurisdiction_code
+  HAVING count(*) = 1
+) jrs ON jrs.jurisdiction_code = bcd.state_code
+-- Cited federal copper retirement notice (applies in all states)
+LEFT JOIN (
+  SELECT CAST(min(value_numeric) AS BIGINT) AS notice_days,
+         min(citation_url) AS citation_url
+  FROM jurisdiction_requirements_cited
+  WHERE jurisdiction_code = 'US'
+    AND requirement_type = 'copper_retirement_notice'
+    AND verification_status <> 'UNVERIFIED'
+  HAVING count(*) = 1
+) jru ON TRUE;

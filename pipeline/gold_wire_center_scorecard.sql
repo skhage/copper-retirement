@@ -16,9 +16,11 @@ WITH device_metrics AS (
     annual_retire_priority,
     puc_name,
     section_214_required,
-    governor_notice_days,
+    governor_notice_days,            -- cited (NULL = UNKNOWN), see silver_copper_plant_enriched
     puc_notice_days,
+    puc_notice_citation_url,
     residential_direct_notice_days,
+    residential_notice_citation_url,
     COUNT(*) AS copper_device_count,
     COUNT(DISTINCT device_type) AS device_type_count,
     SUM(CASE WHEN device_status = 'active' THEN 1 ELSE 0 END) AS active_device_count,
@@ -38,7 +40,8 @@ WITH device_metrics AS (
     wire_center_id, wire_center_name, clli_code, state_code,
     fiber_ready, puc_filing_required, annual_retire_priority,
     puc_name, section_214_required, governor_notice_days,
-    puc_notice_days, residential_direct_notice_days
+    puc_notice_days, puc_notice_citation_url,
+    residential_direct_notice_days, residential_notice_citation_url
 ),
 service_impact AS (
   SELECT

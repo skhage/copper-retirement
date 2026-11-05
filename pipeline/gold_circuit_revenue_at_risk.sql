@@ -62,9 +62,11 @@ SELECT
   -- Regulatory context
   scp.puc_filing_required,
   scp.puc_name,
-  scp.governor_notice_days,
+  scp.governor_notice_days,            -- cited values via silver (NULL = UNKNOWN); ACC-DE-DEF-SYNTH-NOTICE-LINEAGE
   scp.puc_notice_days,
+  scp.puc_notice_citation_url,
   scp.residential_direct_notice_days,
+  scp.residential_notice_citation_url,
   scp.section_214_required,
 
   -- Revenue risk classification
