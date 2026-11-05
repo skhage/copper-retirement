@@ -2,8 +2,8 @@
  {
   "table": "gold_copper_recovery_schedule",
   "rows": 103,
-  "bytes": 93699,
-  "sha256": "47ab76aaab83193c4c7dc62dad37b06c390c8cc990b6f38059f3dd9c4277df9d",
+  "bytes": 93455,
+  "sha256": "ee0dbd2c8b153ef6836f62282597fd68383ad693a26def3a458c040ea453749b",
   "synthetic_label": true,
   "uncommented": []
  },
@@ -26,8 +26,8 @@
  {
   "table": "gold_wave_schedule",
   "rows": 103,
-  "bytes": 62719,
-  "sha256": "8e3078a0bd84e42ca96fed9eab96c6fe9589d49f697026f1bb14fc803d2fe14d",
+  "bytes": 62475,
+  "sha256": "813879e40d4d9e19dd07480f4f4b18a8938aaa2245e15216a3930824850132bc",
   "synthetic_label": true,
   "uncommented": []
  },
@@ -73,9 +73,9 @@
  },
  {
   "table": "roi_calculator_assumptions",
-  "rows": 27,
-  "bytes": 16002,
-  "sha256": "643662273fd3035fe82a305edce11fba0c4de0a5e570f468880d674f28430c91",
+  "rows": 30,
+  "bytes": 22957,
+  "sha256": "7076470581259ac453b4414de86132aee2bd1efb7d23178adb5727d2e6dbfbbd",
   "synthetic_label": true,
   "uncommented": []
  }
