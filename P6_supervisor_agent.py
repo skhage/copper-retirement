@@ -1206,10 +1206,13 @@ import datetime, pandas as pd
 REG_EVAL_TABLE = f"{CATALOG}.{SCHEMA}.reg_rag_eval_dataset"
 REG_RESULTS_TABLE = f"{CATALOG}.{SCHEMA}.reg_rag_eval_results"
 
-reg_eval_df = spark.table(REG_EVAL_TABLE).where("eval_version = 'v3_real_sources'").toPandas()
+# ACC-ML-REG-POSTTAG-FIXES-1101: gate on v4_real_sources (46 Q incl. 8 AZ/CO/MN targeted; ACC-ML-REG-EVALSET-V4). v3 kept for history.
+REG_EVAL_VERSION = "v4_real_sources"
+reg_eval_df = spark.sql(f"SELECT * FROM {REG_EVAL_TABLE} WHERE eval_version = :v", args={"v": REG_EVAL_VERSION}).toPandas()
+assert len(reg_eval_df) > 0, f"no rows for eval_version={REG_EVAL_VERSION}"
 R = pd.DataFrame(run_reg_rag_eval(reg_eval_df))
 run_ts = datetime.datetime.now(datetime.timezone.utc)
-R["run_id"] = f"reg-rag-v3-{R.retrieval_mode.iloc[0]}-" + run_ts.strftime("%Y%m%dT%H%M"); R["run_ts"] = run_ts
+R["run_id"] = f"reg-rag-{REG_EVAL_VERSION.split('_')[0]}-{R.retrieval_mode.iloc[0]}-" + run_ts.strftime("%Y%m%dT%H%M"); R["run_ts"] = run_ts
 R["generator"] = REG_LLM_ENDPOINT; R["judge"] = JUDGE_ENDPOINT
 for c in ["expected_citation", "jurisdiction_correct", "facts_correct"]: R[c] = R[c].astype("boolean")
 spark.createDataFrame(R).write.mode("append").option("mergeSchema", "true").saveAsTable(REG_RESULTS_TABLE)
@@ -1279,6 +1282,91 @@ passed = (jgate["slot_jurisdiction_match_top5"] >= 0.95 and jgate["top1_jurisdic
           and jgate["excluded_source_hits"] == 0 and jgate["synthetic_only_source_hits"] == 0)
 print("JURISDICTION GATE:", "✅ PASS" if passed else "❌ FAIL")
 assert passed, jgate
+
+# COMMAND ----------
+
+# DBTITLE 1,Regulatory Ask — FINAL GATE harness on the deployed app (ACC-ML-ASK-FINAL-GATE)
+# ACC-ML-ASK-GATE-PREP-1105 (staged 2026-11-05, NOT YET RUN). Executes ACC-ML-ASK-FINAL-GATE per DEC-ASK-KILL-CRITERION-20261104.
+# Run ONLY after ACC-APP-REDEPLOY-R11 lands (active deployment != 01f1d55108261754a6d3fb6662ec137b) and before 2026-11-07 23:00 UTC.
+# Prereq: run cells 2, 3, 22 (scorers + judge). Calls POST /api/regulatory/ask on the DEPLOYED retirement-plan app, 2 reps, v4 46 Q + demo 12 Q.
+# PASS = v4 mean(2 reps) >= 37/46 AND demo grounded >= 11/12 AND insufficient <= 1/12 AND URL 100% register-only AND wrong-jur 0.
+# Expected wall time ~10-20 min at 4 workers (prior app latency: v4 mean 6.8s, demo mean 18.0s / p95 138s; run 6e10215b).
+# NOTE: agent-run safety gate blocks bearer-token HTTP to *.databricksapps.com -> run interactively (user OAuth) or via the job SP.
+import requests, datetime, statistics, concurrent.futures as cf, pandas as pd, mlflow
+APP_NAME, GATE_EXP_ID, REPS = "retirement-plan", "2509136426376100", 2
+_app = w.apps.get(APP_NAME)
+DEPLOY_ID = _app.active_deployment.deployment_id
+assert DEPLOY_ID != "01f1d55108261754a6d3fb6662ec137b", "R1.1 redeploy not landed: still on 10-31 deploy 01f1d551 (label any run PRE-REDEPLOY, not the gate)"
+ASK_URL = _app.url.rstrip("/") + "/api/regulatory/ask"
+_HDR = w.config.authenticate()
+
+DEMO_QS = [  # demo set (12), selector = jurisdiction sent by the UI in run 6e10215b
+ ("DEMO-CHIP-1","How much advance public notice is required before a copper retirement?","US"),
+ ("DEMO-CHIP-2","When is Section 214 discontinuance authority required?","US"),
+ ("DEMO-CHIP-3","How many days before digging must an excavator call 811?","ALL"),
+ ("DEMO-CHIP-4","What are the worker safety rules for handling lead-sheathed cable?","US"),
+ ("DEMO-SCRIPT-1","What changed with FCC 26-19?","US"),
+ ("DEMO-SCRIPT-2","What are Colorado's copper retirement requirements?","CO"),
+] + [(f"DEMO-B4-811-{s}", f"How many days before digging must an excavator call 811 in {n}?", s) for s, n in
+     [("WA","Washington"),("AZ","Arizona"),("CO","Colorado"),("MN","Minnesota"),("OR","Oregon"),("ID","Idaho")]]
+
+def _ask(question, jur):
+    r = requests.post(ASK_URL, json={"question": question, "jurisdiction": jur}, headers=_HDR, timeout=300)
+    r.raise_for_status(); return r.json()["data"]
+
+def _cited(d):  # [S#] -> official URLs of the cited sources
+    src = d.get("sources") or []
+    return [src[i-1] for i in (d.get("cited") or []) if 0 < i <= len(src)]
+
+def _score(d, exp_jur):
+    cs = _cited(d); urls = {_norm(s.get("url")) for s in cs if s.get("url")}
+    reg_only = bool(urls) and all(u in OFFICIAL_URLS_CI for u in urls)
+    jurs = {s.get("jurisdiction") for s in cs}
+    allowed = {"US"} if exp_jur in ("US", "ALL") else {"US", exp_jur}
+    ans = (d.get("answer") or "") + "\n" + "\n".join(sorted(urls))
+    ctx = "\n\n".join(f"[S{i+1}] {s.get('title')} {s.get('url')}\n{s.get('excerpt','')}" for i, s in enumerate(d.get("sources") or []))
+    g, why = score_groundedness(d.get("answer") or "", ctx) if d.get("answer") else (False, "no_answer")
+    return dict(ans=ans, urls=sorted(urls), url_register_only=reg_only, wrong_jur=bool(jurs - allowed), insufficient=bool(d.get("insufficient")),
+                app_grounded=bool(d.get("grounded")), judge_grounded=g, judge_reason=why, mode=d.get("mode"), jur_applied=d.get("jurisdiction_applied"))
+
+v4 = spark.sql(f"SELECT * FROM {CATALOG}.{SCHEMA}.reg_rag_eval_dataset WHERE eval_version='v4_real_sources'").toPandas()
+assert len(v4) == 46 and len(DEMO_QS) == 12
+
+def _v4_row(rep, row):
+    jur = row["jurisdiction"] if row["jurisdiction"] in {"US","AZ","CO","ID","MN","OR","WA"} else "ALL"
+    s = _score(_ask(row["question"], jur), row["jurisdiction"])
+    if row["answerable"]:
+        s["passed"] = all([s["url_register_only"], not s["wrong_jur"], s["judge_grounded"], s["app_grounded"], score_facts(s["ans"], row)])
+    else:
+        s["passed"] = s["insufficient"] and not s["wrong_jur"]
+    return dict(rep=rep, group="v4", qid=row["eval_id"], **{k: v for k, v in s.items() if k != "ans"}, answer=s["ans"][:4000])
+
+def _demo_row(rep, q):
+    qid, text, jur = q; s = _score(_ask(text, jur), jur)
+    s["passed"] = s["app_grounded"] and s["judge_grounded"] and s["url_register_only"] and not s["wrong_jur"]
+    return dict(rep=rep, group="demo", qid=qid, **{k: v for k, v in s.items() if k != "ans"}, answer=s["ans"][:4000])
+
+jobs = [(_v4_row, rep, r) for rep in range(REPS) for _, r in v4.iterrows()] + [(_demo_row, rep, q) for rep in range(REPS) for q in DEMO_QS]
+with cf.ThreadPoolExecutor(4) as ex:
+    G = pd.DataFrame(list(ex.map(lambda j: j[0](j[1], j[2]), jobs)))
+
+v4_pass = [int(G[(G.group=="v4")&(G.rep==k)].passed.sum()) for k in range(REPS)]
+D = G[G.group=="demo"]
+demo_grounded = statistics.mean(int(D[D.rep==k].passed.sum()) for k in range(REPS))
+demo_insuff = statistics.mean(int(D[D.rep==k].insufficient.sum()) for k in range(REPS))
+cited = G[G.urls.map(len) > 0]
+metrics = dict(v4_mean_pass=statistics.mean(v4_pass), demo_grounded_mean=demo_grounded, demo_insufficient_mean=demo_insuff,
+               url_register_only_rate=float(cited.url_register_only.mean()) if len(cited) else 0.0, wrong_jur_n=int(G.wrong_jur.sum()))
+checks = {"v4>=37/46": metrics["v4_mean_pass"] >= 37, "demo>=11/12": demo_grounded >= 11, "insuff<=1/12": demo_insuff <= 1,
+          "url_100%": metrics["url_register_only_rate"] == 1.0, "wrong_jur=0": metrics["wrong_jur_n"] == 0}
+GATE = "PASS" if all(checks.values()) else "FAIL"
+ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M")
+with mlflow.start_run(experiment_id=GATE_EXP_ID, run_name=f"ask-final-gate-{DEPLOY_ID[:8]}-{ts}"):
+    mlflow.log_params(dict(deployment_id=DEPLOY_ID, ask_url=ASK_URL, reps=REPS, n_v4=46, n_demo=12, decision="DEC-ASK-KILL-CRITERION-20261104", gate=GATE))
+    mlflow.log_metrics({**metrics, **{f"v4_pass_rep{k}": v for k, v in enumerate(v4_pass)}})
+    mlflow.log_table(G, "per_question_results.json")
+    gate_run_id = mlflow.active_run().info.run_id
+print(f"GATE {GATE} | run {gate_run_id} | deploy {DEPLOY_ID}\n", metrics, "\n", checks)
 
 # COMMAND ----------
 
