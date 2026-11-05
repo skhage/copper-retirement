@@ -27,7 +27,18 @@ Definitions are copied from the reference workspace (cdm_tmforum.copper_retireme
 catalog/schema parameterized. Safety: existing objects are skipped unless --replace is passed, so running
 this against the reference workspace does not rewrite curated objects.
 
-Usage: python provision_app_objects.py --catalog <catalog> --schema <schema> [--snapshot-dir <dir>] [--replace] [--dry-run]
+Metric views (ACC-DE-MV-DDL-PROVISION): after the snapshots, the 4 governed UC metric views in --metric-view-dir
+(repo src/metric_views/<name>.sql, ${catalog}/${schema} text placeholders) are created in this order:
+  copper_retirement_project_status <- silver_copper_plant_enriched (pipeline)
+  copper_customers_impacted        <- silver_device_service_impact (pipeline)
+  copper_ebitda_impact_achieved    <- gold_circuit_revenue_at_risk (pipeline)
+  copper_ebitda_impact_forecast    <- gold_ebitda_forecast (snapshot, ACC-DE-MV-FRESH-SNAPSHOTS-1104)
+Each source is preflighted with tableExists(); a missing source is reported and that view is skipped. A CREATE
+error (e.g. a missing column) is reported per view, the rest still run, and the script exits non-zero at the end.
+CREATE OR REPLACE drops UC tags, so telco_project is re-applied after each view. --skip-metric-views skips this step.
+
+Usage: python provision_app_objects.py --catalog <catalog> --schema <schema> [--snapshot-dir <dir>]
+         [--metric-view-dir <dir>] [--skip-metric-views] [--replace] [--dry-run]
 """
 import argparse
 import os
@@ -221,6 +232,54 @@ SNAPSHOT_TABLES = [
 SNAPSHOT_VIEWS = ["v_partner_value_wire_center"]
 DEFAULT_SNAPSHOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "app_gold")
 
+# Metric views (ACC-DE-MV-DDL-PROVISION): (view name, source table) in creation order.
+METRIC_VIEWS = [
+    ("copper_retirement_project_status", "silver_copper_plant_enriched"),
+    ("copper_customers_impacted", "silver_device_service_impact"),
+    ("copper_ebitda_impact_achieved", "gold_circuit_revenue_at_risk"),
+    ("copper_ebitda_impact_forecast", "gold_ebitda_forecast"),
+]
+DEFAULT_METRIC_VIEW_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "metric_views")
+
+
+def render_metric_view(path, catalog, schema):
+    """Read a metric-view .sql file and substitute the ${catalog}/${schema} placeholders."""
+    with open(path) as f:
+        sql = f.read().replace("${catalog}", catalog).replace("${schema}", schema)
+    if "${" in sql:
+        raise SystemExit(f"Unresolved placeholder left in {path}")
+    return sql
+
+
+def provision_metric_views(spark, a, fq):
+    d = a.metric_view_dir
+    if not os.path.isdir(d):
+        raise SystemExit(f"Metric view dir not found: {d}. Pass --metric-view-dir or --skip-metric-views.")
+    skipped, failed = [], []
+    for name, source in METRIC_VIEWS:
+        target = f"{a.catalog}.{a.schema}.{name}"
+        if spark.catalog.tableExists(target) and not a.replace:
+            print(f"SKIP   metric   {target} (exists; pass --replace to rebuild)")
+            continue
+        if not spark.catalog.tableExists(f"{a.catalog}.{a.schema}.{source}"):
+            print(f"WARN   metric   {target} skipped: source {source} not found")
+            skipped.append(name)
+            continue
+        sql = render_metric_view(os.path.join(d, f"{name}.sql"), a.catalog, a.schema)
+        print(f"{'PLAN ' if a.dry_run else 'CREATE'} metric   {target} <- {source}")
+        if a.dry_run:
+            continue
+        try:
+            spark.sql(sql)
+            spark.sql(f"ALTER VIEW {fq}.`{name}` SET TAGS ('telco_project' = 'copper-retirement')")
+        except Exception as e:  # report per view, keep going, fail at the end
+            print(f"FAIL   metric   {target}: {str(e).splitlines()[0][:300]}")
+            failed.append(name)
+    if skipped:
+        print(f"Metric views skipped (missing source): {skipped}")
+    if failed:
+        raise SystemExit(f"Metric views failed: {failed}")
+
 
 def provision_snapshots(spark, a, fq):
     d = a.snapshot_dir
@@ -272,6 +331,9 @@ def main():
     p.add_argument("--dry-run", action="store_true", help="Print the plan; create nothing.")
     p.add_argument("--snapshot-dir", default=DEFAULT_SNAPSHOT_DIR,
                    help="Dir with <name>.ddl.sql + <name>.jsonl snapshots (default: repo data/app_gold).")
+    p.add_argument("--metric-view-dir", default=DEFAULT_METRIC_VIEW_DIR,
+                   help="Dir with metric view <name>.sql files (default: repo src/metric_views).")
+    p.add_argument("--skip-metric-views", action="store_true", help="Do not create the 4 UC metric views.")
     a = p.parse_args()
     for v in (a.catalog, a.schema):
         if not IDENT.match(v):
@@ -296,6 +358,9 @@ def main():
                 spark.sql(f"ALTER TABLE {fq}.{name} SET TAGS ('telco_project' = 'copper-retirement')")
 
     provision_snapshots(spark, a, fq)
+
+    if not a.skip_metric_views:
+        provision_metric_views(spark, a, fq)
 
     if not a.dry_run:
         n = spark.table(f"{a.catalog}.{a.schema}.silver_dig_incident_enriched").count()

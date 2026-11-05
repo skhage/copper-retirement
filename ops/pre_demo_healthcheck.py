@@ -284,8 +284,13 @@ def check_lakebase(w: WorkspaceClient) -> Status:
 # 5. VECTOR SEARCH — OPTIONAL (DEC-VS-OPTIONAL). Never FAILs the healthcheck:
 #    problems are WARN (YELLOW) because default retrieval is the UC TVF
 #    search_regulatory_chunks. Unset COPPER_VS_ENDPOINT ("") to skip entirely.
+#    COO-Q-20261104-1850-2 (2026-11-04): VS is RETIRED from the demo/partner path.
+#    regulatory_doc_chunks_vs_index is stuck at 528 legacy synthetic rows
+#    (VECTOR_SEARCH_SOURCE_HISTORY_OUT_OF_RETENTION; last processed commit v5,
+#    2026-09-14) yet reports ready=True, which the old default scored GREEN.
+#    Default is now "" (skip). Set COPPER_VS_ENDPOINT=cmeg-demos-vs only after a recreate.
 # ===================================================================
-VS_ENDPOINT = os.environ.get("COPPER_VS_ENDPOINT", "cmeg-demos-vs").strip()
+VS_ENDPOINT = os.environ.get("COPPER_VS_ENDPOINT", "").strip()
 VS_INDEX = f"{FQ}." + (os.environ.get("COPPER_VS_INDEX", "").strip() or "regulatory_doc_chunks_vs_index")
 
 
@@ -431,11 +436,10 @@ def check_inference_table(w: WorkspaceClient) -> Status:
 # 8. LAKEBASE SYNC — copper_app tables match UC source counts
 # ===================================================================
 # Maps Lakebase copper_app table → UC source table (for row-count sync check)
+# gold_wave_schedule / gold_copper_recovery_schedule removed 2026-11-05 (ACC-DE-LB-GOLD2-SYNC-REMOVE, Option A).
 SYNC_PAIRS = {
     "wire_center_scorecard": f"{FQ}.gold_wire_center_scorecard",
-    "gold_wave_schedule": f"{FQ}.gold_wave_schedule",
     "gold_contractor_assignment_plan": f"{FQ}.gold_contractor_assignment_plan",
-    "gold_copper_recovery_schedule": f"{FQ}.gold_copper_recovery_schedule",
     "gold_reroute_options": f"{FQ}.gold_reroute_options",
     "device_risk_map": f"{FQ}.copper_risk_predictions",
     "executive_summary": f"{FQ}.gold_retirement_executive_summary",

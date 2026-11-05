@@ -18,6 +18,8 @@ Requires: psycopg[binary], databricks-sdk>=0.118.0.
 Reference run 2026-10-27 (cdm_tmforum.copper_retirement -> copper-task-board): 10/10 tables OK, and a re-run made 0 changes.
 2026-10-28 (ACC-DE-SYNC-RISKMAP-REVENUE): +device_risk_map (risk cols via v_lb_device_risk_map_risk) and
 +revenue_at_risk_summary (v_lb_revenue_at_risk_summary); 12 tables.
+2026-11-05 (ACC-DE-LB-GOLD2-SYNC-REMOVE, Option A): removed gold_wave_schedule and gold_copper_recovery_schedule.
+No app reads the Lakebase copies (the Plan tab reads UC), so they are no longer synced; 10 tables.
 """
 import re
 import time
@@ -34,8 +36,6 @@ SYNC_SPECS = {
                                         ["triage_priority"]),  # LB column is INTEGER, UC is 'P1'..'P4' text
     "retirement_milestones":           ("retirement_milestones",             ["milestone_id"], {}),
     "jurisdiction_requirements_cited": ("jurisdiction_requirements_cited",   ["requirement_key"], {}),
-    "gold_wave_schedule":              ("gold_wave_schedule",                ["wire_center_id"], {}),
-    "gold_copper_recovery_schedule":   ("gold_copper_recovery_schedule",     ["wire_center_id"], {}),
     "gold_contractor_assignment_plan": ("gold_contractor_assignment_plan",   ["wave", "contractor_id"], {}),
     "gold_reroute_options":            ("gold_reroute_options",              ["physical_device_id", "reroute_option_rank"], {}),
     # DEC-RISKMAP-WC-20261027 phase 1: risk columns only. The source view omits location/wire-center columns,
