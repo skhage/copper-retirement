@@ -287,6 +287,14 @@ labels_newer = last_label_write is not None and last_label_write > champion_crea
 degraded = logged_acc is not None and current_acc is not None and current_acc < logged_acc - LABEL_GUARD_TOL
 print(f"Label guard: last label write={last_label_write}, champion v{model_version.version} created={champion_created}")
 print(f"  logged holdout acc={logged_acc}, acc on current labels={current_acc} (n={len(labeled)}), tol={LABEL_GUARD_TOL}")
+# ACC-ML-REG-POSTTAG-FIXES-1101 item (4): FAIL CLOSED. If labels changed after the champion was registered and the
+# guard cannot measure accuracy (no logged holdout/test accuracy on the run, or no labeled rows), stop rather than write.
+if labels_newer and (logged_acc is None or current_acc is None):
+    raise RuntimeError(
+        f"LABEL-CHANGE GUARD FAILED (fail-closed): {LABEL_TABLE} was rewritten at {last_label_write}, after champion "
+        f"v{model_version.version} was registered ({champion_created}), and the guard cannot verify accuracy "
+        f"(logged_acc={logged_acc}, current_acc={current_acc}, labeled rows={len(labeled)}). Predictions NOT written. "
+        "Log holdout_accuracy on the champion run or retrain and promote a new @champion (risk/MODEL_CARD.md s6) before scoring.")
 if labels_newer and degraded:
     raise RuntimeError(
         f"LABEL-CHANGE GUARD FAILED: {LABEL_TABLE} was rewritten at {last_label_write}, after champion v{model_version.version} "
