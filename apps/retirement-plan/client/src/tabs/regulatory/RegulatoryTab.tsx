@@ -22,7 +22,7 @@ interface SourceRow {
   citation: string; official_url: string; verification_status: string; last_verified: string | null; effective_date: string | null;
 }
 interface AskSource { n: number; title: string; citation: string; url: string; jurisdiction: string; verification_status?: string; last_verified?: string; excerpt: string }
-interface AskResult { answer: string | null; grounded: boolean; insufficient?: boolean; cited?: number[]; sources: AskSource[]; mode: string; llm_error?: string; jurisdiction_applied?: string; jurisdiction_source?: 'selector' | 'detected_in_question' | 'none' }
+interface AskResult { answer: string | null; grounded: boolean; insufficient?: boolean; cited?: number[]; sources: AskSource[]; mode: string; llm_error?: string; jurisdiction_applied?: string; jurisdiction_source?: 'selector' | 'detected_in_question' | 'federal_cue' | 'none' }
 // null = that sub-query failed (non-403); server sets degraded:true. Render '—', never 0 (ACC-QA-R11-DIFF-REVIEW).
 type N = number | null;
 interface Kpis { requirements: N; verified: N; gaps: N; jurisdictions: N; sources: N; verified_sources: N; real_chunks: N; citable?: N; derived?: N; no_state_rule?: N; degraded?: boolean; degraded_sources?: string[] }
@@ -35,6 +35,8 @@ const JURISDICTIONS = [
 ];
 // DEC-ASK-KILL-CRITERION-20261104 (B): Ask ships as Beta BY DEFAULT. Set to false only after ACC-ML-ASK-FINAL-GATE PASSES.
 const ASK_BETA = true;
+// ACC-APP-DES-R11-POLISH: human labels for server degraded_sources keys (no UC table names in the UI).
+const DEGRADED_LABELS: Record<string, string> = { jurisdiction_requirements_cited: 'jurisdiction matrix', regulatory_source_register: 'source register', regulatory_doc_chunks: 'document text' };
 const ASK_BETA_NOTE = 'Answers may be incomplete; verify against the linked official source.';
 const SUBS = [{ id: 'matrix', label: 'Jurisdiction matrix' }, { id: 'ask', label: ASK_BETA ? 'Ask the sources (Beta)' : 'Ask the sources' }, { id: 'sources', label: 'Source register' }] as const;
 type Sub = (typeof SUBS)[number]['id'];
@@ -226,7 +228,9 @@ function AskView({ jur }: { jur: string }) {
         <div aria-live="polite" className="space-y-2">
           {res.jurisdiction_applied && res.jurisdiction_applied !== 'ALL' && (
             <p className="text-xs text-muted-foreground">
-              Sources limited to {res.jurisdiction_applied} + federal{res.jurisdiction_source === 'detected_in_question' ? ' (state detected in your question)' : ''}.
+              {res.jurisdiction_source === 'federal_cue'
+                ? 'Sources limited to federal rules (federal topic detected in your question).'
+                : `Sources limited to ${res.jurisdiction_applied} + federal${res.jurisdiction_source === 'detected_in_question' ? ' (state detected in your question)' : ''}.`}
             </p>
           )}
           <AskInsufficient res={res} question={q} onAsk={(t) => submit(undefined, t)} />
@@ -236,7 +240,9 @@ function AskView({ jur }: { jur: string }) {
         <div className="rounded-lg border border-border bg-card p-4 space-y-3" aria-live="polite">
           {res.jurisdiction_applied && res.jurisdiction_applied !== 'ALL' && (
             <p className="text-xs text-muted-foreground">
-              Sources limited to {res.jurisdiction_applied} + federal{res.jurisdiction_source === 'detected_in_question' ? ' (state detected in your question)' : ''}.
+              {res.jurisdiction_source === 'federal_cue'
+                ? 'Sources limited to federal rules (federal topic detected in your question).'
+                : `Sources limited to ${res.jurisdiction_applied} + federal${res.jurisdiction_source === 'detected_in_question' ? ' (state detected in your question)' : ''}.`}
             </p>
           )}
           {res.answer && <p className="text-sm whitespace-pre-wrap text-foreground">{res.answer}</p>}
@@ -309,7 +315,7 @@ export function RegulatoryTab() {
       </div>
       {kpis?.degraded && (
         <p role="status" data-state="degraded" className="mb-3 rounded border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-          Some regulatory KPIs could not load ({(kpis.degraded_sources || []).join(', ')}); affected tiles show —.
+          Some regulatory KPIs could not load ({(kpis.degraded_sources || []).map((s) => DEGRADED_LABELS[s] || 'regulatory data').join(', ')}); affected tiles show —.
         </p>
       )}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">

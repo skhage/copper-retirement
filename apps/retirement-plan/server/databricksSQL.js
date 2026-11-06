@@ -19,8 +19,24 @@ const CATALOG = IDENT.test(process.env.CATALOG || '') ? process.env.CATALOG : 'c
 const SCHEMA = IDENT.test(process.env.SCHEMA || '') ? process.env.SCHEMA : 'copper_retirement';
 export const FQ = `${CATALOG}.${SCHEMA}`;
 
+// COO-Q-20261105-1850-1 (DEC-CONSOLIDATION-NOGRANTS): on-behalf-of-user (user OAuth) data access.
+// When the app has user_api_scopes ['sql'], the Apps proxy forwards the viewer's token in the
+// x-forwarded-access-token header. userTokenMiddleware stores it per request (AsyncLocalStorage), and
+// getToken() prefers it, so UC queries run with the viewer's own grants. With no header (scope not
+// granted, or local dev) we fall back to DATABRICKS_TOKEN, then the app service principal (M2M).
+// Set APP_AUTH_MODE=sp to force the service principal.
+import { AsyncLocalStorage } from 'node:async_hooks';
+const requestCtx = new AsyncLocalStorage();
+export function userTokenMiddleware(req, _res, next) {
+  const t = typeof req.get === 'function' ? req.get('x-forwarded-access-token') : req.headers?.['x-forwarded-access-token'];
+  requestCtx.run({ userToken: t || null }, next);
+}
+export const authMode = () => (requestCtx.getStore()?.userToken && process.env.APP_AUTH_MODE !== 'sp' ? 'user' : 'sp');
+
 let cachedToken = null; // { token, exp }
 export async function getToken() {
+  const userToken = requestCtx.getStore()?.userToken;
+  if (userToken && process.env.APP_AUTH_MODE !== 'sp') return userToken;
   if (process.env.DATABRICKS_TOKEN) return process.env.DATABRICKS_TOKEN;
   const id = process.env.DATABRICKS_CLIENT_ID, secret = process.env.DATABRICKS_CLIENT_SECRET;
   if (!id || !secret) throw new Error('No DATABRICKS_TOKEN or DATABRICKS_CLIENT_ID/SECRET available');

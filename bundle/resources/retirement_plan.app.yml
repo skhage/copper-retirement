@@ -17,6 +17,10 @@ resources:
         (RAG assistant), Commodity (LME prices, EBITDA).
         Lakelink Fiber brand. WCAG AA.
       source_code_path: ../../apps/retirement-plan
+      # COO-Q-20261105-1850-1: user authorization (OBO). The viewer's token reaches the server in
+      # x-forwarded-access-token and UC queries run with the viewer's grants (server/databricksSQL.js).
+      user_api_scopes:
+        - sql
       # ACC-QA-DEF-APP-CATALOG: bundle vars flow into the app env (overrides app.yaml env), so
       # `bundle deploy -t partner --var catalog_name=acme_cat` points every tab at the partner catalog.
       config:

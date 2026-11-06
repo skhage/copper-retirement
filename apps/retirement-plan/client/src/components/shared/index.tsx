@@ -49,7 +49,7 @@ function KpiHint({ label, hint }: { label: string; hint: string }) {
         <Info size={14} strokeWidth={1.5} aria-hidden="true" />
       </button>
       <span id={id} role="tooltip" hidden={!open}
-        className="absolute left-0 top-full z-20 mt-1 w-64 rounded bg-secondary px-2 py-1 text-xs text-white shadow-sm">
+        className="absolute left-0 top-full z-20 mt-1 w-64 rounded bg-secondary px-2 py-1 text-xs text-secondary-foreground shadow-sm">
         {hint}
       </span>
     </span>

@@ -154,7 +154,7 @@ export function BudgetChart() {
                 />
                 {/* Label on bar */}
                 {pctOfMax > 15 && (
-                  <span className="absolute top-0 left-2 leading-6 text-xs font-medium text-white">
+                  <span className="absolute top-1 left-2 leading-4 px-1 rounded-sm bg-secondary text-xs font-medium text-secondary-foreground">
                     {formatCurrency(allocated)}
                   </span>
                 )}

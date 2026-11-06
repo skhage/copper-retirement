@@ -20,6 +20,7 @@ import {
   fetchRegulatoryChecklist,
   fetchMilestones,
   healthCheck,
+  userTokenMiddleware,
 } from './databricksSQL.js';
 import triageRouter from './routes/triage.js'; // ACC-APP-PORT-TRIAGE (ported from dig-triage)
 import regulatoryRouter from './routes/regulatory.js'; // ACC-APP-PORT-REG (ported from regulatory-assistant)
@@ -29,6 +30,8 @@ import commodityRouter from './routes/commodity.js'; // ACC-APP-PORT-COMMODITY (
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(express.json());
+// COO-Q-20261105-1850-1: run every request's UC queries as the viewer when the Apps proxy forwards a user token.
+app.use(userTokenMiddleware);
 
 // Serve built React frontend from dist/
 app.use(express.static(path.join(__dirname, '..', 'dist')));

@@ -13,7 +13,9 @@
  * are replaced with "No official source found for this question." (BRAND_GUIDE §0.2).
  * Retrieval (ACC-ML-REG-ASK-51D-RECALL, 2026-10-26) = hybrid over real chunks, no VS dependency (DEC-VS-OPTIONAL):
  *   bge-large cosine (same embedding as search_regulatory_chunks TVF) + keyword rank, fused by RRF, with a small
- *   boost for codified rules (CFR/USC) and verbatim section-number hits, max 2 chunks per source for diversity.
+ *   boost for codified rules (CFR/USC) and verbatim section-number hits, max 3 chunks per source for diversity.
+ *   ACC-APP-REG-VE-CONFIG-1105 (variant Ve, MLflow 9fb03b57): 3200-char excerpts, top 8, per-source cap 3,
+ *   federal-cue US prefilter when no state is named, and state abbreviations (Minn./Ariz./Colo./Wash./Ore./Or.).
  *   Falls back to keyword-only scoring if the embedding call fails.
  * All user input is passed as named SQL parameters (no string interpolation).
  */
@@ -46,19 +48,27 @@ const STATES = { alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', cal
 const SAFE_CODES = new Set(['AZ', 'CO', 'MN', 'WA', 'AK', 'AR', 'CA', 'FL', 'IL', 'IA', 'KS', 'KY', 'MD', 'MI', 'MS',
   'NJ', 'NM', 'NY', 'NC', 'ND', 'RI', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WV', 'WI', 'WY']);
 const STATE_RE = new RegExp(`\\b(${Object.keys(STATES).sort((a, b) => b.length - a.length).join('|')})\\b`, 'gi');
+const STATE_ABBR = { Minn: 'MN', Ariz: 'AZ', Colo: 'CO', Wash: 'WA', Ore: 'OR', Or: 'OR' };
+const STATE_ABBR_RE = /\b(?:Minn|Ariz|Colo|Wash|Ore|Or)\./g; // case-sensitive: lowercase 'or.' never matches
+// ACC-APP-REG-VE-CONFIG-1105: with no state named, a federal-topic question is restricted to federal ('US') chunks.
+// Word-bounded (ACC-QA-DEF-FEDCUE-WORDBOUND-1106): 'prepare'/'repair'/'separate' must not match EPA.
+const FEDERAL_CUE_RE = /\b(?:FCC|CFR|U\.S\.C|federal|Section 214|OSHA|EPA|RCRA|PHMSA|FHWA|network change|discontinuance|1926)\b/i;
 export function detectState(question) {
   const text = String(question || '');
   // 'Washington, D.C.' / 'DC' is not the state of Washington
   const cleaned = text.replace(/washington,?\s*d\.?\s*c\.?/gi, ' ');
   const found = new Set((cleaned.match(STATE_RE) || []).map((m) => STATES[m.toLowerCase()]));
   for (const c of cleaned.match(/\b[A-Z]{2}\b/g) || []) if (SAFE_CODES.has(c)) found.add(c);
+  // ACC-APP-REG-VE-CONFIG-1105: statute-style abbreviations, trailing period required (e.g. 'Minn. Stat. 216B.16').
+  for (const m of cleaned.match(STATE_ABBR_RE) || []) found.add(STATE_ABBR[m.slice(0, -1)]);
   return found.size === 1 ? [...found][0] : null; // 0 or 2+ states named -> no pre-filter (don't guess)
 }
 export function resolveJurisdiction(selected, question) {
   const j = jurOf(selected);
   if (j !== 'ALL') return { jur: j, jurisdiction_source: 'selector' };
   const d = detectState(question);
-  return d ? { jur: d, jurisdiction_source: 'detected_in_question' } : { jur: 'ALL', jurisdiction_source: 'none' };
+  if (d) return { jur: d, jurisdiction_source: 'detected_in_question' };
+  return FEDERAL_CUE_RE.test(String(question || '')) ? { jur: 'US', jurisdiction_source: 'federal_cue' } : { jur: 'ALL', jurisdiction_source: 'none' };
 }
 
 const STOP = new Set(('the a an and or of to in on for with by is are be what which who when how does do i we our my ' +
@@ -152,7 +162,7 @@ async function retrieveHybrid(question, jur) {
     WITH qv AS (SELECT ai_query('databricks-bge-large-en', :q, returnType => 'ARRAY<FLOAT>') AS v),
     base AS (
       SELECT ch.chunk_id, ch.source_id, ch.title, ch.citation, ch.source_url, ch.jurisdiction,
-        substr(ch.embedding_text, 1, 1600) AS excerpt,
+        substr(ch.embedding_text, 1, 3200) AS excerpt,
         aggregate(zip_with(ch.embedding, qv.v, (a, b) -> CAST(a AS DOUBLE) * b), 0D, (acc, x) -> acc + x)
           / (sqrt(aggregate(ch.embedding, 0D, (acc, x) -> acc + CAST(x AS DOUBLE) * x))
              * sqrt(aggregate(qv.v, 0D, (acc, x) -> acc + CAST(x AS DOUBLE) * x))) AS sem,
@@ -169,8 +179,8 @@ async function retrieveHybrid(question, jur) {
     SELECT d.chunk_id, d.source_id, d.title, d.citation, d.source_url, d.jurisdiction, d.excerpt, d.score,
       rg.verification_status, CAST(rg.last_verified AS STRING) AS last_verified
     FROM d LEFT JOIN ${FQ}.regulatory_source_register rg ON rg.source_id = d.source_id
-    WHERE d.per_src <= 2
-    ORDER BY d.score DESC, d.chunk_id LIMIT 6`,
+    WHERE d.per_src <= 3
+    ORDER BY d.score DESC, d.chunk_id LIMIT 8`,
   [P('q', String(question).slice(0, 1000)), P('jur', jur), ...ks.map((k, i) => P(`k${i}`, k)), ...ss.map((s, i) => P(`s${i}`, s))]);
 }
 

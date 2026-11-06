@@ -278,7 +278,7 @@ export function MapTab() {
       {!denied && kpis.err && <EmptyState title="Could not load Map & Risk data"><p>{kpis.err}</p></EmptyState>}
       {!denied && degraded && (
         <p role="status" data-state="degraded" className="mb-3 rounded border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-          Governed metric views are unavailable in this workspace, so headline tiles show footprint-table values (gold_retirement_executive_summary). Revenue at risk needs the governed view. Deploy the metric views to restore governed figures.
+          Governed metric views are unavailable in this workspace, so headline tiles show footprint-table values (footprint summary table). Revenue at risk needs the governed view. Deploy the metric views to restore governed figures.
         </p>
       )}
       {/* Headline KPIs = governed UC metric views (parity with copper-map / PLAYBOOK §5). '—' on failure, never a mock value. */}
@@ -412,7 +412,7 @@ export function MapTab() {
         risk model v{k?.model_version ?? '?'}, scored {k?.scored_date ?? '?'}, read from <code>copper_risk_predictions</code>; they refresh only when the batch scoring
         job is re-run, so a newer model registered as champion is not reflected until then. The &quot;Critical risk&quot; headline is the rule-based tier in the
         <code>copper_retirement_project_status</code> metric view (critical alarm rate &gt; 30% or SLA breach rate &gt; 20%), so it differs from the model&apos;s critical count.
-        Wire-center readiness comes from <code>gold_wire_center_scorecard</code>.
+        Wire-center readiness comes from the wire-center scorecard.
       </p>
     </section>
   );
