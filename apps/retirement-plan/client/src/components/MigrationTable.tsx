@@ -66,7 +66,7 @@ export function MigrationTable({ filters, onFilterChange, onWireCenterSelect }: 
       {loadState === 'mock' && <p className="p-2 text-xs"><span className="ll-badge-synthetic">MOCK DATA</span></p>}
       {statusText && (
         <p className="p-3 text-xs text-muted-foreground" role="status">
-          {statusText}{loadState === 'denied' && ': the app service principal lacks SELECT on gold_wave_schedule.'}
+          {statusText}{loadState === 'denied' && ': the app does not yet have read access to the wave schedule.'}
         </p>
       )}
       <table className="w-full text-xs">

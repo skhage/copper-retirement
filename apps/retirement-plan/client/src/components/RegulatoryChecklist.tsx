@@ -126,7 +126,7 @@ export function RegulatoryChecklist({ filters }: Props) {
       {/* Summary bar */}
       {loadState === 'denied' && (
         <EmptyState title="Data access pending">
-          <p>The app service principal lacks SELECT on jurisdiction_requirements_cited. The checklist will load once grants are applied.</p>
+          <p>The app does not yet have read access to the jurisdiction matrix. The checklist will load once access is granted.</p>
         </EmptyState>
       )}
       {loadState === 'error' && (

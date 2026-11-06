@@ -48,6 +48,17 @@ const WAVE_COLORS: Record<number, string> = {
   8: 'bg-muted-foreground',
 };
 
+// Status is also conveyed in text (title attr, sr-only label, legend) -- never by opacity alone.
+const STATUS_LABELS: Record<string, string> = {
+  completed: 'Completed',
+  in_progress: 'In progress',
+  fiber_provisioned: 'Fiber provisioned',
+  cutover: 'Cutover',
+  planned: 'Planned',
+  on_hold: 'On hold',
+  deferred: 'Deferred',
+};
+
 const STATUS_OPACITY: Record<string, string> = {
   completed: 'opacity-100',
   in_progress: 'opacity-90',
@@ -156,12 +167,17 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
 
                 {/* Gantt bar */}
                 <div
-                  className={`absolute top-1 h-4 rounded-sm ${
-                    WAVE_COLORS[wc.wave] || 'bg-viz-4'
-                  } ${STATUS_OPACITY[wc.status] || 'opacity-60'} transition-all`}
+                  className="absolute top-1 h-4 rounded-sm transition-all"
                   style={{ left: `${left}%`, width: `${Math.max(width, 0.5)}%` }}
                   title={`${wc.wire_center_name} | Wave ${wc.wave} | ${wc.status} | ${wc.scheduled_start} → ${wc.scheduled_end}`}
                 >
+                  {/* Status fill layer: opacity lives here only, so the label chip stays at full contrast (ACC-DES-DEF-GANTT-CHIP-OPACITY) */}
+                  <div
+                    aria-hidden="true"
+                    className={`absolute inset-0 rounded-sm ${
+                      WAVE_COLORS[wc.wave] || 'bg-viz-4'
+                    } ${STATUS_OPACITY[wc.status] || 'opacity-60'}`}
+                  />
                   {/* Completion fill */}
                   {wc.completion_pct > 0 && (
                     <div
@@ -171,8 +187,9 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
                   )}
                   {/* Wave label on bar */}
                   {width > 3 && (
-                    <span className="text-xs text-white font-medium px-1 leading-4 truncate block">
+                    <span className="relative inline-block max-w-full rounded-sm bg-secondary text-xs text-secondary-foreground font-medium px-1 leading-4 truncate opacity-100">
                       W{wc.wave}
+                      <span className="sr-only"> {STATUS_LABELS[wc.status] || wc.status}</span>
                     </span>
                   )}
                 </div>
@@ -200,7 +217,7 @@ export function GanttTimeline({ filters, onWireCenterSelect, selectedWireCenter 
       {(state === 'denied' || state === 'error') && (
         <p className="text-sm text-muted-foreground text-center py-8" role="status">
           {state === 'denied'
-            ? 'Data access pending: the app service principal lacks SELECT on gold_wave_schedule.'
+            ? 'Data access pending: the app does not yet have read access to the wave schedule.'
             : 'Could not load the wave schedule. This is a load failure, not an empty plan.'}
         </p>
       )}
