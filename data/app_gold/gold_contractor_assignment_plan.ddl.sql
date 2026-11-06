@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS {fq}.`gold_contractor_assignment_plan` (
   `composite_score` DOUBLE COMMENT 'Contractor quality score: safety(40%) + rating(30%) + SLA(30%). Range 0-1.',
   `allocated_crew_days` BIGINT COMMENT 'Crew-days allocated to this contractor for this wave×state.',
   `estimated_cost_usd` DOUBLE COMMENT 'Estimated cost = allocated_crew_days × avg_daily_rate for the state.',
-  `wire_centers_in_wave` BIGINT COMMENT 'Number of wire centers in this wave×state that the contractor is assigned to cover.',
-  `devices_in_wave` BIGINT COMMENT 'Total copper devices in the assigned wave×state scope.',
+  `wire_centers_in_wave` BIGINT COMMENT 'Number of wire centers in the wave x state scope. NON-ADDITIVE: the value is repeated on every contractor row for that (wave, state_code). Dedupe by (wave, state_code) before SUM (true total 103). SYNTHETIC plan data.',
+  `devices_in_wave` BIGINT COMMENT 'Total copper devices in the wave x state scope. NON-ADDITIVE: the value is repeated on every contractor row for that (wave, state_code). Dedupe by (wave, state_code) before SUM (true total 255). SYNTHETIC plan data.',
   `optimizer_version` STRING COMMENT 'Version of the assignment optimizer that produced this plan.',
   `assignment_date` STRING COMMENT 'Date this contractor was assigned to the wave. Set by the optimizer run.'
 ) USING DELTA
