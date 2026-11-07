@@ -43,5 +43,6 @@ resources:
         beat: '1'
 
       permissions:
-        - level: CAN_MANAGE
+        # ACC-QA-DEF-LAKEBASE-SYNC-SILENT-1107: run-only for all users (was CAN_MANAGE); the deployer keeps IS_OWNER.
+        - level: CAN_MANAGE_RUN
           group_name: 'users'
