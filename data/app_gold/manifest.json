@@ -78,5 +78,21 @@
   "sha256": "7076470581259ac453b4414de86132aee2bd1efb7d23178adb5727d2e6dbfbbd",
   "synthetic_label": true,
   "uncommented": []
+ },
+ {
+  "table": "gold_ebitda_forecast",
+  "rows": 5655,
+  "bytes": 2553082,
+  "sha256": "7c332521c179cc5cf83756d45749589d1c08f701ca559a58460fc6affce6de94",
+  "synthetic_label": true,
+  "uncommented": []
+ },
+ {
+  "table": "gold_device_risk_predictions",
+  "rows": 2672,
+  "bytes": 1175259,
+  "sha256": "c83eab3829acf245ad17ca6ab84489532ceb41b6d55032d10e39f18a1d08019a",
+  "synthetic_label": true,
+  "uncommented": []
  }
 ]

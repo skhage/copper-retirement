@@ -18,7 +18,8 @@ no longer exist, so they ship as lossless snapshots in --snapshot-dir (<name>.dd
   /Volumes/cdm_tmforum/copper_retirement/regulatory_source_docs/_app_gold_export/  (repo copy: data/app_gold/)
   SYNTHETIC: gold_copper_recovery_schedule, retirement_cost_per_wire_center, copper_risk_predictions,
              gold_wave_schedule, gold_contractor_assignment_plan, retirement_milestones,
-             silver_budget_allocation, gold_commodity_price_forecast
+             silver_budget_allocation, gold_commodity_price_forecast,
+             gold_ebitda_forecast, gold_device_risk_predictions (export 2026-11-04)
   REAL     : copper_commodity_price_official (IMF PCOPPUSDM, https://fred.stlouisfed.org/series/PCOPPUSDM),
              roi_calculator_assumptions (cited ratios + labeled synthetic partner inputs)
   VIEW     : v_partner_value_wire_center (created last; reads the snapshots + seeded/pipeline inputs)
@@ -226,7 +227,10 @@ REQUIRED_INPUTS = ["dig_safe_incident", "copper_plant_wire_center_jurisdiction",
 # Snapshot-loaded tables (ACC-DE-FRESH-APP-GOLD), dependency order. View inputs first.
 SNAPSHOT_TABLES = [
     "gold_copper_recovery_schedule", "retirement_cost_per_wire_center", "copper_commodity_price_official",
-    "roi_calculator_assumptions", "retirement_milestones", "copper_risk_predictions", "gold_wave_schedule",
+    "roi_calculator_assumptions", "retirement_milestones",
+    # ACC-DE-MV-FRESH-SNAPSHOTS-1104: sources for metric view copper_ebitda_impact_forecast + device risk tiles
+    "gold_ebitda_forecast", "gold_device_risk_predictions",
+    "copper_risk_predictions", "gold_wave_schedule",
     "gold_contractor_assignment_plan", "silver_budget_allocation", "gold_commodity_price_forecast",
 ]
 SNAPSHOT_VIEWS = ["v_partner_value_wire_center"]
