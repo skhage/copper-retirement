@@ -25,13 +25,14 @@ SHIP = git-tracked files minus the 20 `sync.exclude` patterns in `databricks.yml
 | `bundle/resources/{apps,commodity_dashboard,copper_map,dig_triage,regulatory_assistant}.app.yml`, `serving_endpoints.yml`, `unity_catalog.yml` | 7 | Inert (not in the `include:` list); pending CEO delete batch H4 |
 | `DEMO-RUNBOOK.md`, `DEMO-ROLLBACK-RECOVERY.md`, `DEMO-ENV-FREEZE-CHECKLIST.md`, `demo_kpi_cheat_sheet.md` | 4 | Merged into PARTNER-PLAYBOOK.md (ledger 57-60) |
 | `P6_regulatory_rag_chain`, `data_gen/fix_coordinates`, `scripts/manual_inference_log_demo`, `scripts/monitor_drift_activation` | 4 | Retired notebooks, content merged (ledger 95, 86, 84, 85) |
-| `ops/` (`operational_runbook`, `pre_demo_healthcheck.py`, `V2-INFRA-PLAN.md`) | 3 | Demo-workspace ops; hardcodes the internal Lakebase host |
+| `ops/pre_demo_healthcheck.py`, `ops/V2-INFRA-PLAN.md` | 2 | Demo-workspace ops; hardcode the internal Lakebase host. `ops/operational_runbook` SHIPS (DEC-NB-TARGET-5; Lakebase host/project are widgets since 2026-11-08) |
 | `.assistant_instructions.md`, `.databricks/` | 2 | Internal swarm charter (untracked) and local CLI state |
 
 ## 3. Notebooks (11 in workspace)
 
-* SHIP (6): `beat1_risk_model_walkthrough`, `P6_supervisor_agent`, `data_gen/populate_h3_indexes`, `monitoring/v2_model_monitoring_runbook`, `scripts/batch_score_copper_risk` (job task), `06_demo_reset`.
-* Demo-workspace only (1): `ops/operational_runbook`.
+* SHIP (5, DEC-NB-TARGET-5-20261108): `beat1_risk_model_walkthrough`, `P6_supervisor_agent`, `data_gen/populate_h3_indexes`, `scripts/batch_score_copper_risk` (job task), `ops/operational_runbook` (health + Section 12 Model monitoring + Section 13 Demo reset).
+* Consolidated 2026-11-08 into `ops/operational_runbook` (ACC-DE-NB-RUNBOOK-MERGE-1108; pending human delete): `monitoring/v2_model_monitoring_runbook` (now Section 12), `06_demo_reset` (now Section 13).
+* FIXED 2026-11-08 (ACC-DEVOPS-OPS-SYNC-INCLUDE-1108): `sync.exclude` `ops/**` was narrowed to `ops/pre_demo_healthcheck.py` + `ops/V2-INFRA-PLAN.md`, and the §6 export removes only those 2 files, so `ops/operational_runbook` now reaches partners. §7 still lists the two merged source files until the human delete.
 * Retired, excluded (4): see §2.
 
 ## 4. Hardcoded values in SHIP
@@ -58,7 +59,7 @@ Fallback path (folder export), run from a local shell with the CLI authenticated
 ```
 databricks workspace export-dir /Users/stephen.hage@databricks.com/copper-retirement ./copper-retirement-accelerator
 cd ./copper-retirement-accelerator
-rm -rf .git .databricks .assistant_instructions.md experiments ops \
+rm -rf .git .databricks .assistant_instructions.md experiments ops/pre_demo_healthcheck.py ops/V2-INFRA-PLAN.md \
   apps/regulatory-assistant apps/copper-map apps/commodity-dashboard \
   bundle/resources/apps.app.yml bundle/resources/commodity_dashboard.app.yml bundle/resources/copper_map.app.yml \
   bundle/resources/dig_triage.app.yml bundle/resources/regulatory_assistant.app.yml \
@@ -103,7 +104,7 @@ How it was computed: `git ls-files -z` (284) minus the `databricks.yml` `sync.ex
 * `data/fixtures/synthetic/` (6): `circuit_inventory.csv`, `contractor_registry.csv`, `copper_recovery.csv`, `gis_assets.csv`, `gis_assets.geojson`, `manifest.json`
 * `data/reference/regulatory/` (2): `matrix.jsonl`, `register.jsonl`
 * `data_gen/` (13): `SPEC_commodity_price.md`, `SPEC_contractor_performance.md`, `SPEC_copper_loop_plant.md`, `SPEC_dig_safe_incident.md`, `SPEC_migration_tracking.md`, `SPEC_regulatory_requirements.md`, `SPEC_wire_center_boundary.md`, `__init__.py`, `populate_h3_indexes.py`, `seed_source_tables.py`, `source_table_contract.json`, `synthetic_assets.py`, `synthetic_sources.py`
-* `monitoring/` (1): `v2_model_monitoring_runbook.py`
+* `monitoring/` (1): `v2_model_monitoring_runbook.py` (consolidated into `ops/operational_runbook` §12 on 2026-11-08; drop it from SHIP after the human delete)
 * `monitoring/cdm_tmforum.copper_retirement.risk_inference_unpacked/` (1): `risk_inference_unpacked Monitoring.lvdash.json`
 * `pipeline/` (11): `bronze_copper_devices.sql`, `bronze_copper_services.sql`, `bronze_dig_safe_incidents.sql`, `gold_circuit_revenue_at_risk.sql`, `gold_contractor_scorecard.sql`, `gold_retirement_executive_summary.sql`, `gold_wire_center_scorecard.sql`, `silver_contract_constraints.sql`, `silver_copper_plant_enriched.sql`, `silver_device_service_impact.sql`, `silver_revenue_recognition_constraints.sql`
 * `resources/` (17): `00-master-architecture.md`, `BRANCH_STRATEGY.md`, `BRAND_GUIDE_LAKELINK_FIBER.md`, `DEMO_DEPLOYMENT_RUNBOOK.md`, `DLP_PIPELINE_RUNBOOK.md`, `MANUAL_RUNBOOK.md`, `ML_MODEL_CARD.md`, `ML_PRODUCTION_READINESS.md`, `commodity-workforce.md`, `demo-script.md`, `dig-safe-triage.md`, `model_card.md`, `monitoring_baseline.md`, `post_demo_monitoring_plan.md`, `regulatory-jurisdictions.md`, `technical-reference.md`, `zero-copper-plan.md`

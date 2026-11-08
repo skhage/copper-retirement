@@ -76,7 +76,8 @@ sync:
     - data_gen/fix_coordinates.py
     - scripts/manual_inference_log_demo.py
     - scripts/monitor_drift_activation.py
-    - ops/**
+    - ops/pre_demo_healthcheck.py
+    - ops/V2-INFRA-PLAN.md
 
 variables:
   catalog_name:
