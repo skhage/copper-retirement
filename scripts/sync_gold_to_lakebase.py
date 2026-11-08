@@ -21,6 +21,7 @@ Reference run 2026-10-27 (cdm_tmforum.copper_retirement -> copper-task-board): 1
 2026-11-05 (ACC-DE-LB-GOLD2-SYNC-REMOVE, Option A): removed gold_wave_schedule and gold_copper_recovery_schedule.
 No app reads the Lakebase copies (the Plan tab reads UC), so they are no longer synced; 10 tables.
 """
+import os
 import re
 import time
 
@@ -118,10 +119,49 @@ def sync_table(spark, conn, catalog, schema, target, source, keys, renames, excl
             "status": "DRY_RUN" if dry_run else "OK"}
 
 
-def run_sync(spark, catalog, schema, lakebase_project, tables=None, dry_run=False):
+def _default_ddl_path():
+    """scripts/copper_app_ddl.sql next to this script (plain script) or in the cwd (notebook_task cwd = script dir)."""
+    try:
+        base = os.path.dirname(os.path.abspath(__file__))
+    except NameError:
+        base = os.getcwd()
+    return os.path.join(base, "copper_app_ddl.sql")
+
+
+def ensure_copper_app_ddl(conn, targets, ddl_path=None, pg_schema="copper_app", dry_run=False):
+    """Fresh-Lakebase bootstrap (ACC-QA-DEF-LAKEBASE-SYNC-SILENT-1107 part 1).
+
+    If any sync target table is missing in copper_app, apply the packaged, idempotent, non-destructive
+    scripts/copper_app_ddl.sql (CREATE ... IF NOT EXISTS only). When every target exists, nothing is executed,
+    so the reference Lakebase is not touched. Raises if targets are missing and the DDL file is absent.
+    """
+    with conn.cursor() as cur:
+        cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema=%s", (pg_schema,))
+        present = {r[0] for r in cur.fetchall()}
+    missing = sorted(t for t in targets if t not in present)
+    if not missing:
+        return {"ddl": "SKIPPED_ALL_TARGETS_PRESENT"}
+    path = ddl_path or _default_ddl_path()
+    if not os.path.exists(path):
+        raise RuntimeError(f"copper_app targets missing {missing} and DDL file not found at {path}")
+    with open(path, encoding="utf-8") as f:
+        ddl = f.read()
+    with conn.cursor() as cur:
+        cur.execute(ddl)  # multi-statement, no parameters (simple query protocol); file content is packaged, not user input
+    if dry_run:
+        conn.rollback()
+    else:
+        conn.commit()
+    return {"ddl": "DRY_RUN_APPLIED" if dry_run else "APPLIED", "missing_before": missing, "path": path}
+
+
+def run_sync(spark, catalog, schema, lakebase_project, tables=None, dry_run=False, ensure_ddl=True, ddl_path=None):
     conn = lakebase_connect(lakebase_project)
     out = []
     try:
+        if ensure_ddl:
+            targets = [t for t in SYNC_SPECS if not tables or t in tables]
+            print(ensure_copper_app_ddl(conn, targets, ddl_path=ddl_path, dry_run=dry_run))
         for target, spec in SYNC_SPECS.items():
             source, keys, renames = spec[:3]
             exclude = spec[3] if len(spec) > 3 else []
@@ -146,10 +186,11 @@ def _params():
     try:
         dbutils  # noqa: F821  (defined in Databricks notebooks)
         for k, d in [("catalog", ""), ("schema", "copper_retirement"), ("lakebase_project", "copper-task-board"),
-                     ("tables", ""), ("dry_run", "false")]:
+                     ("tables", ""), ("dry_run", "false"), ("ensure_ddl", "true"), ("ddl_path", "")]:
             dbutils.widgets.text(k, d)  # noqa: F821
         g = dbutils.widgets.get  # noqa: F821
-        return g("catalog"), g("schema"), g("lakebase_project"), g("tables"), g("dry_run").lower() == "true"
+        return (g("catalog"), g("schema"), g("lakebase_project"), g("tables"), g("dry_run").lower() == "true",
+                g("ensure_ddl").lower() != "false", g("ddl_path") or None)
     except NameError:
         import argparse
         p = argparse.ArgumentParser()
@@ -158,12 +199,14 @@ def _params():
         p.add_argument("--lakebase-project", default="copper-task-board")
         p.add_argument("--tables", default="")
         p.add_argument("--dry-run", action="store_true")
+        p.add_argument("--no-ensure-ddl", action="store_true")
+        p.add_argument("--ddl-path", default=None)
         a = p.parse_args()
-        return a.catalog, a.schema, a.lakebase_project, a.tables, a.dry_run
+        return a.catalog, a.schema, a.lakebase_project, a.tables, a.dry_run, not a.no_ensure_ddl, a.ddl_path
 
 
 if __name__ == "__main__":
-    catalog, schema, project, tables, dry_run = _params()
+    catalog, schema, project, tables, dry_run, ensure_ddl, ddl_path = _params()
     if not catalog:
         raise ValueError("catalog parameter is required")
     try:
@@ -172,7 +215,8 @@ if __name__ == "__main__":
         from databricks.connect import DatabricksSession
         spark = DatabricksSession.builder.getOrCreate()
     results = run_sync(spark, catalog, schema, project,
-                       tables=[t.strip() for t in tables.split(",") if t.strip()] or None, dry_run=dry_run)
+                       tables=[t.strip() for t in tables.split(",") if t.strip()] or None, dry_run=dry_run,
+                       ensure_ddl=ensure_ddl, ddl_path=ddl_path)
     bad = [r for r in results if not str(r.get("status", "")).startswith(("OK", "DRY_RUN"))]
     print(f"SYNC SUMMARY: {len(results) - len(bad)}/{len(results)} tables OK")
     if bad:
