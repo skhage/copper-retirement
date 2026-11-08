@@ -24,7 +24,8 @@ SHIP = git-tracked files minus the 20 `sync.exclude` patterns in `databricks.yml
 | `experiments/*` | 11 | MLflow experiment objects, not exportable files |
 | `bundle/resources/{apps,commodity_dashboard,copper_map,dig_triage,regulatory_assistant}.app.yml`, `serving_endpoints.yml`, `unity_catalog.yml` | 7 | Inert (not in the `include:` list); pending CEO delete batch H4 |
 | `DEMO-RUNBOOK.md`, `DEMO-ROLLBACK-RECOVERY.md`, `DEMO-ENV-FREEZE-CHECKLIST.md`, `demo_kpi_cheat_sheet.md` | 4 | Merged into PARTNER-PLAYBOOK.md (ledger 57-60) |
-| `P6_regulatory_rag_chain`, `data_gen/fix_coordinates`, `scripts/manual_inference_log_demo`, `scripts/monitor_drift_activation` | 4 | Retired notebooks, content merged (ledger 95, 86, 84, 85) |
+| `P6_regulatory_rag_chain`, `data_gen/fix_coordinates`, `scripts/manual_inference_log_demo`, `scripts/monitor_drift_activation` | 4 | EXCLUDED/RETIRED notebooks, content merged (ledger 95, 86, 84, 85); pending human delete |
+| `06_demo_reset`, `monitoring/v2_model_monitoring_runbook` | 2 | EXCLUDED/RETIRED 2026-11-08: merged into `ops/operational_runbook` S13 / S12 (ACC-DE-NB-RUNBOOK-MERGE-1108, ledger 261-262); in `sync.exclude` since ACC-DEVOPS-MANIFEST-NB5-1108; pending human delete |
 | `ops/pre_demo_healthcheck.py`, `ops/V2-INFRA-PLAN.md` | 2 | Demo-workspace ops; hardcode the internal Lakebase host. `ops/operational_runbook` SHIPS (DEC-NB-TARGET-5; Lakebase host/project are widgets since 2026-11-08) |
 | `.assistant_instructions.md`, `.databricks/` | 2 | Internal swarm charter (untracked) and local CLI state |
 
@@ -33,7 +34,7 @@ SHIP = git-tracked files minus the 20 `sync.exclude` patterns in `databricks.yml
 * SHIP (5, DEC-NB-TARGET-5-20261108): `beat1_risk_model_walkthrough`, `P6_supervisor_agent`, `data_gen/populate_h3_indexes`, `scripts/batch_score_copper_risk` (job task), `ops/operational_runbook` (health + Section 12 Model monitoring + Section 13 Demo reset).
 * Consolidated 2026-11-08 into `ops/operational_runbook` (ACC-DE-NB-RUNBOOK-MERGE-1108; pending human delete): `monitoring/v2_model_monitoring_runbook` (now Section 12), `06_demo_reset` (now Section 13).
 * FIXED 2026-11-08 (ACC-DEVOPS-OPS-SYNC-INCLUDE-1108): `sync.exclude` `ops/**` was narrowed to `ops/pre_demo_healthcheck.py` + `ops/V2-INFRA-PLAN.md`, and the §6 export removes only those 2 files, so `ops/operational_runbook` now reaches partners. §7 still lists the two merged source files until the human delete.
-* Retired, excluded (4): see §2.
+* EXCLUDED/RETIRED (6, DEC-NB-TARGET-5-20261108 item 4): `P6_regulatory_rag_chain`, `scripts/monitor_drift_activation`, `scripts/manual_inference_log_demo`, `data_gen/fix_coordinates`, `monitoring/v2_model_monitoring_runbook`, `06_demo_reset`. All 6 are in `databricks.yml` `sync.exclude` (2026-11-08) and no bundle resource references them. Physical delete is a human step; if not done by 2026-11-14 they ship DISCLOSED (excluded from sync, listed here and in PLAYBOOK §0).
 
 ## 4. Hardcoded values in SHIP
 
@@ -65,7 +66,8 @@ rm -rf .git .databricks .assistant_instructions.md experiments ops/pre_demo_heal
   bundle/resources/dig_triage.app.yml bundle/resources/regulatory_assistant.app.yml \
   bundle/resources/serving_endpoints.yml bundle/resources/unity_catalog.yml \
   DEMO-RUNBOOK.md DEMO-ROLLBACK-RECOVERY.md DEMO-ENV-FREEZE-CHECKLIST.md demo_kpi_cheat_sheet.md \
-  P6_regulatory_rag_chain.py data_gen/fix_coordinates.py scripts/manual_inference_log_demo.py scripts/monitor_drift_activation.py
+  P6_regulatory_rag_chain.py data_gen/fix_coordinates.py scripts/manual_inference_log_demo.py scripts/monitor_drift_activation.py \
+  06_demo_reset.py monitoring/v2_model_monitoring_runbook.py
 databricks bundle validate -t partner --var warehouse_id=<WAREHOUSE_ID> --var lakebase_project=<PARTNER_LAKEBASE_PROJECT> --var lakebase_host=<PARTNER_LAKEBASE_HOST>
 ```
 
@@ -73,7 +75,7 @@ databricks bundle validate -t partner --var warehouse_id=<WAREHOUSE_ID> --var la
 
 How it was computed: `git ls-files -z` (284) minus the `databricks.yml` `sync.exclude` patterns gives 189. This matches the 189 that `bundle sync --dry-run --full -t partner` measured at 7bb2ea1. Since 7bb2ea1 no files were added or removed (`git diff --name-status 7bb2ea1 HEAD` shows only M entries). `data/reference/regulatory/matrix.jsonl` has 86 rows.
 
-* `./` (11): `.gitignore`, `06_demo_reset.py`, `BUILD-PLAN.md`, `P6_supervisor_agent.py`, `PARTNER-PLAYBOOK.md`, `README.md`, `SEMANTIC-MODELING-STANDARDS.md`, `beat1_risk_model_walkthrough.py`, `databricks.yml`, `pyproject.toml`, `requirements.txt`
+* `./` (10; `06_demo_reset.py` removed from SHIP 2026-11-08, ACC-DEVOPS-MANIFEST-NB5-1108): `.gitignore`, `BUILD-PLAN.md`, `P6_supervisor_agent.py`, `PARTNER-PLAYBOOK.md`, `README.md`, `SEMANTIC-MODELING-STANDARDS.md`, `beat1_risk_model_walkthrough.py`, `databricks.yml`, `pyproject.toml`, `requirements.txt`
 * `apps/` (2): `APP_INVENTORY.md`, `BRAND_GUIDE.md`
 * `apps/copper-task-board/` (4): `README.md`, `app.py`, `app.yaml`, `requirements.txt`
 * `apps/copper-task-board/static/` (1): `index.html`
@@ -104,7 +106,7 @@ How it was computed: `git ls-files -z` (284) minus the `databricks.yml` `sync.ex
 * `data/fixtures/synthetic/` (6): `circuit_inventory.csv`, `contractor_registry.csv`, `copper_recovery.csv`, `gis_assets.csv`, `gis_assets.geojson`, `manifest.json`
 * `data/reference/regulatory/` (2): `matrix.jsonl`, `register.jsonl`
 * `data_gen/` (13): `SPEC_commodity_price.md`, `SPEC_contractor_performance.md`, `SPEC_copper_loop_plant.md`, `SPEC_dig_safe_incident.md`, `SPEC_migration_tracking.md`, `SPEC_regulatory_requirements.md`, `SPEC_wire_center_boundary.md`, `__init__.py`, `populate_h3_indexes.py`, `seed_source_tables.py`, `source_table_contract.json`, `synthetic_assets.py`, `synthetic_sources.py`
-* `monitoring/` (1): `v2_model_monitoring_runbook.py` (consolidated into `ops/operational_runbook` §12 on 2026-11-08; drop it from SHIP after the human delete)
+* `monitoring/` (0): `v2_model_monitoring_runbook.py` removed from SHIP 2026-11-08 (in `sync.exclude`; content is `ops/operational_runbook` §12)
 * `monitoring/cdm_tmforum.copper_retirement.risk_inference_unpacked/` (1): `risk_inference_unpacked Monitoring.lvdash.json`
 * `pipeline/` (11): `bronze_copper_devices.sql`, `bronze_copper_services.sql`, `bronze_dig_safe_incidents.sql`, `gold_circuit_revenue_at_risk.sql`, `gold_contractor_scorecard.sql`, `gold_retirement_executive_summary.sql`, `gold_wire_center_scorecard.sql`, `silver_contract_constraints.sql`, `silver_copper_plant_enriched.sql`, `silver_device_service_impact.sql`, `silver_revenue_recognition_constraints.sql`
 * `resources/` (17): `00-master-architecture.md`, `BRANCH_STRATEGY.md`, `BRAND_GUIDE_LAKELINK_FIBER.md`, `DEMO_DEPLOYMENT_RUNBOOK.md`, `DLP_PIPELINE_RUNBOOK.md`, `MANUAL_RUNBOOK.md`, `ML_MODEL_CARD.md`, `ML_PRODUCTION_READINESS.md`, `commodity-workforce.md`, `demo-script.md`, `dig-safe-triage.md`, `model_card.md`, `monitoring_baseline.md`, `post_demo_monitoring_plan.md`, `regulatory-jurisdictions.md`, `technical-reference.md`, `zero-copper-plan.md`

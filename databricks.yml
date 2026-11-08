@@ -76,6 +76,9 @@ sync:
     - data_gen/fix_coordinates.py
     - scripts/manual_inference_log_demo.py
     - scripts/monitor_drift_activation.py
+    # Merged into ops/operational_runbook S12/S13 (ACC-DE-NB-RUNBOOK-MERGE-1108; ACC-DEVOPS-MANIFEST-NB5-1108)
+    - 06_demo_reset.py
+    - monitoring/v2_model_monitoring_runbook.py
     - ops/pre_demo_healthcheck.py
     - ops/V2-INFRA-PLAN.md
 
