@@ -3,6 +3,10 @@
 -- Template parameters (text substitution before execution): ${catalog} (reference: cdm_tmforum), ${schema} (reference: copper_retirement).
 -- Space-containing column names are backtick-quoted. Provisioning/execution is owned by ACC-DE-MV-DDL-PROVISION.
 -- Synthetic-data note: see the view COMMENT below.
+-- 2026-11-04 @data-analyst ACC-DA-MV-FRESH-SRC-GAP: the source is now a SQL query. It selects explicit pipeline columns from
+-- gold_circuit_revenue_at_risk and LEFT JOINs gold_device_risk_predictions (1 row per device) for ML Risk Tier / Avg ML Composite
+-- Risk Score, so it no longer needs the out-of-pipeline ml_* columns. Prerequisite on a fresh deploy: gold_device_risk_predictions
+-- must be loaded (snapshot, ACC-DE-MV-FRESH-SNAPSHOTS-1104) before this file runs. Live output is byte-identical (md5 43cfc2d5..., 5,464 groups).
 
 CREATE OR REPLACE VIEW ${catalog}.${schema}.copper_ebitda_impact_achieved (
   `State` COMMENT 'US state code where the copper circuit is deployed',
@@ -34,7 +38,14 @@ AS
 $$
 version: 1.1
 
-source: ${catalog}.${schema}.gold_circuit_revenue_at_risk
+source: |-
+  SELECT g.state_code, g.device_type, g.computed_risk_tier, g.revenue_tier, g.action_priority,
+    g.fiber_ready, g.technology_domain, g.circuit_lifecycle_status, g.puc_filing_required,
+    g.estimated_annual_revenue, g.monthly_unit_price, g.total_billed_amount,
+    d.risk_tier_predicted AS ml_risk_tier, d.composite_risk_score AS ml_composite_risk_score
+  FROM ${catalog}.${schema}.gold_circuit_revenue_at_risk g
+  LEFT JOIN ${catalog}.${schema}.gold_device_risk_predictions d
+    ON g.physical_device_id = d.physical_device_id
 
 comment: "DERIVED FROM SYNTHETIC DATA — Metric view: EBITDA and revenue impact achieved\
   \ from copper retirement — annual revenue at risk, cost savings realized, and net\

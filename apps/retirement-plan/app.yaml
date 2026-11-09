@@ -60,5 +60,9 @@ env:
   # Regulatory tab grounded answers (pay-per-token via ai_query; Llama guardrail rejects statute text)
   - name: LLM_ENDPOINT
     value: databricks-claude-sonnet-4-5
+  # Footer release label, read by client/vite.config.ts at build time (ACC-DES-DEF-FOOTER-VERSION-1107).
+  # Set to the release name + short SHA when deploying, e.g. accel-r1.3-<sha>. Unset = 'dev'.
+  - name: APP_RELEASE
+    value: accel-r1.3
   # - name: LAKEBASE_CONNECTION_STRING
   #   description: Lakebase Postgres connection for plan write-back (P5-SCHEMA)

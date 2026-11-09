@@ -1,7 +1,7 @@
 # Lakelink Fiber — Brand Guide
 
 > Canonical design reference for the Copper Retirement Accelerator (2 apps: unified accelerator app `apps/retirement-plan` + internal `copper-task-board`).
-> Last updated: 2026-10-24 (ACC-APP-IA, @designer — binding).
+> Last updated: 2026-10-24 (ACC-APP-IA, @designer — binding). §0.1 click-path refreshed 2026-11-08 to live deploy 01f1d9ee (ACC-DES-CLICKPATH-REFRESH-1107).
 >
 > **Single source of truth for tokens:** `apps/retirement-plan/client/src/styles/tokens.css`. Where this guide and tokens.css disagree, **tokens.css wins**. Partner white-label = edit only the BRAND LAYER block in tokens.css. Do NOT hardcode hex values in components or in `tailwind.config` — map Tailwind keys to the CSS variables (snippet at the bottom of tokens.css). Retiring apps (commodity-dashboard, copper-map, dig-triage, regulatory-assistant) receive no further brand fixes.
 
@@ -15,15 +15,15 @@
 
 | # | Tab label | Hash route | Question it answers | Primary content | Source app |
 |---|-----------|------------|---------------------|-----------------|------------|
-| 1 | Map & Risk | `#map` | Where is the copper and what is at risk? | KPI row, hex/wire-center risk map, filter panel, device drawer, what-if | copper-map |
-| 2 | Plan | `#plan` | What is the capital-efficient path to zero copper? | Sub-tabs: Timeline, Migration Table, Budget, Wave Checklist, Scenarios | retirement-plan (host) |
-| 3 | Dig Triage | `#triage` | What happens when a dig damages plant? | KPI row, incident map + table, detail drawer, triage agent chat | dig-triage |
-| 4 | Regulatory | `#regulatory` | Are we clear on regulations? | Cited Q&A chat, jurisdiction matrix, FCC workflow stepper, source register | regulatory-assistant |
+| 1 | Map & Risk | `#map` | Where is the copper and what is at risk? | KPI row, point-marker risk map (tier = colour + shape), filter panel, detail panel, wire-center priority table | copper-map |
+| 2 | Plan | `#plan` | What is the capital-efficient path to zero copper? | Sub-tabs: Gantt Timeline, Migration Table, Budget, Regulatory Checklist, Scenario Compare (`PLAN_SUBTABS`, PlanTab.tsx L22-28) | retirement-plan (host) |
+| 3 | Dig Triage | `#triage` | What happens when a dig damages plant? | KPI row; sub-tabs: Incident Map (default), Incident List, Action Log (`SUB_TABS`, tabs/triage/App.tsx L40-42); detail drawer, triage agent chat | dig-triage |
+| 4 | Regulatory | `#regulatory` | Are we clear on regulations? | Sub-tabs: Jurisdiction matrix (default), Ask the sources (Beta), Source register (`SUBS`, tabs/regulatory/RegulatoryTab.tsx L41) | regulatory-assistant |
 | 5 | Commodity & Value | `#commodity` | What is the copper worth and what is the ROI? | Partner value KPIs (lbs, $ at LME/IMF, opex, customers migrated), price chart, sell/hold, recovery tracker | commodity-dashboard |
 
 **Rules (binding for @app-developer):**
-* Max 2 nav levels: top tabs + optional sub-tabs (Plan only). Sub-tabs use the same `.ll-tab` styling at `text-sm`; no pills, no sidebars.
-* Deep-linkable: hash route per tab and per Plan sub-tab (`#plan/timeline`); browser back works; default `#map`.
+* Max 2 nav levels: top tabs + optional sub-tabs. Sub-tabs are allowed on Plan, Dig Triage and Regulatory only (amended 2026-11-08, ACC-DES-IA-SUBTABS-RULE-1108, to match deploy 01f1d9ee); Map & Risk and Commodity & Value stay single-view. Every sub-tab bar uses the shared `TabBar` component (same `.ll-tab` styling at `text-sm`, WAI-ARIA tabs, `idPrefix` per tab); no pills, no sidebars, no third level.
+* Deep-linkable: hash route per tab and per sub-tab (`#plan/timeline`, `#triage/table`, `#regulatory/sources`); first segment = top tab, second = sub-tab id; unknown sub falls back to the tab default; browser back works; default `#map`. Status on deploy 01f1d9ee: only Plan sub-tabs are in the hash; Triage and Regulatory sub-tabs are local state (remediation ACC-DES-DEF-SUBTAB-HASH-1108).
 * Every tab follows one page template: (1) tab title H1 24px/700 + one-line question subtitle in `muted-foreground`; (2) KPI row `grid-cols-2 sm:grid-cols-3 lg:grid-cols-6`, `gap-3`; (3) primary viz; (4) detail drawer/panel on selection (right drawer ≥lg, bottom sheet <lg).
 * Tab bar scrolls horizontally <640px (no wrapping, no hamburger); 44px min touch target.
 * Keyboard: arrow keys move between tabs (WAI-ARIA tabs pattern), `Tab` enters panel, visible focus ring everywhere (global rule in tokens.css).
@@ -36,24 +36,24 @@
 <a id="demo-click-path"></a>
 ### §0.1 R2 Demo Click-Path (presenter script, ~12 min) — ACC-DES-DEMO-CLICKPATH
 
-Linked from PARTNER-PLAYBOOK §5 via `apps/BRAND_GUIDE.md#demo-click-path`. Tab order = sales narrative; never skip back. Each step: **click → say → proof on screen**.
+Linked from PARTNER-PLAYBOOK §5 via `apps/BRAND_GUIDE.md#demo-click-path`. Tab order = sales narrative; never skip back. Each step: **click → say → proof on screen**. Matches the live deploy 01f1d9ee (2026-11-06 14:27 UTC) source and PLAYBOOK §5 v1.38 (warm-up 3/4, Beats 1/4). The talk tracks below are the on-screen TabHeader questions.
 
 | Step | Tab / route | Click | Talk track (one line) | Proof on screen | Data label |
 |---|---|---|---|---|---|
 | 0 | Header | Land on `#map` (default) | "One accelerator, five questions a copper program has to answer." | Header badge shows MIXED; footer disclosure visible | MIXED |
-| 1 | Map & Risk `#map` | KPI row → click highest-risk wire center hex → device drawer opens | "Where is the copper and what is at risk." | Risk score from serving endpoint `copper-retirement-risk`; drawer shows device + alarms | SYNTHETIC badge on map title (TMF network data is synthetic) |
-| 2 | Plan `#plan/timeline` → `#plan/budget` → `#plan/scenarios` | Select wave → Budget sub-tab → compare 2 scenarios | "Capital-efficient path to zero copper, wave by wave." | Gantt + budget vs. salvage; scenario delta KPI | SYNTHETIC on plan panels |
-| 3 | Dig Triage `#triage` | Click newest incident → detail drawer → ask triage agent one question | "When a dig damages plant, triage takes seconds, not hours." | 811 ticket fields from `stg_811_dig_ticket`; agent answer with cited locate rule | SYNTHETIC on incident panels; citations use CitationLink |
-| 4 | Regulatory `#regulatory` | Jurisdiction matrix → pick state → FCC workflow stepper → open one citation | "Every requirement links to the official source — no invented rules." | Rows from `copper_retirement.jurisdiction_requirements_cited` + `regulatory_source_register` (`official_url` on every row); link opens fcc.gov / ecfr.gov in new tab | LIVE (real sources). Free-text RAG hidden or labeled "synthetic, not citable" until ACC-REG-VS-RESYNC |
-| 5 | Commodity & Value `#commodity` | Move ROI slider low → base → high | "Here is what the copper is worth and the payback the SOW funds." | Metric view `copper_retirement.copper_partner_value` + `roi_calculator_assumptions`; price as-of date + source next to the price KPI | MIXED: price source labeled; plant volumes SYNTHETIC |
+| 1 | Map & Risk `#map` | KPI row → pick a State → set Risk tier = Critical → click a wire-center marker (or Tab to a row in Wire centers by retirement priority and press Enter) → detail panel | "Where is our copper, and which plant is most at risk?" | Point markers are coloured AND shaped by predicted tier (not hexes). The detail panel reads "Batch prediction from risk model v{n}, scored {date}" from `copper_risk_predictions`. The app never calls the serving endpoint. The Critical KPI tile (383) is the rule-based tier, so do not equate it with the marker count | `SYNTHETIC NETWORK DATA` badge on the tab title |
+| 2 | Plan `#plan/timeline` → `#plan/budget` → `#plan/scenarios` | Wave filter → Gantt Timeline → Budget sub-tab → Scenario Compare | "Retirement plan: what is the capital-efficient path to zero copper?" | Gantt + budget; scenario compare. The sub-tabs are Gantt Timeline, Migration Table, Budget, Regulatory Checklist, Scenario Compare | SYNTHETIC on plan panels |
+| 3 | Dig Triage `#triage` | Click an incident on the map/table → incident detail panel → ask the triage agent one question (only if it answers live; a failed call shows an error, never a mock answer) | "A dig-in just happened: what is hit, who is affected, how do we reroute?" | Incident detail panel + agent chat side by side; 811 source badge next to the title | `SYNTHETIC INCIDENTS` badge on the tab title |
+| 4 | Regulatory `#regulatory` | Jurisdiction matrix → Jurisdiction = Federal only → row `copper_retirement_notice` → open its citation → pick a footprint state (WA/AZ/CO/MN/OR/ID) → open one 811 citation → Source register sub-tab | "Are we clear on notice, 811 and permit rules in every jurisdiction?" | Rows from `copper_retirement.jurisdiction_requirements_cited` with a status badge + CitationLink on every row. The federal row shows 90 days, 47 CFR 51.329(a)/51.333(a)(2), and opens https://www.ecfr.gov/current/title-47/chapter-I/subchapter-B/part-51/subpart-D in a new tab. There is no FCC workflow stepper | LIVE (real sources). Do not demo the 'Ask the sources (Beta)' sub-tab: the FINAL GATE was graded FAIL on 2026-11-08 (ACC-ML-ASK-FINAL-GATE). If a viewer asks, show only answers that carry [S#] official-URL chips |
+| 5 | Commodity & Value `#commodity` | ROI calculator card → low / base / high toggle buttons (not a slider) | "What is the recovered copper worth, and when should we sell?" | The latest-price KPI carries the CitationLink `IMF PCOPPUSDM YYYY-MM` (FRED). Value comes from `copper_partner_value` / `v_partner_value_wire_center`, and each ROI input shows its source URL or PARTNER INPUT. The forecast is labeled synthetic with a "do not use for sell/hold timing" warning, so never present it as a price call | Title badges: "Price: real IMF data" + `SYNTHETIC PLANT + WORKFORCE`; ROI card `MIXED: SYNTHETIC PLANT + PARTNER INPUTS` |
 | 6 | Close | Back to header | "Partner rebrand = one token file; deploy = one DAB command." | — | — |
 
-**Presenter rules:** keep browser at ≥1280px (drawers render right-side); if a tab errors, the ErrorBoundary Retry keeps chrome — click Retry once, then move on (do not reload the app mid-demo). Never claim a synthetic number is a customer number.
+**Presenter rules:** do not screenshot the footer version until retirement-plan is redeployed. The live 01f1d9ee footer still reads `accel-r1-planc`, and the APP_RELEASE fix (ACC-DES-DEF-FOOTER-VERSION-1107) is source-only. Keep the browser at ≥1280px (detail panels render right-side); if a tab errors, the ErrorBoundary Retry keeps chrome — click Retry once, then move on (do not reload the app mid-demo). Never claim a synthetic number is a customer number.
 
 <a id="citation-pattern"></a>
 ### §0.2 Regulatory citation display pattern (binding)
 
-* Every regulatory fact (matrix cell, stepper step, chat answer sentence group) ends with one or more `CitationLink` chips: `{title} ↗` in `text-primary-strong` underlined, `text-xs`, new tab, `rel="noopener noreferrer"`, sr-only "(opens official source in new tab)".
+* Every regulatory fact (matrix cell, Plan regulatory-checklist item, chat answer sentence group) ends with one or more `CitationLink` chips: `{title} ↗` in `text-primary-strong` underlined, `text-xs`, new tab, `rel="noopener noreferrer"`, sr-only "(opens official source in new tab)".
 * Chip text = `regulatory_source_register.title`; tooltip/secondary line = `citation` (e.g. "47 CFR 51.325") + `last_verified` date. Never render a fact without an `official_url`; if missing, render the EmptyState "Source not yet verified" and do not show the fact.
 * Verification mapping: see the status badge table below (ACC-DES-REG-BADGE-STATUS-SPEC, 2026-11-01, binding). It supersedes the older rule that every non-`verified_*` value is UNVERIFIED. Do NOT test for the literal string `verified`.
 

@@ -47,8 +47,8 @@ export function PlanTab({ sub, onSubChange }: Props) {
   return (
     <div>
       <TabHeader
-        title="Retirement Plan"
-        question="What is the capital-efficient path to zero copper?"
+        title="Plan"
+        question="Retirement plan: what is the capital-efficient path to zero copper?"
         badges={<SyntheticBadge />}
       />
 

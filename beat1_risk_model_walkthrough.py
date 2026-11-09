@@ -500,6 +500,10 @@ display(spark.createDataFrame(rows)) if rows else None
 
 if P["register"] == "true":
     assert n_red == 0, "Fairness gate failed (RED slice); not registering"
+    # ACC-QA-DEF-PARTNER-RISK-MODEL-1107: the partner bundle does not create the model schema
+    # (bundle/resources/unity_catalog.yml has no ml_models). Create it so day-1 registration works.
+    _cat, _msch = P["model_name"].split(".")[:2]
+    spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{_cat}`.`{_msch}` COMMENT 'Copper retirement risk model registry (telco_project=copper-retirement)'")
     mv = mlflow.register_model(f"runs:/{run.info.run_id}/model", P["model_name"])
     _c = mlflow.MlflowClient()
     # Bootstrap: if no @champion exists yet (fresh workspace), register as champion

@@ -41,6 +41,11 @@ const SUB_TABS = [
   { id: 'table', label: 'Incident List' },
   { id: 'log', label: 'Action Log' },
 ] as const;
+// ACC-DES-DEF-SUBTAB-HASH-1108: sub-tab is deep-linkable as #triage/<sub> (BRAND_GUIDE §0). Unknown sub -> 'map'.
+export type TriageSub = (typeof SUB_TABS)[number]['id'];
+export function isTriageSub(s: string | undefined): s is TriageSub {
+  return SUB_TABS.some((t) => t.id === s);
+}
 
 interface Summary811 { tickets: number; states: number; telecom: number; origin: string; source: string }
 
@@ -83,7 +88,7 @@ function Dig811Badge() {
   );
 }
 
-export function TriageTab() {
+export function TriageTab({ sub, onSubChange }: { sub?: TriageSub; onSubChange?: (s: TriageSub) => void } = {}) {
   // --- State ---
   const [filters, setFilters] = useState<TriageFilters>({
     severity: 'all',
@@ -92,7 +97,10 @@ export function TriageTab() {
   });
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'map' | 'table' | 'log'>('map');
+  // Controlled by the shell route (#triage/<sub>) when sub/onSubChange are passed; local state otherwise.
+  const [localTab, setLocalTab] = useState<TriageSub>('map');
+  const activeTab: TriageSub = sub ?? localTab;
+  const setActiveTab = (t: TriageSub) => { if (onSubChange) onSubChange(t); else setLocalTab(t); };
   const [enrichedData, setEnrichedData] = useState<IncidentDetail | null>(null);
   const [nearbyIncidents, setNearbyIncidents] = useState<NearbyIncident[]>([]);
   const [rerouteSuggestion, setRerouteSuggestion] = useState<RerouteSuggestion | null>(null);

@@ -38,6 +38,9 @@ resources:
             value: ${var.llm_endpoint}
           - name: SERVING_ENDPOINT
             value: ${var.serving_endpoint}
+          # Footer release label (client/vite.config.ts define, ACC-DES-DEF-FOOTER-VERSION-1107).
+          - name: APP_RELEASE
+            value: accel-r1.3-${bundle.target}
       # ACC-DEVOPS-BUNDLE-SP-GRANTS: app resources auto-grant the app service principal on deploy.
       # UC data grants (schema USE_SCHEMA/SELECT/EXECUTE) are declared on the partner-target schema
       # in databricks.yml; catalog USE_CATALOG is a documented post-deploy step (PARTNER-PLAYBOOK §6a).

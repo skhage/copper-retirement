@@ -20,9 +20,17 @@ Modes:
   (default)     load into <catalog>.<schema>. Existing objects are skipped unless --replace.
   --dry-run     print the plan only.   --smoke N   download+parse+chunk N sources in memory, write nothing.
   --skip-download  load register/matrix/TVF only.
+  --offline     restricted-egress fallback: load chunk text + source_url from --reference-dir/chunks.jsonl
+                (public-domain REAL chunks only, written by --export) instead of downloading; re-embeds in the
+                target workspace. No outbound HTTP to official sites is needed.
+  --max-failures N  fail loudly (exit 2) when more than N sources fail/stub on download (default 3 = the known
+                WAF 403s: AZ SOS x2, CO SOS 8146). Always writes a per-source egress report (JSON) to the volume.
+
+Prerequisites (fail fast with a clear message if missing): serving endpoint databricks-bge-large-en reachable via
+ai_query; for the default (online) mode, outbound HTTPS egress to the official_url hosts in register.jsonl.
 
 Usage: python load_regulatory_reference.py --catalog <catalog> --schema <schema> [--reference-dir DIR]
-       [--export] [--replace] [--dry-run] [--smoke N] [--skip-download]
+       [--export] [--replace] [--dry-run] [--smoke N] [--skip-download] [--offline] [--max-failures N]
 No hardcoded catalogs or user paths. Tags: telco_project=copper-retirement.
 """
 import argparse
@@ -134,6 +142,15 @@ def export(spark, fq, ref_dir):
         path = os.path.join(ref_dir, fname)
         df.to_json(path, orient="records", lines=True, date_format="iso")
         print(f"EXPORT {name}: {len(df)} rows -> {path}")
+    # Offline fallback corpus: REAL public-domain chunks only (excludes is_public_domain=false, e.g. IND-CGA-BP21).
+    # Embeddings are NOT exported; they are recomputed with databricks-bge-large-en on load.
+    cdf = spark.sql(f"""SELECT c.* EXCEPT (embedding) FROM {fq}.regulatory_doc_chunks c
+        WHERE c.is_synthetic = false AND c.source_url IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM {fq}.regulatory_source_register r
+                          WHERE r.source_id = c.source_id AND r.is_public_domain = false)""").toPandas()
+    path = os.path.join(ref_dir, "chunks.jsonl")
+    cdf.to_json(path, orient="records", lines=True, date_format="iso")
+    print(f"EXPORT regulatory_doc_chunks (public-domain real): {len(cdf)} rows -> {path}")
 
 
 def load_reference_table(spark, fq, catalog, schema, name, path, replace, dry):
@@ -212,6 +229,68 @@ def download_and_chunk(spark, catalog, schema, register_rows, write_files):
     return files, chunks
 
 
+def preflight_embedding(spark):
+    """Fail fast if the embedding endpoint is not reachable (prerequisite for chunks and the TVF)."""
+    try:
+        spark.sql(f"SELECT ai_query('{EMBED_MODEL}', 'preflight', returnType => 'ARRAY<FLOAT>') AS v").first()
+        print(f"OK     preflight: embedding endpoint {EMBED_MODEL} reachable")
+    except Exception as e:
+        raise SystemExit(f"PREREQ FAILED: serving endpoint {EMBED_MODEL} not reachable via ai_query ({str(e)[:300]}). "
+                         "Enable Foundation Model APIs / grant access, then re-run. Regulatory tab citations depend on it.")
+
+
+def write_egress_report(catalog, schema, files, chunks, max_failures):
+    """Per-source egress report; exit 2 when failures exceed max_failures or no chunks were produced."""
+    failed = [f for f in files if f["download_status"] != "downloaded"]
+    print("\nEGRESS REPORT (source_id | download_status | http_status | error | url)")
+    for f in failed:
+        print(f"  {f['source_id']} | {f['download_status']} | {f['http_status']} | {f['error']} | {f['source_url']}")
+    report = dict(generated_at=datetime.now(timezone.utc).isoformat(), sources=len(files), downloaded=len(files) - len(failed),
+                  failed_or_stub=len(failed), chunks=len(chunks), max_failures=max_failures,
+                  failures=[{k: f[k] for k in ("source_id", "download_status", "http_status", "error", "source_url")} for f in failed])
+    path = f"/Volumes/{catalog}/{schema}/regulatory_source_docs/_egress_report_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.json"
+    try:
+        with open(path, "w") as fh: json.dump(report, fh, indent=2, default=str)
+        print(f"REPORT {path}")
+    except OSError as e:
+        print(f"WARN   could not write egress report to volume: {e}")
+    if not chunks or len(failed) > max_failures:
+        print(f"\nFAIL LOUD: {len(failed)} of {len(files)} sources failed (allowed {max_failures}); chunks={len(chunks)}. "
+              "The Regulatory tab will answer WITHOUT citations. Fix egress to the hosts above, or re-run with --offline "
+              "(uses --reference-dir/chunks.jsonl). See PARTNER-PLAYBOOK prerequisites.")
+        raise SystemExit(2)
+
+
+def load_offline_chunks(spark, fq, ref_dir):
+    """Restricted-egress fallback: chunk text + source_url from chunks.jsonl; re-embed in this workspace."""
+    import pandas as pd
+    path = os.path.join(ref_dir, "chunks.jsonl")
+    if not os.path.exists(path):
+        raise SystemExit(f"--offline needs {path} (create it with --export in the reference workspace and commit it).")
+    pdf = pd.read_json(path, lines=True, dtype=False)
+    if pdf.empty:
+        raise SystemExit(f"--offline: {path} has 0 rows")
+    spark.sql(CHUNKS_DDL.format(fq=fq))
+    spark.sql(TAG.format(kind="TABLE", obj=f"{fq}.regulatory_doc_chunks"))
+    target = spark.table(f"{fq}.regulatory_doc_chunks").drop("embedding").schema
+    pdf = pdf[[c for c in target.fieldNames() if c in pdf.columns]]
+    for c in target.fieldNames():
+        if c not in pdf.columns: pdf[c] = None
+    pdf["is_synthetic"] = False
+    cdf = spark.createDataFrame(pdf[target.fieldNames()].astype(object).where(pdf.notna(), None), schema=target)
+    cdf.createOrReplaceTempView("_offline_reg_chunks")
+    spark.sql(f"DELETE FROM {fq}.regulatory_doc_chunks WHERE is_synthetic = false")
+    spark.sql(f"""INSERT INTO {fq}.regulatory_doc_chunks BY NAME
+                  SELECT o.*, ai_query('{EMBED_MODEL}', o.embedding_text, returnType => 'ARRAY<FLOAT>') AS embedding
+                  FROM _offline_reg_chunks o
+                  WHERE o.source_url IS NOT NULL AND NOT EXISTS (SELECT 1 FROM {fq}.regulatory_source_register r
+                        WHERE r.source_id = o.source_id AND r.is_public_domain = false)""")
+    n = spark.sql(f"SELECT count(*) n FROM {fq}.regulatory_doc_chunks WHERE is_synthetic = false").first().n
+    print(f"OFFLINE loaded {n} real chunks from {path}")
+    if n == 0:
+        raise SystemExit("FAIL LOUD: --offline produced 0 real chunks; Regulatory tab would have no citations.")
+
+
 CHUNKS_DDL = """
 CREATE TABLE IF NOT EXISTS {fq}.regulatory_doc_chunks (
   chunk_id STRING NOT NULL COMMENT 'Primary key: <source_id>__<url-slug>_<chunk_index>',
@@ -265,6 +344,8 @@ def main():
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--skip-download", action="store_true")
     p.add_argument("--smoke", type=int, default=0)
+    p.add_argument("--offline", action="store_true")
+    p.add_argument("--max-failures", type=int, default=3)
     a = p.parse_args()
     for v in (a.catalog, a.schema):
         if not IDENT.match(v): raise SystemExit(f"Invalid identifier: {v!r}")
@@ -290,9 +371,13 @@ def main():
     load_reference_table(spark, fq, a.catalog, a.schema, "regulatory_source_register", reg_path, a.replace, a.dry_run)
     load_reference_table(spark, fq, a.catalog, a.schema, "jurisdiction_requirements_cited", mat_path, a.replace, a.dry_run)
 
+    if not a.dry_run and not a.skip_download:
+        preflight_embedding(spark)
     has_real = (spark.catalog.tableExists(f"{a.catalog}.{a.schema}.regulatory_doc_chunks") and
                 spark.sql(f"SELECT count(*) n FROM {fq}.regulatory_doc_chunks WHERE is_synthetic = false").first().n > 0)
-    if a.skip_download or a.dry_run or (has_real and not a.replace):
+    if a.offline and not a.dry_run and (a.replace or not has_real):
+        load_offline_chunks(spark, fq, a.reference_dir)
+    elif a.skip_download or a.dry_run or (has_real and not a.replace):
         print(f"SKIP   download/parse/chunk ({'real chunks exist; pass --replace' if has_real else 'flag/dry-run'})")
     else:
         rows = [r.asDict() for r in spark.table(f"{fq}.regulatory_source_register").where("official_url IS NOT NULL").collect()]
@@ -311,6 +396,10 @@ def main():
                           SELECT *, ai_query('{EMBED_MODEL}', embedding_text, returnType => 'ARRAY<FLOAT>') AS embedding FROM _new_reg_chunks""")
         failed = [f["source_id"] for f in files if f["download_status"] != "downloaded"]
         print(f"files={len(files)} failed_or_stub={len(failed)} {failed} chunks={len(chunks)}")
+        # TVF is created before exiting so the failure is visible, then fail loudly.
+        if not spark.catalog.functionExists(f"{a.catalog}.{a.schema}.search_regulatory_chunks"):
+            spark.sql(TVF_SQL.format(fq=fq))
+        write_egress_report(a.catalog, a.schema, files, chunks, a.max_failures)
 
     print(f"{'PLAN ' if a.dry_run else 'CREATE'} function {a.catalog}.{a.schema}.search_regulatory_chunks")
     if not a.dry_run:

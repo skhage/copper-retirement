@@ -263,7 +263,7 @@ Trigger detected
 | --- | --- | --- |
 | Lakehouse Monitor on inference table | ACTIVE (configured) | Awaiting inference auto-capture enablement |
 | Batch scoring notebook | READY | `copper-retirement/scripts/batch_score_copper_risk` |
-| Drift monitoring notebook | READY | `copper-retirement/monitoring/v2_model_monitoring_runbook` (Sections 9-12; merged 2026-10-24) |
+| Drift monitoring notebook | READY | `copper-retirement/ops/operational_runbook` Section 12 (sub-sections 12.9-12.12 = former drift-activation checks; consolidated from `monitoring/v2_model_monitoring_runbook` 2026-11-08, ACC-DE-NB-RUNBOOK-MERGE-1108) |
 | Manual inference logging | READY | `copper-retirement/scripts/batch_score_copper_risk` (Section 2, `run_inference_demo=true`; merged 2026-10-24) |
 | Monitoring baseline | DOCUMENTED | `copper-retirement/resources/monitoring_baseline.md` |
 | Model card | DOCUMENTED | `copper-retirement/resources/ML_MODEL_CARD.md` |

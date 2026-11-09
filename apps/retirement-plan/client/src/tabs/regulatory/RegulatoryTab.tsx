@@ -40,6 +40,12 @@ const DEGRADED_LABELS: Record<string, string> = { jurisdiction_requirements_cite
 const ASK_BETA_NOTE = 'Answers may be incomplete; verify against the linked official source.';
 const SUBS = [{ id: 'matrix', label: 'Jurisdiction matrix' }, { id: 'ask', label: ASK_BETA ? 'Ask the sources (Beta)' : 'Ask the sources' }, { id: 'sources', label: 'Source register' }] as const;
 type Sub = (typeof SUBS)[number]['id'];
+// ACC-DES-DEF-SUBTAB-HASH-1108: sub-tab is deep-linkable as #regulatory/<sub> (BRAND_GUIDE §0).
+// Unknown sub -> 'matrix'. Ask (Beta) stays reachable via #regulatory/ask but is never the default.
+export type RegSub = Sub;
+export function isRegSub(s: string | undefined): s is RegSub {
+  return SUBS.some((t) => t.id === s);
+}
 const SUGGESTED = [
   'How much advance public notice is required before a copper retirement?',
   'When is Section 214 discontinuance authority required?',
@@ -298,9 +304,12 @@ function SourcesView({ jur }: { jur: string }) {
   );
 }
 
-export function RegulatoryTab() {
+export function RegulatoryTab({ sub: routeSub, onSubChange }: { sub?: RegSub; onSubChange?: (s: RegSub) => void } = {}) {
   const [jur, setJur] = useState('ALL');
-  const [sub, setSub] = useState<Sub>('matrix');
+  // Controlled by the shell route when sub/onSubChange are passed; local state otherwise.
+  const [localSub, setLocalSub] = useState<Sub>('matrix');
+  const sub: Sub = routeSub ?? localSub;
+  const setSub = (s: Sub) => { if (onSubChange) onSubChange(s); else setLocalSub(s); };
   const [kpis, setKpis] = useState<Kpis | null>(null);
   useEffect(() => { getJson<Kpis>('/api/regulatory/kpis').then(setKpis).catch(() => setKpis(null)); }, []);
   return (

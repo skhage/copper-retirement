@@ -84,9 +84,13 @@ LEFT JOIN (
   FROM copper_plant_wire_center_jurisdiction
 ) cwj ON bcd.physical_device_id = cwj.physical_device_id
 -- Cited state notice period: one verified row per state, else NULL (conflicting or missing rows = UNKNOWN, no fan-out)
+-- MN (ACC-DE-MN-PUC-NOTICE-SEMANTIC-1106): the 60 days in Minn. Stat. 237.181 subd. 3(3) is advance written notice of the
+-- PUC public meeting, NOT a filing lead time before discontinuance, so puc_notice_days is NULL (UNKNOWN) for MN.
+-- The citation URL is still carried so users can read the statute (https://www.revisor.mn.gov/statutes/cite/237.181).
 LEFT JOIN (
   SELECT jurisdiction_code,
-         CAST(min(value_numeric) AS BIGINT) AS notice_days,
+         CAST(min(CASE WHEN requirement_key = 'MN|state_discontinuance_notice|MN-PUC-237.181' THEN NULL
+                       ELSE value_numeric END) AS BIGINT) AS notice_days,
          min(citation_url) AS citation_url
   FROM jurisdiction_requirements_cited
   WHERE requirement_type = 'state_discontinuance_notice'
