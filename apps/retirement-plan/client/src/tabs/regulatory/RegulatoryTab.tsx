@@ -16,12 +16,14 @@ interface MatrixRow {
   verification_status: string; source_id: string; citation: string; official_url: string | null; notes: string | null;
   source_title: string | null; last_verified: string | null;
   citation_url?: string | null; citation_verified_on?: string | null; // ACC-APP-JUR-CITATION-URL
+  verification_basis?: string | null; // ACC-APP-REG-MIRROR-BADGE-1110
 }
 interface SourceRow {
   source_id: string; jurisdiction: string; level: string; authority: string; topic: string; title: string;
   citation: string; official_url: string; verification_status: string; last_verified: string | null; effective_date: string | null;
+  verification_basis?: string | null; // ACC-APP-REG-MIRROR-BADGE-1110
 }
-interface AskSource { n: number; title: string; citation: string; url: string; jurisdiction: string; verification_status?: string; last_verified?: string; excerpt: string }
+interface AskSource { n: number; title: string; citation: string; url: string; jurisdiction: string; verification_status?: string; last_verified?: string; verification_basis?: string | null; excerpt: string }
 interface AskResult { answer: string | null; grounded: boolean; insufficient?: boolean; cited?: number[]; sources: AskSource[]; mode: string; llm_error?: string; jurisdiction_applied?: string; jurisdiction_source?: 'selector' | 'detected_in_question' | 'federal_cue' | 'none' }
 // null = that sub-query failed (non-403); server sets degraded:true. Render '—', never 0 (ACC-QA-R11-DIFF-REVIEW).
 type N = number | null;
@@ -64,6 +66,19 @@ async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
 
 /** A row is citable only if its status is citable (BRAND_GUIDE #status-badges) AND it carries an official URL (charter citation rule). */
 const rowVerified = (r: { verification_status: string; official_url: string | null }) => isCitableStatus(r.verification_status) && !!r.official_url;
+
+// ACC-APP-REG-MIRROR-BADGE-1110 / DEC-REG-MIRROR-RULE-20261110: the text was read on the Cornell LII mirror because the
+// official host blocks automated fetch. The link ALWAYS stays the official_url; the badge only discloses the basis.
+const MIRROR_BADGE_TEXT = 'Mirror-verified - confirm on official host before filing';
+function MirrorBadge({ basis }: { basis?: string | null }) {
+  if (basis !== 'lii_mirror_text') return null;
+  return (
+    <span data-state="mirror-verified" title="Rule text was read on a mirror (Cornell LII), not on the official host. The link goes to the official source."
+      className="mt-1 inline-flex items-center gap-1 rounded border border-border bg-card px-2 py-0.5 text-xs font-medium text-warning">
+      <AlertTriangle size={14} strokeWidth={1.5} aria-hidden="true" />{MIRROR_BADGE_TEXT}
+    </span>
+  );
+}
 
 function StatusCell({ status, hasUrl = true }: { status: string; hasUrl?: boolean }) {
   if (!hasUrl) {
@@ -116,7 +131,7 @@ function MatrixView({ jur }: { jur: string }) {
                 </td>
                 <td className="p-2 whitespace-nowrap">{getStatusBadge(r.verification_status).kind === 'no_state_rule' && r.official_url ? 'None in cited sections' : verified && r.value_numeric ? `${Number(r.value_numeric)} ${(r.value_unit || '').replace(/_/g, ' ')}` : '—'}</td>
                 <td className="p-2 whitespace-nowrap"><StatusCell status={r.verification_status} hasUrl={!!r.official_url} /></td>
-                <td className="p-2 min-w-[14rem]"><CitationLink title={r.source_title || r.citation || r.source_id} url={r.official_url} citationUrl={r.citation_url} verificationStatus={r.verification_status} citation={r.citation} lastVerified={r.citation_verified_on || r.last_verified} /></td>
+                <td className="p-2 min-w-[14rem]"><CitationLink title={r.source_title || r.citation || r.source_id} url={r.official_url} citationUrl={r.citation_url} verificationStatus={r.verification_status} citation={r.citation} lastVerified={r.citation_verified_on || r.last_verified} /><MirrorBadge basis={r.verification_basis} /></td>
               </tr>
             );
           })}
@@ -138,6 +153,7 @@ function InsufficientSourceCard({ s }: { s: AskSource }) {
     <li className="rounded border border-border bg-card p-3 space-y-2">
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <CitationLink title={s.title} url={s.url} verificationStatus={s.verification_status} citation={s.citation} lastVerified={s.last_verified} />
+        <MirrorBadge basis={s.verification_basis} />
         <span className="rounded border border-border bg-muted px-2 py-0.5 text-xs text-foreground">{jurName(s.jurisdiction)}</span>
       </div>
       {s.excerpt && (
@@ -259,7 +275,7 @@ function AskView({ jur }: { jur: string }) {
               <ol className="flex flex-wrap gap-x-4 gap-y-2">
                 {chips.map((s) => (
                   <li key={s.n} className="flex gap-1 text-xs"><span className="text-muted-foreground">[S{s.n}]</span>
-                    <CitationLink title={s.title} url={s.url} verificationStatus={s.verification_status} citation={s.citation} lastVerified={s.last_verified} /></li>
+                    <CitationLink title={s.title} url={s.url} verificationStatus={s.verification_status} citation={s.citation} lastVerified={s.last_verified} /><MirrorBadge basis={s.verification_basis} /></li>
                 ))}
               </ol>
             </div>
@@ -294,7 +310,7 @@ function SourcesView({ jur }: { jur: string }) {
               <td className="p-2 whitespace-nowrap font-medium text-secondary">{r.jurisdiction}</td>
               <td className="p-2">{r.authority}</td>
               <td className="p-2">{r.topic?.replace(/_/g, ' ')}</td>
-              <td className="p-2 min-w-[16rem]"><CitationLink title={r.title} url={r.official_url} verificationStatus={r.verification_status} citation={r.citation} lastVerified={r.last_verified} /></td>
+              <td className="p-2 min-w-[16rem]"><CitationLink title={r.title} url={r.official_url} verificationStatus={r.verification_status} citation={r.citation} lastVerified={r.last_verified} /><MirrorBadge basis={r.verification_basis} /></td>
               <td className="p-2 whitespace-nowrap"><StatusCell status={r.verification_status} /></td>
             </tr>
           ))}

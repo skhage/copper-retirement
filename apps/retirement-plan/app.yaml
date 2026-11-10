@@ -5,7 +5,7 @@
 command:
   - sh
   - -c
-  - "npm install && npm run build && npm start"
+  - "npm ci && npm run build && npm start"  # ACC-QA-DEF-RP-LOCKFILE-1108: reproducible install from package-lock.json (00a6181)
 
 name: retirement-plan
 description: |

@@ -90,6 +90,7 @@ async function fetchMatrix(jur) {
       m.requirement_summary, CAST(m.value_numeric AS STRING) AS value_numeric, m.value_unit, m.verification_status,
       m.source_id, m.citation, m.official_url, m.notes, COALESCE(r.title, m.citation) AS source_title,
       CAST(r.last_verified AS STRING) AS last_verified,
+      r.verification_basis, -- ACC-APP-REG-MIRROR-BADGE-1110 (DEC-REG-MIRROR-RULE-20261110)
       -- ACC-APP-JUR-CITATION-URL: section-level page that contains the cited value (falls back to the source URL)
       COALESCE(m.citation_url, m.official_url) AS citation_url,
       CAST(COALESCE(m.citation_url_verified_on, r.last_verified) AS STRING) AS citation_verified_on
@@ -105,7 +106,8 @@ async function fetchMatrix(jur) {
 async function fetchSources() {
   return executeSQL(`
     SELECT source_id, jurisdiction, level, authority, topic, title, citation, official_url, verification_status,
-      CAST(last_verified AS STRING) AS last_verified, CAST(effective_date AS STRING) AS effective_date
+      CAST(last_verified AS STRING) AS last_verified, CAST(effective_date AS STRING) AS effective_date,
+      verification_basis -- ACC-APP-REG-MIRROR-BADGE-1110
     FROM ${FQ}.regulatory_source_register
     WHERE is_synthetic = false AND official_url IS NOT NULL
       AND coalesce(is_public_domain, true) -- ACC-APP-REG-EXCLUDE-SOURCES-LIST: hide non-redistributable sources (IND-CGA-BP21)
@@ -177,7 +179,7 @@ async function retrieveHybrid(question, jur) {
             + CASE WHEN :jur <> 'ALL' AND jurisdiction = :jur THEN 0.004 ELSE 0 END AS score FROM r),
     d AS (SELECT *, row_number() OVER (PARTITION BY source_id ORDER BY score DESC) AS per_src FROM f)
     SELECT d.chunk_id, d.source_id, d.title, d.citation, d.source_url, d.jurisdiction, d.excerpt, d.score,
-      rg.verification_status, CAST(rg.last_verified AS STRING) AS last_verified
+      rg.verification_status, CAST(rg.last_verified AS STRING) AS last_verified, rg.verification_basis
     FROM d LEFT JOIN ${FQ}.regulatory_source_register rg ON rg.source_id = d.source_id
     WHERE d.per_src <= 3
     ORDER BY d.score DESC, d.chunk_id LIMIT 8`,
@@ -207,7 +209,7 @@ async function retrieveKeyword(question, jur) {
       WHERE ch.is_synthetic = false AND ch.source_url IS NOT NULL
         AND NOT EXISTS (SELECT 1 FROM ${FQ}.regulatory_source_register x WHERE x.source_id = ch.source_id AND x.is_public_domain = false) -- partner-redistribution guard
         AND (:jur = 'ALL' OR ch.jurisdiction IN ('US', :jur)))
-    SELECT c.*, r.verification_status, CAST(r.last_verified AS STRING) AS last_verified
+    SELECT c.*, r.verification_status, CAST(r.last_verified AS STRING) AS last_verified, r.verification_basis
     FROM c LEFT JOIN ${FQ}.regulatory_source_register r ON r.source_id = c.source_id
     WHERE c.score > ${ks.length > 1 ? 1 : 0}
     ORDER BY c.score DESC, c.chunk_id LIMIT 5`,
@@ -218,7 +220,7 @@ async function ask(question, jur) {
   const chunks = await retrieve(question, jur);
   const sources = chunks.map((c, i) => ({ n: i + 1, chunk_id: c.chunk_id, source_id: c.source_id, title: c.title,
     citation: c.citation, url: c.source_url, jurisdiction: c.jurisdiction, verification_status: c.verification_status,
-    last_verified: c.last_verified, excerpt: (c.excerpt || '').slice(0, 400) }));
+    last_verified: c.last_verified, verification_basis: c.verification_basis || null, excerpt: (c.excerpt || '').slice(0, 400) }));
   if (!sources.length) return { answer: NO_SOURCE, grounded: false, sources: [], mode: 'no_real_sources' };
 
   const ctx = chunks.map((c, i) => `[S${i + 1}] ${c.title} (${c.citation})\n${c.excerpt}`).join('\n\n');
