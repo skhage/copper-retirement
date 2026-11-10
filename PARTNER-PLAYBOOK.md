@@ -1,4 +1,4 @@
-# Copper Retirement Solution Accelerator — Partner Playbook (DRAFT v1.47)
+# Copper Retirement Solution Accelerator — Partner Playbook (DRAFT v1.50)
 
 > **Partners: start at §0.** Status (v1.27, 2026-11-04 ~12:05 UTC): R1 (Plan C) shipped as commit 8546580 on origin/main; 789cef1 is the R1.1 baseline. The unified app `retirement-plan` is live on deploy 01f1d551 (2026-10-31); R1.1 deployed as 01f1d903 (2026-11-05 10:28 UTC, dd7c1da); R1.3 (R13) deployed as 01f1d9ee (2026-11-06 14:28 UTC, a9a36cc) with all 5 tabs and user-OAuth `sql` scope. DEC-CONSOLIDATION-NOGRANTS-20261105: R2 cutover proceeds under user-OAuth; SP grants non-blocking. **Live re-check (v1.47, apps API 2026-11-10 06:05 UTC by @pm): retirement-plan is RUNNING again** on deploy 01f1dc9ded32 (2026-11-10 00:30 UTC; @app-developer rewrote the package-lock.json resolved URLs from an internal npm mirror to registry.npmjs.org, ACC-QA-DEF-RP-DOWN-1109). Compute ACTIVE; per-tab HTTP 200 is not agent-verifiable (DEC-H2-PROXY-ACCEPT-20261107) and is pending @qa ACC-QA-RP-HEALTH-RECHECK-1110. The lockfile fix is not yet committed (ACC-DEVOPS-RP-LOCK-COMMIT-1110). copper-map and commodity-dashboard remain STOPPED; copper-task-board ACTIVE. History (v1.46, 2026-11-10 00:10 UTC): NO partner-facing demo app was running. retirement-plan is STOPPED / UNAVAILABLE: redeploys 01f1dc6b571e and 01f1dc6b919d (2026-11-09 18:28 and 18:30 UTC) FAILED with 'Error installing packages', and the last good deploy is 01f1d9ee (2026-11-06 14:28 UTC). copper-map and commodity-dashboard are STOPPED (CEO, 2026-11-09 16:10 UTC). Of the copper apps, only copper-task-board (internal) is ACTIVE. Rollback ruling DEC-DEMO-ROLLBACK-20261110: the CEO starts copper-map and commodity-dashboard (agent app-lifecycle actions are blocked by guardrails), while @app-developer fixes the retirement-plan package install. The legacy delete clock (ACC-DEVOPS-LEGACY-APPS-STOP, previously 2026-11-12 16:11 UTC) is HELD until retirement-plan passes a health check.
 
@@ -606,3 +606,66 @@ Internal version history (owner @pm, task ACC-DOCS-PARTNER-PLAYBOOK). Moved here
 * v1.10 to v1.13 (2026-10-27/28): backup power (47 CFR 9.20 removed by FCC 25-80); CEO batch §5c; opex rebased on the FCC ARMIS proxy.
 * v1.0 to v1.9 (2026-10-25/27): jurisdiction matrix verified; §2a to §2e state rules and field pricing map; Vector Search optional (DEC-VS-OPTIONAL); single payback definition.
 * v0.3 to v0.9 (2026-10-24/25): 811 table rebuilt from statute text; DEMO-RUNBOOK, DEMO-ROLLBACK-RECOVERY, DEMO-ENV-FREEZE-CHECKLIST and demo_kpi_cheat_sheet merged into §5 to §7; value case restated as opex-led (the $43.3M salvage headline is withdrawn).
+* v1.50 (2026-11-10 ~18:30 UTC, working tree, @pm ACC-DOCS-PARTNER-PLAYBOOK + README elite rewrite): Header version to v1.50. New Appendix: Industry White Paper Findings added at end of file. README.md rewritten as elite-level project documentation (architecture, prerequisites, quick-start deploy, repo structure, key resources, demo scenario, data disclosure, industry context with white paper benchmarks, known gaps, documentation index). White paper parsed via ai_parse_document from /Volumes/cdm_tmforum/copper_retirement/reference_docs/copper_decommission_white_paper.pdf.
+
+---
+
+## Appendix: Industry White Paper Findings (v1.50, 2026-11-10)
+
+Source: WBBA/Omdia white paper "Copper Decommissioning: Mastering the Process" by Stephen Wilson (Senior Principal Analyst, Broadband Technology, Omdia). Stored at /Volumes/cdm_tmforum/copper_retirement/reference_docs/copper_decommission_white_paper.pdf (333 elements, 70,617 chars, parsed via ai_parse_document v2). The following findings are documented as a roadmap for future enhancement. They are NOT required for the current R1/R2/R3 release.
+
+### A.1 Copper sale business models
+
+The white paper identifies five models operators use to monetize recovered copper and manage price risk. The accelerator ROI calculator currently models only direct sale to recycler.
+
+1. Direct sale to recycler (most common; Telenor uses 50/50 revenue share)
+2. Recycler-held inventory with flexible sell timing (operator chooses when to sell based on price)
+3. Commodity price forward guarantee (agreed price at fixed date; BT/EMR 105M GBP upfront, Sep 2024)
+4. Commodity swap (cash-flow exchange based on copper price; FiberCop Italy EUR302M notional, Dec 2025; BT hedged range 6,219-6,671 GBP/tonne)
+5. Bank asset purchase (bank buys network outright; Macquarie/Telefonica Spain EUR183M, Dec 2021)
+
+Industry benchmark: asset recovery firms report approximately 30% margin on copper sales revenue.
+
+### A.2 Per-premises valuation benchmarks
+
+| Operator | Country | Metric | Value |
+|---|---|---|---|
+| Chorus | New Zealand | Net profit per premises | USD 6.8 - 12.1 (NZD 30-50M over 3-7 years) |
+| Bezeq | Israel | Net profit per premises | USD 6.1 (30% margin on USD 53M sales) |
+| MEO | Portugal | Total consideration per line | USD 11.3 (EUR 58.3M for ~6M lines) |
+| Telus | Canada | Copper value / profit target | CAD 1B value / CAD 500M profit (4,000 tonnes extracted) |
+| BT | UK | Copper recycled / target | 22,347 tonnes (since 2023) / 200,000 tonnes target through 2030s |
+| Telefonica | Spain | Copper revenue (2020) / total extracted | EUR 131M / 350,000 tonnes cabling |
+
+### A.3 Network architecture cost differentiation
+
+The white paper classifies copper cable deployments into three categories with different extraction costs: ducted (easiest, most copper pairs), direct buried (most difficult, most expensive), and overhead/aerial (medium, fewer pairs, theft risk). Gap: the accelerator risk model does not currently differentiate extraction cost by architecture type.
+
+### A.4 Environmental and waste tracking
+
+Key waste categories from the white paper: lead-sheathed cables (prevalence varies: Orange France 0.07%, Telus 0.3%, AT&T up to 10%), creosote-treated wooden poles (Telenor: 500,000 poles, incineration with energy recovery), WEEE (higher reuse potential, Telefonica MAIA catalog), recycling rate targets (TDC Net: 100% by 2030, Telefonica: 94% in 2024). Gap: the accelerator has no environmental/sustainability metric views.
+
+### A.5 EU Digital Networks Act (DNA)
+
+The European Commission published a Digital Networks Act proposal on January 21, 2026. Key provisions: EU-wide copper switch-off deadline of December 31, 2035 (legally binding), National Transition Plans due to EC by October 31, 2029, switch-off threshold of 95% FTTP coverage with affordable alternatives. Gap: the accelerator regulatory register covers US federal and state sources only, not EU/international frameworks.
+
+### A.6 Wholesale access wind-down
+
+The white paper describes how regulators gradually eliminate wholesale copper access obligations: France (ARCEP fewer LLU constraints), Norway (Nkom price caps 2022-2025, obligations ended Sep 2025), UK (Ofcom transferring protections from copper to FTTP), Spain (CNMC reduced notice from 5 years to 2). Gap: the accelerator models regulatory notice periods but not wholesale access wind-down timelines.
+
+### A.7 Copper price hedging
+
+Copper prices have risen approximately 50% over five years and approximately 15% since start of 2026 (approximately USD 14,500/tonne as of Sept 2026). The white paper describes how operators use financial instruments: commodity swaps, forward price guarantees, upfront payment with delivery schedule (MEO: 90% upfront, 10% over 2026-2031), bank intermediation. Gap: the commodity forecast model projects prices but does not model hedging strategies or their impact on realized revenue.
+
+### A.8 Recommended follow-up tasks
+
+The following tasks are filed in the Lakebase task board for future implementation. They are phase ACCEL, priority medium, with no dependencies. They are future enhancements, not required for the current release.
+
+| Task code | Agent | Title |
+|---|---|---|
+| ACC-DA-WP-BIZ-MODELS | @data-analyst | Add copper sale business model dimension to partner value metric view |
+| ACC-DA-WP-ENV-METRICS | @data-analyst | Create sustainability metric views (recycling rate, waste diversion, CO2 savings) |
+| ACC-DP-WP-ARCH-COST | @data-planner | Design cable_architecture_type dimension for extraction cost differentiation |
+| ACC-DP-WP-EU-DNA | @data-planner | Research and register EU Digital Networks Act requirements |
+| ACC-DP-WP-WHOLESALE | @data-planner | Model wholesale access wind-down timelines in jurisdiction matrix |
+| ACC-ML-WP-HEDGE | @ml-engineer | Add hedging scenario parameter to commodity forecast / ROI calculator |

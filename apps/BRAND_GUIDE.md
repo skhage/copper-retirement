@@ -3,7 +3,9 @@
 > Canonical design reference for the Copper Retirement Accelerator (2 apps: unified accelerator app `apps/retirement-plan` + internal `copper-task-board`).
 > Last updated: 2026-10-24 (ACC-APP-IA, @designer — binding). §0.1 click-path refreshed 2026-11-08 to live deploy 01f1d9ee (ACC-DES-CLICKPATH-REFRESH-1107).
 >
-> **Single source of truth for tokens:** `apps/retirement-plan/client/src/styles/tokens.css`. Where this guide and tokens.css disagree, **tokens.css wins**. Partner white-label = edit only the BRAND LAYER block in tokens.css. Do NOT hardcode hex values in components or in `tailwind.config` — map Tailwind keys to the CSS variables (snippet at the bottom of tokens.css). Retiring apps (commodity-dashboard, copper-map, dig-triage, regulatory-assistant) receive no further brand fixes.
+> **Single source of truth for tokens:** `apps/retirement-plan/client/src/styles/tokens.css`. Where this guide and tokens.css disagree, **tokens.css wins**. Partner white-label = edit only the BRAND LAYER block in tokens.css. Do NOT hardcode hex values in components or in `tailwind.config` — map Tailwind keys to the CSS variables (snippet at the bottom of tokens.css). Retired apps receive no further brand fixes and are NOT a demo fallback: dig-triage and regulatory-assistant are deleted; copper-map and commodity-dashboard were STOPPED by the CEO 2026-11-09 16:10 UTC (apps API, asset_ledger rows 268/269), with delete eligible from 2026-11-12 16:11 UTC (ACC-DEVOPS-LEGACY-APPS-STOP). The unified app is the only demo app (ACC-DES-POST-STOP-IA-CHECK-1109, 2026-11-09).
+>
+> **TEMPORARY IA note (ACC-DES-DEMO-FALLBACK-COPY-1110, 2026-11-10; remove after ACC-QA-RP-HEALTH-RECHECK-1110 PASS):** retirement-plan was down from 2026-11-09 18:28 UTC (failed deploys) to 2026-11-10 00:30 UTC. It now runs on deploy 01f1dc9ded32, but @qa has not yet verified per-tab health. The fallback order is in PARTNER-PLAYBOOK §5 (TEMPORARY block): unified tab, then Retry, then governed metric views or notebooks, then a CEO-started legacy app labeled LEGACY. The §0 IA and §0.1 click-path are unchanged. Legacy apps get no brand fixes.
 
 ---
 
@@ -13,7 +15,7 @@
 
 **Top-level tabs (fixed order = sales narrative / demo script):**
 
-| # | Tab label | Hash route | Question it answers | Primary content | Source app |
+| # | Tab label | Hash route | Question it answers | Primary content | Ported from (retired, provenance only) |
 |---|-----------|------------|---------------------|-----------------|------------|
 | 1 | Map & Risk | `#map` | Where is the copper and what is at risk? | KPI row, point-marker risk map (tier = colour + shape), filter panel, detail panel, wire-center priority table | copper-map |
 | 2 | Plan | `#plan` | What is the capital-efficient path to zero copper? | Sub-tabs: Gantt Timeline, Migration Table, Budget, Regulatory Checklist, Scenario Compare (`PLAN_SUBTABS`, PlanTab.tsx L22-28) | retirement-plan (host) |

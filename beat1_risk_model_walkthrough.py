@@ -467,10 +467,11 @@ X = pdf[FEATURES].astype(float).fillna(0.0)
 y = pdf[P["label_col"]].map({t: i for i, t in enumerate(TIERS)}).astype(int)
 idx_tr, idx_te = train_test_split(np.arange(len(X)), test_size=0.2, stratify=y, random_state=42)
 
-# v5 hyperparameters; re-tune (e.g. Optuna) once real labels are in place
-params = dict(objective="multiclass", num_class=4, boosting_type="gbdt", learning_rate=0.243, max_depth=3,
-              num_leaves=80, n_estimators=489, min_child_samples=22, subsample=0.643, colsample_bytree=0.720,
-              random_state=42, verbosity=-1)
+# v6 champion hyperparameters (MLflow run 09db5f470eed4d65be526bc8c4d9c63f, holdout_auc_ovr 0.985).
+# ACC-ML-RETRAIN-HPARAMS-V6. Re-tune (e.g. Optuna) once real labels are in place.
+params = dict(objective="multiclass", num_class=4, boosting_type="gbdt", learning_rate=0.05, max_depth=-1,
+              num_leaves=31, n_estimators=400, min_child_samples=20, subsample=0.8, subsample_freq=1,
+              colsample_bytree=0.8, reg_lambda=1.0, random_state=42, verbosity=-1)
 
 mlflow.set_experiment(P["experiment_path"])
 with mlflow.start_run(run_name="partner_retrain") as run:
