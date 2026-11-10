@@ -3,9 +3,9 @@
 > **project:** copper-retirement | **developer:** copper-ml  
 > **Author:** @ml-engineer  
 > **Date:** 2026-09-19  
-> **Model:** V5 LightGBM (cdm_tmforum.ml_models.copper_retirement_risk v5, @champion)  
+> **Model:** V6 LightGBM (cdm_tmforum.ml_models.copper_retirement_risk v6, @champion; served since 2026-11-09). V5 = @challenger  
 > **Endpoint:** copper-retirement-risk  
-> **References:** monitoring_baseline.md, ML_MODEL_CARD.md, ML_PRODUCTION_READINESS.md  
+> **References:** monitoring_baseline.md, risk/MODEL_CARD.md (canonical model card), ML_PRODUCTION_READINESS.md  
 
 ---
 
@@ -150,8 +150,8 @@ Once inference table auto-capture is enabled (ACTION-3 from ML_PRODUCTION_READIN
 | # | Trigger | Threshold | Detection Method | Priority |
 | --- | --- | --- | --- | --- |
 | T1 | Feature PSI breach | PSI > 0.2 on any top-10 feature | Batch feature comparison | High |
-| T2 | AUC-ROC decay | Holdout AUC < 0.95 (baseline: 0.986) | Periodic re-evaluation on labeled data | Critical |
-| T3 | Critical-tier recall drop | Recall < 0.75 (baseline: 0.833) | Per-tier metrics on holdout | Critical |
+| T2 | AUC-ROC decay | Holdout AUC < 0.95 (baseline: 0.985, v6) | Periodic re-evaluation on labeled data | Critical |
+| T3 | Critical-tier recall drop | Recall < 0.75 (baseline: 0.918, v6) | Per-tier metrics on holdout | Critical |
 | T4 | Prediction distribution shift | Any tier > 8 pp from baseline | Batch scoring comparison | High |
 | T5 | Confidence degradation | Avg confidence < 0.95 | Batch scoring statistics | High |
 | T6 | Fairness regression | Any slice drops from GREEN → RED | Slice re-evaluation | High |
@@ -266,7 +266,7 @@ Trigger detected
 | Drift monitoring notebook | READY | `copper-retirement/ops/operational_runbook` Section 12 (sub-sections 12.9-12.12 = former drift-activation checks; consolidated from `monitoring/v2_model_monitoring_runbook` 2026-11-08, ACC-DE-NB-RUNBOOK-MERGE-1108) |
 | Manual inference logging | READY | `copper-retirement/scripts/batch_score_copper_risk` (Section 2, `run_inference_demo=true`; merged 2026-10-24) |
 | Monitoring baseline | DOCUMENTED | `copper-retirement/resources/monitoring_baseline.md` |
-| Model card | DOCUMENTED | `copper-retirement/resources/ML_MODEL_CARD.md` |
+| Model card | DOCUMENTED | `copper-retirement/risk/MODEL_CARD.md` |
 | Failover plan | DOCUMENTED | Logged as MLflow artifact on V5 run |
 | Production readiness checklist | DOCUMENTED | `copper-retirement/resources/ML_PRODUCTION_READINESS.md` |
 | Automated batch scoring job | NOT YET CREATED | Needs @devops to create Lakeflow Job |

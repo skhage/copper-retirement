@@ -52,10 +52,10 @@
 | Check | Status | Detail |
 | --- | --- | --- |
 | UC Model registered | PASS | `cdm_tmforum.ml_models.copper_retirement_risk` — 5 versions |
-| Champion alias | PASS | `@champion` → v5 (LightGBM, 39 features, AUC 0.986) |
-| Challenger alias | PASS | `@challenger` → v4 (LightGBM, 35 features — superseded by v5 leakage fix) |
+| Champion alias | PASS | `@champion` → v6 (LightGBM, 39 features, holdout AUC-OvR 0.985 on current labels; MLflow run 09db5f470eed4d65be526bc8c4d9c63f). v5 = `@challenger` (rollback only; 0.329 acc / 0.693 AUC on current labels) |
+| Challenger alias | PASS | `@challenger` → v5 (rollback only; v4 withdrawn for target leakage) |
 | Model description | PASS | Comprehensive: algorithm, feature count, metrics, fairness status, deployment note |
-| Model tags | PASS | `telco_project=copper-retirement`, `developer=copper-ml`, `test_auc_roc=0.9864` |
+| Model tags | PASS | `telco_project=copper-retirement`, `developer=copper-ml`, `model_version=v6`, `synthetic_data=true` (v5's `test_auc_roc=0.9864` tag was measured on withdrawn pre-2026-09-15 labels) |
 | Version history | PASS | v1 (initial) → v2 (Optuna-tuned) → v3 (XGBoost challenger) → v4 (enhanced features) → v5 (firmware + leakage fix) — clean progression |
 | Input signature | REVIEW | Registered via `mlflow.register_model` — verify signature matches current feature schema |
 
@@ -73,7 +73,7 @@
 | Algorithm documented | PASS | LightGBM GBDT, Optuna 50-trial |
 | Training data lineage | PASS | `copper_risk_target` + 4 feature tables + firmware_age + plant aggregates |
 | Feature count | PASS | 39 features (11 new in v5: firmware lifecycle) |
-| Performance metrics | PASS | AUC 0.986, accuracy 0.895, per-tier F1 (low=0.901, medium=0.907, high=0.894, critical=0.841) |
+| Performance metrics | PASS | v6 holdout (535 devices, 80/20 stratified, seed 42): AUC-OvR 0.985, accuracy 0.899, weighted F1 0.900, critical-tier F1 0.943; 5-fold CV accuracy 0.873 ± 0.013. Labels are derived from features, so this measures re-learning of the label formula, not predictive validity (risk/MODEL_CARD.md s6.2) |
 | Known limitations | PASS | Synthetic data caveat, 63% firmware coverage, train AUC=1.0 memorization |
 | Top features | PASS | problem_count, recurring_problem_rate, alarm_count, complaint_avg_resolution_hours, device_age_days |
 | Retraining triggers | FAIL | Only says "Retrain on new feature delivery" — no quantitative drift or decay thresholds |
@@ -146,7 +146,7 @@ The model card currently lacks quantitative retraining thresholds. Recommended c
 ### 7.2 Performance Decay Triggers
 | Signal | Threshold | Action |
 | --- | --- | --- |
-| Holdout AUC-ROC decline | AUC drops below 0.95 (currently 0.986) | Mandatory retrain |
+| Holdout AUC-ROC decline | AUC drops below 0.95 (currently 0.985, v6) | Mandatory retrain |
 | Per-tier recall (critical) | Recall drops below 0.75 (currently 0.833) | Mandatory retrain — critical devices must not be missed |
 | Fairness regression | Any slice drops to YELLOW or RED | Investigate slice; file FEATURE-REQ if data gap |
 | Champion/challenger divergence | Disagreement > 20% of scored devices | Evaluate challenger; promote if superior |
@@ -175,10 +175,10 @@ The model card currently lacks quantitative retraining thresholds. Recommended c
 
 ## 9. Known Risks & Limitations
 
-1. **Synthetic data ceiling:** All training data is synthetic (uniform/random distributions). Real-world discriminative power is unknown. Train AUC=1.0 confirms memorization of synthetic patterns. Test AUC=0.986 shows pattern generalization on held-out synthetic data, but production performance will differ.
+1. **Synthetic data ceiling:** All training data is synthetic (uniform/random distributions). Real-world discriminative power is unknown. Train AUC=1.0 confirms memorization of synthetic patterns. v6 holdout AUC=0.985 shows pattern generalization on held-out synthetic data, but production performance will differ.
 2. **Firmware coverage gap:** 37% of copper devices lack software lifecycle data (imputed with zeros). These devices may be systematically misscored.
 3. **No real-time drift monitoring:** Without inference table auto-capture, there is no mechanism to detect input drift or prediction distribution shift.
-4. **Single-model architecture:** No ensemble or fallback model. If V5 fails, the endpoint serves errors (no graceful degradation).
+4. **Single-model architecture:** No ensemble or fallback model. If V6 fails, the endpoint serves errors (no graceful degradation).
 5. **Batch-only scoring:** No automated refresh pipeline. Predictions are static until manual re-scoring.
 
 ---
@@ -196,7 +196,7 @@ The model card currently lacks quantitative retraining thresholds. Recommended c
 | Retraining plan | D | No quantitative triggers defined (now proposed above) |
 | Experiment tracking | A | Comprehensive artifacts, slice runs, CV metrics |
 
-**Overall: NOT YET PRODUCTION-READY.** The model itself is strong (AUC 0.986, fairness 19/20 GREEN with 1 YELLOW on small residential slice), but production operations infrastructure has gaps. Critical items: enable inference table auto-capture [ACTION-3], implement batch scoring refresh [ACTION-11], and codify retraining triggers [ACTION-7].
+**Overall: NOT YET PRODUCTION-READY.** The model scores well on synthetic data (v6 holdout AUC 0.985, 0 RED / 0 YELLOW fairness slices with n >= 30), but the label is circular (see risk/MODEL_CARD.md) and production operations infrastructure has gaps. Critical items: enable inference table auto-capture [ACTION-3], implement batch scoring refresh [ACTION-11], and codify retraining triggers [ACTION-7].
 
 ---
 

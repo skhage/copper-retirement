@@ -5,15 +5,15 @@
 # MAGIC
 # MAGIC # Beat 1: Copper Retirement Risk Model — Demo Walkthrough
 # MAGIC
-# MAGIC **Model:** V5 LightGBM (39 features, 4-class risk tier classifier)  
+# MAGIC **Model:** V6 LightGBM (39 features, 4-class risk tier classifier; `@champion`, served by the endpoint since 2026-11-09)  
 # MAGIC **Endpoint:** `copper-retirement-risk` (Databricks Model Serving)  
-# MAGIC **UC Registry:** `<catalog>.ml_models.copper_retirement_risk` (Version 5, Champion; widget `model_name`)  
+# MAGIC **UC Registry:** `<catalog>.ml_models.copper_retirement_risk` (Version 6 = `@champion`, Version 5 = `@challenger`; widget `model_name`)  
 # MAGIC **MLflow Experiment:** `<project_root>/experiments/copper_risk_classifier` (widget `experiment_path`)  
 # MAGIC **Parameters:** widgets `catalog` / `schema` (defaults match bundle variables `catalog_name` / `schema_name`)  
 # MAGIC **Scored:** 2,672 copper devices across Lakelink Fiber's network  
 # MAGIC **Date:** 2026-09-17
 # MAGIC
-# MAGIC This notebook walks through the V5 risk model for Beat 1 of the copper retirement demo. It covers:
+# MAGIC This notebook walks through the V6 risk model (synthetic data; see `risk/MODEL_CARD.md`) for Beat 1 of the copper retirement demo. It covers:
 # MAGIC 1. **Model Performance Summary** — AUC, precision, recall by risk tier
 # MAGIC 2. **5 Example Risk Score Explanations** — with feature attributions
 # MAGIC 3. **Fairness Analysis** — by device type and geography
@@ -33,17 +33,21 @@ print(f"Using {dbutils.widgets.get('catalog')}.{dbutils.widgets.get('schema')}")
 # MAGIC %md
 # MAGIC ## 1. Model Performance Summary
 # MAGIC
-# MAGIC The V5 LightGBM classifier predicts copper device risk tiers (low / medium / high / critical) using 39 engineered features drawn from alarms, service problems, SLA breaches, test failures, firmware age, and plant characteristics.
+# MAGIC The V6 LightGBM classifier predicts copper device risk tiers (low / medium / high / critical) using 39 engineered features drawn from alarms, service problems, SLA breaches, test failures, firmware age, and plant characteristics.
 # MAGIC
-# MAGIC **Key Metrics (holdout test set, 20% stratified split):**
+# MAGIC **Key Metrics (V6, holdout test set of 535 devices, 80/20 stratified split, seed 42, current balanced-quartile labels; MLflow run `09db5f470eed4d65be526bc8c4d9c63f`):**
 # MAGIC
-# MAGIC | Metric | Value |
-# MAGIC |---|---|
-# MAGIC | AUC-ROC | **0.986** |
-# MAGIC | Overall Accuracy (holdout, 535 devices) | **89.5%** |
-# MAGIC | In-sample accuracy (all 2,672 incl. training rows; NOT a holdout metric) | 97.9% |
-# MAGIC | Weighted F1 | **0.896** |
-# MAGIC | 5-Fold CV AUC (mean ± std) | 0.979 ± 0.005 |
+# MAGIC | Metric | V6 (champion) | V5 on the same holdout |
+# MAGIC |---|---|---|
+# MAGIC | AUC-ROC (one-vs-rest) | **0.985** | 0.693 |
+# MAGIC | Overall accuracy | **89.9%** | 32.9% |
+# MAGIC | Weighted F1 | **0.900** | n/a |
+# MAGIC | Critical-tier F1 | **0.943** | n/a |
+# MAGIC | 5-fold CV accuracy (mean ± std) | 0.873 ± 0.013 | n/a |
+# MAGIC
+# MAGIC > **Synthetic-data and label disclosure:** the label is derived from features the model also sees, so these numbers measure how well the model re-learns the label formula. They are not evidence of real-world predictive validity. The 0.986 AUC previously shown here was V5 on labels withdrawn on 2026-09-15 and is retired. See `risk/MODEL_CARD.md` sections 4 and 6.2.
+# MAGIC
+# MAGIC _The per-tier, prediction-distribution, and confusion-matrix tables below are a **historical V5 snapshot (2026-09-17, withdrawn labels)**, kept for reference only. Current V6 per-slice results are in `risk/MODEL_CARD.md` section 5._
 # MAGIC
 # MAGIC **Per-Tier Precision / Recall / F1:**
 # MAGIC
@@ -345,9 +349,9 @@ print(f"Using {dbutils.widgets.get('catalog')}.{dbutils.widgets.get('schema')}")
 # MAGIC
 # MAGIC ### What to Highlight
 # MAGIC
-# MAGIC 1. **The model works.** 97.9% accuracy with AUC 0.986 on a 4-class problem. Misclassifications only occur between adjacent tiers — the model never confuses low with critical.
+# MAGIC 1. **The pipeline works.** V6 reaches 89.9% holdout accuracy and 0.985 one-vs-rest AUC on a 4-class problem (synthetic data, circular label; see `risk/MODEL_CARD.md` s6.2). Partners must retrain on a real forward-looking outcome before quoting accuracy.
 # MAGIC
-# MAGIC 2. **It's fair.** 19/20 sub-demographic slices are GREEN across device type, geography, service type, and customer segment. No corrective action needed for any dimension relevant to Beat 1.
+# MAGIC 2. **It's fair on the demo data.** V6 has 0 RED and 0 YELLOW slices among slices with n >= 30 (72 slices across device type, region, service type and segment; MLflow artifact `fairness_report_v6.json`). No corrective action needed for any dimension relevant to Beat 1.
 # MAGIC
 # MAGIC 3. **Features are interpretable.** The top drivers are operational health signals (problem count, recurrence rate, alarm count) — not opaque statistical artifacts. Field engineers can look at a risk score and understand *why* a device is flagged.
 # MAGIC
@@ -358,14 +362,14 @@ print(f"Using {dbutils.widgets.get('catalog')}.{dbutils.widgets.get('schema')}")
 # MAGIC ### Known Limitations
 # MAGIC
 # MAGIC - **Synthetic data caveat:** Training data is generated from TMF SID data model. Feature distributions may not match production telemetry. Pipeline patterns and model architecture are valid; absolute accuracy numbers are demo-representative, not production-representative.
-# MAGIC - **Residential segment:** Small sample (n=32) with YELLOW recall (93.3%). Would improve with more residential copper device data.
-# MAGIC - **Static scoring:** Current batch scoring is a point-in-time snapshot (2026-09-13). Production deployment would need scheduled refresh via Lakeflow Jobs.
+# MAGIC - **Small slices:** slices with n < 30 are marked INSUFFICIENT_N in the V6 fairness report (the V5 residential YELLOW, n=32, is historical). Would improve with more device data.
+# MAGIC - **Static scoring:** `copper_risk_predictions` is a point-in-time V6 snapshot (2,672 rows, rescored 2026-11-09 17:28 UTC). Production deployment would need scheduled refresh via Lakeflow Jobs.
 # MAGIC
 # MAGIC ### Related Artifacts
 # MAGIC
 # MAGIC | Artifact | Location |
 # MAGIC |---|---|
-# MAGIC | Model Card | `copper-retirement/resources/ML_MODEL_CARD.md` |
+# MAGIC | Model Card | `copper-retirement/risk/MODEL_CARD.md` |
 # MAGIC | Production Readiness | `copper-retirement/resources/ML_PRODUCTION_READINESS.md` |
 # MAGIC | Monitoring Baseline | `copper-retirement/resources/monitoring_baseline.md` |
 # MAGIC | MLflow Experiment | `<project_root>/experiments/copper_risk_classifier` |

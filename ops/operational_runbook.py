@@ -846,7 +846,7 @@ except Exception as e:
 # DBTITLE 1,12.6 Model monitoring: fairness monitoring
 # ── Section 6: Fairness Monitoring ──
 print("=" * 70)
-print("SECTION 6: FAIRNESS MONITORING (V5)")
+print("SECTION 6: FAIRNESS MONITORING (@champion)")
 print("=" * 70)
 
 # Load fairness report
@@ -861,8 +861,11 @@ print(f"Total slices: {len(fairness_df)}")
 print(f"Dimensions: {fairness_df['dimension'].unique().tolist()}\n")
 
 # Global baseline
-global_auc = champion_run.data.metrics.get("test_auc_roc", 0.986)
-global_recall_critical = champion_run.data.metrics.get("recall_critical", 0.833)
+# ACC-ML-V6-DOC-SWEEP: v6 logs holdout_auc_ovr (v5 logged test_auc_roc). No hardcoded fallback:
+# the old 0.986 default was a withdrawn v5 number.
+_m = champion_run.data.metrics
+global_auc = _m.get("holdout_auc_ovr", _m.get("test_auc_roc", float("nan")))
+global_recall_critical = _m.get("recall_critical", float("nan"))  # nan = not logged on this run; see risk/MODEL_CARD.md s4
 
 print(f"Global baseline: AUC={global_auc:.4f}, Recall(critical)={global_recall_critical:.4f}\n")
 

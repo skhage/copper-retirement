@@ -104,6 +104,8 @@ Histogram bins for Population Stability Index calculation:
 
 ### 4c. Confidence by Device Type
 
+> Historical v5 snapshot (2026-09-16). v6 has been champion and served since 2026-11-09; re-baseline from `copper_risk_predictions` (model_version=6).
+
 | device_type  | avg_confidence | std_confidence | P05          | P50          | P95          |
 |-------------|----------------|----------------|--------------|--------------|---------------|
 | cpe          | 0.9920         | 0.0468         | 0.9864       | 1.0000       | 1.0000        |
@@ -208,8 +210,8 @@ These thresholds, combined with the baselines above, define the monitoring rules
 
 | Metric | Baseline Value | Yellow Alert | Red Alert |
 |--------|---------------|-------------|----------|
-| Overall AUC-ROC | 0.9860 | < 0.9500 | < 0.9000 |
-| Critical-tier recall | 0.9300 | < 0.7500 | < 0.6000 |
+| Overall AUC-ROC (v6 holdout, OvR) | 0.9850 | < 0.9500 | < 0.9000 |
+| Critical-tier recall (v6, per risk/MODEL_CARD.md) | 0.9180 | < 0.7500 | < 0.6000 |
 | Max confidence mean | 0.9920 | < 0.9500 | < 0.9000 |
 | Low-confidence (< 0.8) count per batch | 43/2672 (1.6%) | > 5% | > 10% |
 | Champion-challenger disagreement | 5.3% | > 10% | > 15% |

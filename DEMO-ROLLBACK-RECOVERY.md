@@ -187,8 +187,8 @@ print(f"{app_name} restarting")
 
 **Endpoint:** `copper-retirement-risk`  
 **Model:** `cdm_tmforum.ml_models.copper_retirement_risk`  
-**Champion:** V5 (LightGBM, AUC 0.986)  
-**Fallback:** V4
+**Champion:** V6 (LightGBM, holdout AUC-OvR 0.985, served since 2026-11-09)  
+**Fallback:** V5 (`@challenger`; scores 0.329 accuracy on current labels, so roll back only for endpoint outages, not for accuracy)
 
 ### 3.1 Endpoint NOT_READY (Scale-to-Zero Wake-up)
 

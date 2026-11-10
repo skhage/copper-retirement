@@ -14,9 +14,9 @@
 | **Endpoint name** | `copper-retirement-risk` |
 | **Endpoint ID** | `612701e183a8471f90849f5da2c8875f` |
 | **State** | READY (NOT_UPDATING) |
-| **Served entity** | `copper_retirement_risk-5` |
+| **Served entity** | `copper_retirement_risk-5` (legacy entity name; it serves model version 6, verified 2026-11-09) |
 | **Model** | `cdm_tmforum.ml_models.copper_retirement_risk` |
-| **Model version** | V5 (LightGBM GBDT, AUC 0.986, accuracy 0.895) |
+| **Model version** | V6 (LightGBM GBDT, `@champion`, served since 2026-11-09; holdout AUC-OvR 0.985, accuracy 0.899 on synthetic data). V5 = `@challenger` rollback |
 | **Workload size** | Small |
 | **Scale-to-zero** | Enabled |
 | **Inference logging** | On (table: `copper_retirement.risk_model_inference_payload`) |

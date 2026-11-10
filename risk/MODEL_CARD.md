@@ -6,7 +6,7 @@
 | --- | --- |
 | UC model | `cdm_tmforum.ml_models.copper_retirement_risk` (parameterize as `${catalog}.ml_models.copper_retirement_risk`) |
 | Aliases | `@champion` = v6 (LightGBM, 39 features, promoted 2026-10-26), `@challenger` = v5 (rollback only; chance-level on current labels) |
-| Serving endpoint | `copper-retirement-risk` (CPU Small, scale-to-zero). **As of 2026-10-26 the endpoint still pins v5 by version number (re-verified 2026-10-30: state READY / NOT_UPDATING, served entity `copper_retirement_risk` v5; aliases champion=6, challenger=5)**; switching the served entity to v6 needs a human (agent config updates are blocked by the safety gate). Batch scoring uses `@champion` = v6. |
+| Serving endpoint | `copper-retirement-risk` (CPU Small, scale-to-zero). **Serves v6 since 2026-11-09 (CEO switch, ACC-ML-RISK-RETRAIN-V6; re-verified by @ml-engineer 2026-11-09: state READY / NOT_UPDATING, served entity `cdm_tmforum.ml_models.copper_retirement_risk` v6; aliases champion=6, challenger=5).** `copper_risk_predictions` was rescored with v6 on 2026-11-09 17:28 UTC (2,672 rows, all model_version=6). Batch scoring uses `@champion` = v6. |
 | Inference table | `copper_retirement.risk_model_inference_payload` / unpacked view `risk_inference_unpacked` (99 rows, last request 2026-09-17). Endpoint `auto_capture_config` is not set, so live traffic is not captured. |
 | Training run | MLflow `09db5f470eed4d65be526bc8c4d9c63f` (run name `copper_risk_v6_lgbm_balanced_quartiles`), experiment 3064056660647801. Superseded v5 run: `0d308b43371249eeb017867da6acf327` |
 | Label | `risk_tier` = balanced quartiles (668 devices per tier) of `composite_risk_score` in `copper_risk_target`. The table was replaced on 2026-09-15 (Delta v23); earlier labels used fixed thresholds. |
@@ -139,10 +139,10 @@ These targets were carried over from the retired `resources/ML_MODEL_CARD.md`. T
 | v1-v2 | 2026-09-11 | Initial LightGBM; Optuna tuning |
 | v3 | 2026-09-12 | XGBoost challenger |
 | v4 | 2026-09-12 | Added complaint, dispute, usage and revenue features. Leaked the target (`composite_risk_score`). Withdrawn. |
-| v5 | 2026-09-13 | Added 11 firmware and 6 plant features; leakage fix. Trained on the pre-2026-09-15 threshold labels. Its published metrics are WITHDRAWN: it scores 0.329 accuracy / 0.693 AUC on current labels. Still the version served by the endpoint; now `@challenger`. |
+| v5 | 2026-09-13 | Added 11 firmware and 6 plant features; leakage fix. Trained on the pre-2026-09-15 threshold labels. Its published metrics are WITHDRAWN: it scores 0.329 accuracy / 0.693 AUC on current labels. Served by the endpoint until 2026-11-09; now `@challenger` (rollback only). |
 | **v6** | **2026-10-26** | **`@champion`. LightGBM on `copper_risk_features` with current balanced-quartile labels (Section 4).** |
 
 ## Consolidation note
 This file is the single model card for the risk model. `resources/model_card.md` (demo talking points) and `resources/ML_MODEL_CARD.md` (V5 production card) were merged here on 2026-10-30 (ACC-ML-MODEL-CARD-DEDUP) and reduced to pointer stubs. Both are on the H4 human-delete list. Their V5 metrics and fairness tables were computed on superseded labels and were intentionally not carried over.
 
-_Maintainer: @ml-engineer. Last updated 2026-10-30 (ACC-ML-MODEL-CARD-DEDUP). Previous update 2026-10-26 (ACC-ML-RISK-RETRAIN-V6 / COO-Q-20261026-0550-1)._
+_Maintainer: @ml-engineer. Last updated 2026-11-09 (ACC-ML-V6-DOC-SWEEP: endpoint + table now v6). Earlier update 2026-10-30 (ACC-ML-MODEL-CARD-DEDUP). Previous update 2026-10-26 (ACC-ML-RISK-RETRAIN-V6 / COO-Q-20261026-0550-1)._
